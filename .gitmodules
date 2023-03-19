@@ -1,0 +1,9 @@
+[submodule "mapp"]
+	path = mapp
+	url = https://github.com/MarcusMadland/mapp.git
+[submodule "mcore"]
+	path = mcore
+	url = https://github.com/MarcusMadland/mcore.git
+[submodule "mrender"]
+	path = mrender
+	url = https://github.com/MarcusMadland/mrender.git
