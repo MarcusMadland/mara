@@ -21,10 +21,10 @@ find_package(imgui.cmake REQUIRED CONFIG CMAKE_FIND_ROOT_PATH_BOTH)
 
 add_executable(${PROJECT_NAME})
 target_sources(${PROJECT_NAME} PRIVATE 
-    application/main.cpp 
-    application/src/imgui-bgfx/imgui_impl_bgfx.cpp
-    application/src/imgui-sdl/imgui_impl_sdl.cpp
-    application/include/file_ops.h)
+    source/main.cpp 
+    source/src/imgui-bgfx/imgui_impl_bgfx.cpp
+    source/src/imgui-sdl/imgui_impl_sdl.cpp
+    source/include/file_ops.h)
 target_include_directories(${PROJECT_NAME} PUBLIC application/include/)
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_11)
 target_link_libraries(
