@@ -1,22 +1,12 @@
+#include <SDL.h>
+#include <SDL_syswm.h>
+#include <iostream>
+
 #include "mapp/app.hpp"
 #include "application_layer.hpp"
 #include "mcore/file_ops.hpp"
 #include "mapp/window.hpp"
 #include "mapp/event.hpp"
-#include <SDL.h>
-#include <SDL_syswm.h>
-#include <iostream>
-
-
-class Application : public mapp::App
-{
-public:
-    Application(mapp::Window* window) 
-        : mapp::App(window)
-    {
-        pushLayer(new ApplicationLayer());
-    };
-};
 
 class WindowSDL : public mapp::Window
 {
@@ -25,18 +15,18 @@ public:
         : mapp::Window(name, width, height)
         , window(nullptr)
     {
-        if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-            printf("SDL could not initialize. SDL_Error: %s\n", SDL_GetError());
+        if (SDL_Init(SDL_INIT_VIDEO) < 0) 
+        {
+            //printf("SDL could not initialize. SDL_Error: %s\n", SDL_GetError()); @todo logger
             return;
         }
 
         window = SDL_CreateWindow(name, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 
-            width,
-            height, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+            width, height, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 
-        if (window == nullptr) {
-            printf(
-                "Window could not be created. SDL_Error: %s\n", SDL_GetError());
+        if (window == nullptr) 
+        {
+            //printf("Window could not be created. SDL_Error: %s\n", SDL_GetError()); @todo logger
             return;
         }
     }
@@ -61,14 +51,14 @@ public:
                     {
                         mapp::WindowResizeEvent event = mapp::WindowResizeEvent(
                             e.window.data1, e.window.data2);
-                        windowInfo.eventCallback(event);
+                        eventCallback(event);
                         break;
                     }
                         
                     case SDL_WINDOWEVENT_CLOSE: 
                     {
                         mapp::WindowCloseEvent event;
-                        windowInfo.eventCallback(event);
+                        eventCallback(event);
                         break;
                     }  
                 }
@@ -78,6 +68,15 @@ public:
 
 private:
     SDL_Window* window;
+};
+
+class Application : public mapp::App
+{
+public:
+    Application(mapp::Window* window) : mapp::App(window)
+    {
+        pushLayer(new ApplicationLayer());
+    };
 };
 
 int main(int argc, char** argv)
