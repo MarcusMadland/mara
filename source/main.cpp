@@ -7,6 +7,7 @@
 #include "mcore/file_ops.hpp"
 #include "mapp/window.hpp"
 #include "mapp/event.hpp"
+#include "mrender/testing.hpp"
 
 class WindowSDL : public mapp::Window
 {

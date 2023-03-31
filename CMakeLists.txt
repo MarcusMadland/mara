@@ -5,7 +5,6 @@ option(SUPERBUILD "Perform a superbuild (or not)" OFF)
 project(my-application LANGUAGES CXX)
 
 
-
 if (SUPERBUILD)
   if (EMSCRIPTEN)
     set(THIRD_PARTY_BUILD_DIR_NAME build-em)
@@ -13,6 +12,7 @@ if (SUPERBUILD)
     set(THIRD_PARTY_BUILD_DIR_NAME build)
   endif ()
   include(third-party/CMakeLists.txt)
+  include(mrender/third-party/CMakeLists.txt)
   include(superbuild.cmake)
   return()
 endif ()
@@ -41,7 +41,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 	mcore/include/ 
 	mrender/include/)
 
- if (true)
+if (true)
 foreach(source IN LISTS source_list)
     get_filename_component(source_path "${source}" PATH)
     string(REPLACE "/" "\\" source_path_msvc "${source_path}")
