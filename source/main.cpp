@@ -4,7 +4,6 @@
 
 #include "mapp/app.hpp"
 #include "application_layer.hpp"
-#include "mcore/file_ops.hpp"
 #include "mapp/window.hpp"
 #include "mapp/event.hpp"
 #include "mrender/testing.hpp"
@@ -27,7 +26,7 @@ public:
 
         if (window == nullptr) 
         {
-            //printf("Window could not be created. SDL_Error: %s\n", SDL_GetError()); @todo logger
+            printf("Window could not be created. SDL_Error: %s\n", SDL_GetError()); // @todo logger
             return;
         }
     }
@@ -65,6 +64,38 @@ public:
                 }
             }
         }
+    }
+
+    virtual void* getNativeWindow() override 
+    {
+#if !SDL_VIDEO_DRIVER_EMSCRIPTEN
+        SDL_SysWMinfo wmi;
+        SDL_VERSION(&wmi.version);
+        if (!SDL_GetWindowWMInfo(window, &wmi)) {
+            printf(
+                "SDL_SysWMinfo could not be retrieved. SDL_Error: %s\n",
+                SDL_GetError());
+            return nullptr;
+        }
+#endif
+
+#if SDL_VIDEO_DRIVER_WINDOWS
+        return wmi.info.win.window;
+#elif SDL_VIDEO_DRIVER_COCOA
+        return wmi.info.cocoa.window;
+#elif SDL_VIDEO_DRIVER_X11
+        return(void*)(uintptr_t) wmi.info.x11.window;
+#elif SDL_VIDEO_DRIVER_EMSCRIPTEN
+        return (void*)"#canvas";
+#endif 
+    }
+
+    virtual void* getNativeDisplay() override 
+    {
+    #if SDL_VIDEO_DRIVER_X11
+        return wmi.info.x11.display;
+    #endif
+        return nullptr;
     }
 
 private:
