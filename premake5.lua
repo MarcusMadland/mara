@@ -13,20 +13,17 @@ local APPLICATION_DIR = "source"
 -- Application Workspace
 workspace "application"
 	startproject "application"
-	configurations { "Release", "Debug" }
+	configurations { "Debug", "Release" }
 
-group "External"
---	project "imgui"
---	project "sdl"
+group "external"
+
 group ""
 
-group "Internal"
---	project "mapp"
---	project "mcore"
---	project "mrender"
+group "internal"
+	include(path.join(MAPP_DIR,    "premake.lua"))
+	include(path.join(MCORE_DIR,   "premake.lua"))
+	include(path.join(MRENDER_DIR, "premake.lua"))
 group ""
-
-outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 
 -- Application Project
 project "application"
@@ -35,8 +32,8 @@ project "application"
 	cppdialect "C++17"
 	location (APPLICATION_DIR)
 	
-	targetdir ("binaries/" .. outputdir .. "/%{prj.name}")
-    objdir ("intermediate/" .. outputdir .. "/%{prj.name}")
+	targetdir ("binaries/" .. "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}" .. "/%{prj.name}")
+    objdir ("intermediate/" .. "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}" .. "/%{prj.name}")
 	
 	files 
 	{
