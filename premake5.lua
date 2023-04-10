@@ -1,13 +1,10 @@
--- External third Party directories
-local IMGUI_DIR       = "3rd-party/imgui"
-local SDL_DIR         = "3rd-party/sdl"
-
 -- Internal third Party directories
 local MAPP_DIR        = "mapp"
 local MCORE_DIR       = "mcore"
 local MRENDER_DIR     = "mrender"
 
 -- Main directory
+local THIRDPARTY_DIR = "3rd-party"
 local APPLICATION_DIR = "source"
 
 -- Application Workspace
@@ -54,11 +51,12 @@ workspace "application"
 
 group "internal"
 	include(path.join(MAPP_DIR,    "premake.lua"))
-	project("mapp")
 	include(path.join(MCORE_DIR,   "premake.lua"))
-	project("mcore")
 	include(path.join(MRENDER_DIR, "premake.lua"))
-	project("mrender")
+group ""
+
+group "external"
+	--include(path.join(THIRDPARTY_DIR), "premake.lua")
 group ""
 
 -- Application Project
@@ -88,7 +86,7 @@ project "application"
 		path.join(MCORE_DIR,   "include"),
 		path.join(MRENDER_DIR, "include"),
 
-		path.join(SDL_DIR,   "include"),
-		path.join(IMGUI_DIR, "include"),
+		path.join(THIRDPARTY_DIR, "imgui/include"),
+		path.join(THIRDPARTY_DIR, "sdl/include"),
 	}
 	links { "mrender" } --, "sdl", "imgui"}

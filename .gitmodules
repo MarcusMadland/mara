@@ -7,3 +7,9 @@
 [submodule "mrender"]
 	path = mrender
 	url = https://github.com/MarcusMadland/mrender.git
+[submodule "third-party/imgui"]
+	path = 3rd-party/imgui
+	url = https://github.com/ocornut/imgui.git
+[submodule "third-party/sdl"]
+	path = 3rd-party/sdl
+	url = https://github.com/libsdl-org/SDL.git
