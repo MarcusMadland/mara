@@ -13,23 +13,61 @@ local APPLICATION_DIR = "source"
 -- Application Workspace
 workspace "application"
 	startproject "application"
-	configurations { "Debug", "Release" }
+	configurations { "Release", "Debug" }
 
-group "external"
+	if os.is64bit() and not os.istarget("windows") then
+		platforms "x86_64"
+	else
+		platforms { "x86", "x86_64" }
+	end
 
-group ""
+	-- temp
+	filter "configurations:Release"
+		defines
+		{
+			"NDEBUG",
+			"BX_CONFIG_DEBUG=0"
+		}
+		optimize "Full"
+		
+	filter "configurations:Debug*"
+		defines
+		{
+			"_DEBUG",
+			"BX_CONFIG_DEBUG=1"
+		}
+		optimize "Debug"
+		symbols "On"
+
+		-- 
+
+	filter "platforms:x86"
+		architecture "x86"
+	filter "platforms:x86_64"
+		architecture "x86_64"
+	filter "system:macosx"
+		xcodebuildsettings {
+			["MACOSX_DEPLOYMENT_TARGET"] = "10.9",
+			["ALWAYS_SEARCH_USER_PATHS"] = "YES", 
+		};
+
 
 group "internal"
 	include(path.join(MAPP_DIR,    "premake.lua"))
+	project("mapp")
 	include(path.join(MCORE_DIR,   "premake.lua"))
+	project("mcore")
 	include(path.join(MRENDER_DIR, "premake.lua"))
+	project("mrender")
 group ""
 
 -- Application Project
 project "application"
 	kind "ConsoleApp"
 	language "C++"
-	cppdialect "C++17"
+	cppdialect "C++14"
+	exceptionhandling "Off"
+	rtti "Off"
 	location (APPLICATION_DIR)
 	
 	targetdir ("binaries/" .. "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}" .. "/%{prj.name}")
@@ -44,6 +82,8 @@ project "application"
 	
 	includedirs
 	{
+		path.join(APPLICATION_DIR, "include"),
+
 		path.join(MAPP_DIR,    "include"),
 		path.join(MCORE_DIR,   "include"),
 		path.join(MRENDER_DIR, "include"),
@@ -51,4 +91,4 @@ project "application"
 		path.join(SDL_DIR,   "include"),
 		path.join(IMGUI_DIR, "include"),
 	}
-	--links { "mrender", "sdl", "imgui"}
+	links { "mrender" } --, "sdl", "imgui"}

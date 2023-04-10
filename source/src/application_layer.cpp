@@ -1,8 +1,5 @@
 #include "application_layer.hpp"
 
-#include <SDL.h> 
-#include <SDL_syswm.h> 
-
 #include "mapp/app.hpp"
 #include "mrender/testing.hpp"
 
