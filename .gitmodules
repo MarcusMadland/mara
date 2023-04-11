@@ -7,7 +7,3 @@
 [submodule "mrender"]
 	path = mrender
 	url = https://github.com/MarcusMadland/mrender.git
-
-[submodule "3rd-party/sdl"]
-	path = 3rd-party/sdl
-	url = https://github.com/libsdl-org/SDL.git

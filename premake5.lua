@@ -97,6 +97,6 @@ project "application"
 	"mrender", 
 	"bgfx", 
 	"bimg", 
-	"bx" } 
-	--"sdl", 
-	--"imgui"}
+	"bx",
+	--"imgui"
+	}
