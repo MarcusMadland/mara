@@ -56,7 +56,7 @@ group "internal"
 group ""
 
 group "external"
-	include("3rd-party/premake.lua")
+	--include("3rd-party/premake.lua")
 group ""
 
 -- Application Project
@@ -89,4 +89,4 @@ project "application"
 		path.join(THIRDPARTY_DIR, "imgui/include"),
 		path.join(THIRDPARTY_DIR, "sdl/include"),
 	}
-	links { "mrender" } --, "sdl", "imgui"}
+	--links { "mrender" } --, "sdl", "imgui"}

@@ -5,20 +5,17 @@
 
 void ApplicationLayer::onInit()
 {
-    mapp::Window* window = mapp::App::getInstance().getWindow();
 
-    void* nativeWindow = window->getNativeWindow();
-    void* nativeDisplay = window->getNativeWindow();
 
-    Backend::init(window->getWidth(), window->getHeight(), nativeWindow, nativeDisplay);
+   // Backend::init(window->getWidth(), window->getHeight(), nativeWindow, nativeDisplay);
 }
 
 void ApplicationLayer::onShutdown()
 {
-    Backend::shutdown();
+   // Backend::shutdown();
 }
 
 void ApplicationLayer::onUpdate(const float& dt)
 {
-    Backend::render();
+   // Backend::render();
 }
