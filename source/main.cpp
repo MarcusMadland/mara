@@ -4,6 +4,8 @@
 #include "mapp/window.hpp"
 #include "mapp/layer.hpp"
 
+#include "mapp/platform-win/window_win.hpp"
+
 #include <iostream>
 
 class Application : public mapp::App
@@ -19,7 +21,9 @@ int main(int argc, char** argv)
 {
     std::cout << "Main called." << std::endl;
 
-    Application* app = new Application(nullptr);
+    mapp::WindowWin* windowsWindow = new mapp::WindowWin("My App", 1280, 720);
+
+    Application* app = new Application(windowsWindow);
     app->run();
 
     return 0;
