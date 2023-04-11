@@ -89,4 +89,14 @@ project "application"
 		path.join(THIRDPARTY_DIR, "imgui/include"),
 		path.join(THIRDPARTY_DIR, "sdl/include"),
 	}
-	--links { "mrender" } --, "sdl", "imgui"}
+
+	links
+	{ 
+	"mapp", 
+	--"mcore", 
+	"mrender", 
+	"bgfx", 
+	"bimg", 
+	"bx" } 
+	--"sdl", 
+	--"imgui"}
