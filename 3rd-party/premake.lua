@@ -46,4 +46,3 @@ project "sdl"
 	objdir ("../intermediate/" .. "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}" .. "/%{prj.name}")
 
 	include("sdl/premake/premake4.lua")
-	

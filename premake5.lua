@@ -56,7 +56,7 @@ group "internal"
 group ""
 
 group "external"
-	--include(path.join(THIRDPARTY_DIR), "premake.lua")
+	include("3rd-party/premake.lua")
 group ""
 
 -- Application Project
