@@ -2,12 +2,6 @@
 
 #include "mapp/app.hpp"
 #include "mapp/window.hpp"
-#include "mapp/layer.hpp"
-
-//#include "mapp/platform-win/window_win.hpp"
-#include "mapp/platform-mac/window_mac.hpp"
-
-#include <iostream>
 
 class Application : public mapp::App
 {
@@ -20,13 +14,19 @@ public:
 
 int main(int argc, char** argv)
 {
-    std::cout << "Main called." << std::endl;
+    // Create window
+    mapp::WindowParams windowParams;
+    windowParams.title = "My App";
+    windowParams.width = 720;
+    windowParams.height = 720;
+    mapp::Window* window = mapp::Window::create(windowParams);
 
-    //mapp::WindowWin* window = new mapp::WindowWin("My App", 1280, 720);
-    mapp::WindowMac* window = new mapp::WindowMac("My App", 1280, 720);
-
+    // Create app
     Application* app = new Application(window);
     app->run();
 
+    // End
+    delete app;
+    delete window;
     return 0;
 }
