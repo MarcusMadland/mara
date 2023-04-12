@@ -99,4 +99,5 @@ project "application"
 	"bimg", 
 	"bx",
 	--"imgui"
+	"Cocoa.framework"
 	}
