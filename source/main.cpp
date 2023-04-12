@@ -19,7 +19,7 @@ int main(int argc, char** argv)
     windowParams.title = "My App";
     windowParams.width = 720;
     windowParams.height = 720;
-    windowParams.canResize = false;
+    windowParams.canResize = true;
     mapp::Window* window = mapp::Window::create(windowParams);
 
     // Create app
