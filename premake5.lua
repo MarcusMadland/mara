@@ -55,10 +55,6 @@ group "internal"
 	include(path.join(MRENDER_DIR, "premake.lua"))
 group ""
 
-group "external"
-	--include("3rd-party/premake.lua")
-group ""
-
 -- Application Project
 project "application"
 	kind "ConsoleApp"
@@ -90,14 +86,16 @@ project "application"
 		path.join(THIRDPARTY_DIR, "sdl/include"),
 	}
 
+	-- temp
 	links
 	{ 
 	"mapp", 
-	--"mcore", 
 	"mrender", 
 	"bgfx", 
 	"bimg", 
 	"bx",
-	--"imgui"
-	"Cocoa.framework"
 	}
+
+	filter "system:macosx"
+		links { "Cocoa.framework" }
+	--
