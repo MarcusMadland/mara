@@ -17,17 +17,14 @@ int main(int argc, char** argv)
     // Create window
     mapp::WindowParams windowParams;
     windowParams.title = "My App";
-    windowParams.width = 720;
+    windowParams.width = 1280;
     windowParams.height = 720;
-    windowParams.canResize = true;
     mapp::Window* window = mapp::Window::create(windowParams);
+    //window->setFullscreen(true);
 
     // Create app
     Application* app = new Application(window);
     app->run();
 
-    // End
-    delete app;
-    delete window;
     return 0;
 }

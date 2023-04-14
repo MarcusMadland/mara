@@ -96,6 +96,11 @@ project "application"
 	"bx",
 	}
 
+	defines { "MAPP_CUSTOM_PLATFORM_DETECTION"}
+
+	filter "system:windows"
+		defines { "MAPP_PLATFORM_WIN32" }
 	filter "system:macosx"
+		defines { "MAPP_PLATFORM_COCOA" }
 		links { "Cocoa.framework" }
 	--
