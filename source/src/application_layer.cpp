@@ -8,22 +8,33 @@
 void ApplicationLayer::onInit()
 {
 	std::cout << "Application layer called." << std::endl;
-   // Backend::init(window->getWidth(), window->getHeight(), nativeWindow, nativeDisplay);
+	mapp::Window* window = mapp::App::getInstance().getWindow();
+	Backend::init(window->getParams().width, window->getParams().height, window->getNativeWindow(), window->getNativeDisplay());
 }
 
 void ApplicationLayer::onShutdown()
 {
-   //Backend::shutdown();
+   Backend::shutdown();
 }
 
 void ApplicationLayer::onUpdate(const float& dt)
 {
-   //Backend::render();
+   Backend::render();
 }
 
 void ApplicationLayer::onEvent(mapp::Event& event)
 {
 	mapp::EventDispatcher dispatcher = mapp::EventDispatcher(event);
+
+	dispatcher.dispatch<mapp::WindowResizeEvent>(
+		[&](const mapp::WindowResizeEvent& e)
+		{
+			std::cout << "Resized screen: x: " << e.getWidth() << " y: " << e.getHeight() << std::endl;
+
+			Backend::resize(e.getWidth(), e.getHeight());
+
+			return 0;
+		});
 
 	dispatcher.dispatch<mapp::KeyPressedEvent>(
 		[&](const mapp::KeyPressedEvent& e)
@@ -31,7 +42,7 @@ void ApplicationLayer::onEvent(mapp::Event& event)
 			std::cout << "Pressed key: " << e.getKeyCode() << std::endl;
 
 			// If you press ESCAPE we shut down the application and close the window
-			if (e.getKeyCode() == MAPP_KEY_HOME)
+			if (e.getKeyCode() == MAPP_KEY_ESCAPE)
 			{
 				mapp::App::getInstance().shutdown();
 			}
