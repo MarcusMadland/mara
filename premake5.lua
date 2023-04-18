@@ -102,5 +102,8 @@ project "application"
 		defines { "MAPP_PLATFORM_WIN32" }
 	filter "system:macosx"
 		defines { "MAPP_PLATFORM_COCOA" }
-		links { "Cocoa.framework" }
+		links { "Cocoa.framework",
+   "QuartzCore.framework", "Metal.framework", 
+-- "IOKit.framework", "CoreVideo.framework" 
+}
 	--
