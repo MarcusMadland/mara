@@ -100,6 +100,7 @@ project "application"
 
 	filter "system:windows"
 		defines { "MAPP_PLATFORM_WIN32" }
+		links { "Xinput9_1_0" }
 	filter "system:macosx"
 		defines { "MAPP_PLATFORM_COCOA" }
 		links { "Cocoa.framework",
