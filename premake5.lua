@@ -86,25 +86,22 @@ project "application"
 		path.join(THIRDPARTY_DIR, "sdl/include"),
 	}
 
-	-- temp
 	links
 	{ 
 	"mapp", 
 	"mrender", 
-	"bgfx", 
-	"bimg", 
-	"bx",
+	"bgfx", -- temp
+	"bimg", -- temp
+	"bx",-- temp
 	}
 
-	defines { "MAPP_CUSTOM_PLATFORM_DETECTION"}
+	-- MAPP Optional Requirements
+	--defines { "MAPP_CUSTOM_PLATFORM_DETECTION"}
 
-	filter "system:windows"
-		defines { "MAPP_PLATFORM_WIN32" }
-		links { "Xinput9_1_0" }
-	filter "system:macosx"
-		defines { "MAPP_PLATFORM_COCOA" }
-		links { "Cocoa.framework",
-   "QuartzCore.framework", "Metal.framework", 
--- "IOKit.framework", "CoreVideo.framework" 
-}
-	--
+	--filter "system:windows"
+	--	defines { "MAPP_PLATFORM_WIN32" }
+	--filter "system:macosx"
+	--	defines { "MAPP_PLATFORM_COCOA" }
+
+	-- MCORE Optional Requirements
+	-- MRENDER Optional Requirements
