@@ -17,7 +17,6 @@ int main(int argc, char** argv)
     // Create window
     mapp::WindowParams windowParams;
     windowParams.title = "My App";
-    //windowParams.iconPath = "app_icon.ico"; // @todo
     windowParams.width = 480;
     windowParams.height = 720;
     //windowParams.canResize = false;
