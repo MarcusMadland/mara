@@ -1,2 +1,2 @@
 
-tools/premake5 xcode4
+tools/premake5 --os=macosx xcode4 

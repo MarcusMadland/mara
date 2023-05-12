@@ -3,6 +3,10 @@
 #include "mapp/app.hpp"
 #include "mapp/window.hpp"
 
+#if !defined(TEST_LINKING)
+#error "Cant find define"
+#endif
+
 class Application : public mapp::App
 {
 public:
