@@ -2,6 +2,7 @@
 
 #include "mapp/app.hpp"
 #include "mapp/input.hpp"
+#include "mapp/window.hpp"
 #include "mrender/testing.hpp"
 
 #include <iostream>
@@ -60,6 +61,13 @@ void ApplicationLayer::onEvent(mapp::Event& event)
 			if (e.getKeyCode() == MAPP_KEY_ESCAPE)
 			{
 				mapp::App::getInstance().shutdown();
+			}
+
+			// If you press F11 we set the window to fullscreen if windowed and vice versa
+			if (e.getKeyCode() == MAPP_KEY_F11)
+			{
+				const bool isFullscreen = mapp::App::getInstance().getWindow()->getIsFullscreen();
+				mapp::App::getInstance().getWindow()->setFullscreen(!isFullscreen);
 			}
 
 			return false;

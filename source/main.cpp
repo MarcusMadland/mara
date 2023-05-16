@@ -3,10 +3,6 @@
 #include "mapp/app.hpp"
 #include "mapp/window.hpp"
 
-#if !defined(TEST_LINKING)
-#error "Cant find define"
-#endif
-
 class Application : public mapp::App
 {
 public:
@@ -27,7 +23,7 @@ int main(int argc, char** argv)
     //windowParams.canClose = false;
     //windowParams.showBorder = false;
     mapp::Window* window = mapp::Window::create(windowParams);
-    
+
     // Create app
     Application* app = new Application(window);
     app->run();
