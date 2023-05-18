@@ -18,7 +18,20 @@ workspace "workspace"
 		"Debug" 
 	}
 
-	-- temp
+	-- temp --------------------------------
+	filter "system:macosx"
+		links
+		{
+			"Cocoa.framework", 
+			"QuartzCore.framework", 
+			"Metal.framework", 
+		}
+		xcodebuildsettings 
+		{
+			["MACOSX_DEPLOYMENT_TARGET"] = "10.9",
+			["ALWAYS_SEARCH_USER_PATHS"] = "YES", 
+		}
+
 	filter "configurations:Release"
 		defines
 		{
@@ -35,8 +48,7 @@ workspace "workspace"
 		}
 		optimize "Debug"
 		symbols "On"
-
-	-- 
+	----------------------------------------
 
 group "internal"
 	include(path.join(MAPP_DIR,    "premake.lua"))
@@ -44,18 +56,16 @@ group "internal"
 	include(path.join(MRENDER_DIR, "premake.lua"))
 group ""
 
-printf("Completed workspace")
-
 -- Application Project
 project "application"
 	kind "ConsoleApp"
 	language "C++"
-	cppdialect "C++17" --was14
+	cppdialect "C++17" 
 	staticruntime "off"
-	--location (APPLICATION_DIR)
+	location (APPLICATION_DIR)
 	
 	targetdir ("binaries/" .. "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}" .. "/%{prj.name}")
-    objdir ("intermediate/" .. "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}" .. "/%{prj.name}")
+    	objdir ("intermediate/" .. "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}" .. "/%{prj.name}")
 
 	files 
 	{
@@ -76,10 +86,6 @@ project "application"
 	links
 	{ 
 		"mapp", 
-		"mrender", 
-		"bgfx", -- temp
-		"bimg", -- temp
-		"bx",	-- temp
+		--"mcore",
+		"mrender",
 	}
-
-	printf("Completed application")
