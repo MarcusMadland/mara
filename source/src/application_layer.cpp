@@ -7,11 +7,13 @@
 
 #include <iostream>
 
-void ApplicationLayer::onInit()
+void ApplicationLayer::onInit(mapp::AppContext& context)
 {
+	this->context = &context;
+
 	// Init backend renderer
-	mapp::Window* window = mapp::App::getInstance().getWindow();
-	Backend::init(window->getParams().width, window->getParams().height, window->getNativeWindow(), window->getNativeDisplay());
+	mapp::Window* window = context.getWindow();
+	Backend::init(window->getParams().mWidth, window->getParams().mHeight, window->getNativeWindow(), window->getNativeDisplay());
 }
 
 void ApplicationLayer::onShutdown()
@@ -60,14 +62,14 @@ void ApplicationLayer::onEvent(mapp::Event& event)
 			// If you press ESCAPE we shut down the application and close the window
 			if (e.getKeyCode() == MAPP_KEY_ESCAPE)
 			{
-				mapp::App::getInstance().shutdown();
+				context->getApp()->shutdown();
 			}
 
 			// If you press F11 we set the window to fullscreen if windowed and vice versa
 			if (e.getKeyCode() == MAPP_KEY_F11)
 			{
-				const bool isFullscreen = mapp::App::getInstance().getWindow()->getIsFullscreen();
-				mapp::App::getInstance().getWindow()->setFullscreen(!isFullscreen);
+				const bool isFullscreen = context->getWindow()->getIsFullscreen();
+				context->getWindow()->setFullscreen(!isFullscreen);
 			}
 
 			return false;
@@ -93,7 +95,7 @@ void ApplicationLayer::onEvent(mapp::Event& event)
 	dispatcher.dispatch<mapp::MouseButtonPressedEvent>(
 		[&](const mapp::MouseButtonPressedEvent& e)
 		{
-			std::cout << "[Mouse] Pressed: " << e.getMouseButton() << std::endl;
+			std::cout << "[Mouse] Pressed: " << e.getKeyCode() << std::endl;
 
 			return false;
 		});
@@ -101,7 +103,7 @@ void ApplicationLayer::onEvent(mapp::Event& event)
 	dispatcher.dispatch<mapp::MouseButtonReleasedEvent>(
 		[&](const mapp::MouseButtonReleasedEvent& e)
 		{
-			std::cout << "[Mouse] Released: " << e.getMouseButton() << std::endl;
+			std::cout << "[Mouse] Released: " << e.getKeyCode() << std::endl;
 
 			return false;
 		});

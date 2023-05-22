@@ -3,30 +3,27 @@
 #include "mapp/app.hpp"
 #include "mapp/window.hpp"
 
-class Application : public mapp::App
-{
-public:
-    Application(mapp::Window* window) : mapp::App(window)
-    {
-        pushLayer(new ApplicationLayer());
-    }
-};
-
 int main(int argc, char** argv)
 {
-    // Create window
+    // Create and initialize the Window
     mapp::WindowParams windowParams;
-    windowParams.title = "My App";
-    windowParams.width = 480;
-    windowParams.height = 720;
-    //windowParams.canResize = false;
-    //windowParams.canClose = false;
-    //windowParams.showBorder = false;
+    windowParams.mTitle = "My App";
+    windowParams.mWidth = 720;
+    windowParams.mHeight = 480;
     mapp::Window* window = mapp::Window::create(windowParams);
 
-    // Create app
-    Application* app = new Application(window);
+    // Create the application
+    mapp::App* app = new mapp::App(window);
+
+    // Push all layers
+    app->pushLayer(new ApplicationLayer());
+
+    // Run the application
     app->run();
+
+    // Clean up and shutdown
+    delete app;
+    delete window;
 
     return 0;
 }
