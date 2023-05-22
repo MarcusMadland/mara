@@ -1,7 +1,7 @@
-#include "application_layer.hpp"
-
 #include "mapp/app.hpp"
 #include "mapp/window.hpp"
+#include "layers/application_layer.hpp"
+#include "layers/rendering_layer.hpp"
 
 int main(int argc, char** argv)
 {
@@ -17,6 +17,7 @@ int main(int argc, char** argv)
 
     // Push all layers
     app->pushLayer(new ApplicationLayer());
+    app->pushLayer(new RenderingLayer());
 
     // Run the application
     app->run();

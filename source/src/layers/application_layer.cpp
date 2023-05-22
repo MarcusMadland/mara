@@ -1,31 +1,14 @@
-#include "application_layer.hpp"
+#include "layers/application_layer.hpp"
 
 #include "mapp/app.hpp"
 #include "mapp/input.hpp"
 #include "mapp/window.hpp"
-#include "mrender/testing.hpp"
 
 #include <iostream>
 
 void ApplicationLayer::onInit(mapp::AppContext& context)
 {
-	this->context = &context;
-
-	// Init backend renderer
-	mapp::Window* window = context.getWindow();
-	Backend::init(window->getParams().mWidth, window->getParams().mHeight, window->getNativeWindow(), window->getNativeDisplay());
-}
-
-void ApplicationLayer::onShutdown()
-{
-	// Shutdown backend renderer
-    Backend::shutdown();
-}
-
-void ApplicationLayer::onUpdate(const float& dt)
-{
-	// Render the backend renderer
-    Backend::render();
+	mContext = &context;
 }
 
 void ApplicationLayer::onEvent(mapp::Event& event)
@@ -41,18 +24,6 @@ void ApplicationLayer::onEvent(mapp::Event& event)
 			return 0;
 		});
 
-	dispatcher.dispatch<mapp::WindowResizeEvent>(
-		[&](const mapp::WindowResizeEvent& e)
-		{
-			std::cout << "[Window] Resize: x: " << e.getWidth() << " y: " << e.getHeight() << std::endl;
-
-			Backend::resize(e.getWidth(), e.getHeight());
-
-			return 0;
-		});
-
-	
-
 	// KEYBOARD
 	dispatcher.dispatch<mapp::KeyPressedEvent>(
 		[&](const mapp::KeyPressedEvent& e)
@@ -62,14 +33,14 @@ void ApplicationLayer::onEvent(mapp::Event& event)
 			// If you press ESCAPE we shut down the application and close the window
 			if (e.getKeyCode() == MAPP_KEY_ESCAPE)
 			{
-				context->getApp()->shutdown();
+				mContext->getApp()->shutdown();
 			}
 
 			// If you press F11 we set the window to fullscreen if windowed and vice versa
 			if (e.getKeyCode() == MAPP_KEY_F11)
 			{
-				const bool isFullscreen = context->getWindow()->getIsFullscreen();
-				context->getWindow()->setFullscreen(!isFullscreen);
+				const bool isFullscreen = mContext->getWindow()->getIsFullscreen();
+				mContext->getWindow()->setFullscreen(!isFullscreen);
 			}
 
 			return false;
