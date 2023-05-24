@@ -60,7 +60,7 @@ group ""
 project "application"
 	kind "ConsoleApp"
 	language "C++"
-	cppdialect "C++17" 
+	cppdialect "C++20"
 	staticruntime "off"
 	location (APPLICATION_DIR)
 	

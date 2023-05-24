@@ -1,7 +1,7 @@
 #include "mapp/layer.hpp"
 
 #include "mrender/renderers/renderer.hpp"
-#include "mrender/renderers/techniques/testing.hpp"
+#include "mrender/renderers/gi/gi.hpp"
 
 class RenderingLayer : public mapp::Layer
 {
@@ -14,5 +14,6 @@ public:
 private:
     mapp::AppContext* mContext;
     mrender::RenderContext mRenderContext;
-    mrender::TestingTechnique mTechnique;
+    std::unique_ptr<Capsaicin::Renderer> mRenderer;
+    std::vector<std::unique_ptr<Capsaicin::RenderTechnique>> mTechniques;
 };

@@ -1,19 +1,36 @@
 #include "layers/rendering_layer.hpp"
-
 #include "mapp/app.hpp"
+
+#include <iostream>
 
 void RenderingLayer::onInit(mapp::AppContext& context)
 {
 	mContext = &context;
 
 	mrender::RenderSettings renderSettings;
+	renderSettings.mRendererName = "GI-1.0";
 	renderSettings.mNativeDisplay = mContext->getWindow()->getNativeDisplay();
 	renderSettings.mNativeWindow = mContext->getWindow()->getNativeWindow();
 	renderSettings.mResolutionWidth = mContext->getWindow()->getParams().mWidth;
 	renderSettings.mResolutionHeight = mContext->getWindow()->getParams().mHeight;
 	
 	mRenderContext.initialize(renderSettings);
-	mTechnique.initialize(mRenderContext);
+
+	mRenderer = Capsaicin::Renderer::make(renderSettings.mRendererName);
+	if (mRenderer)
+	{
+		mTechniques = std::move(mRenderer->setupRenderTechniques(mRenderContext));
+
+		for (auto& technique : mTechniques)
+		{
+			technique->init(mRenderContext);
+		}
+	}
+	else
+	{
+		std::cout << "Unknown renderer passed in to rendersettings" << std::endl;
+	}
+	
 }
 
 void RenderingLayer::onShutdown()
@@ -36,5 +53,8 @@ void RenderingLayer::onEvent(mapp::Event& event)
 
 void RenderingLayer::onUpdate(const float& dt)
 {
-	mTechnique.render();
+	for (auto& technique : mTechniques)
+	{
+		technique->render(mRenderContext);
+	}
 }
