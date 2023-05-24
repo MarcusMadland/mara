@@ -8,7 +8,7 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 	mContext = &context;
 
 	mrender::RenderSettings renderSettings;
-	renderSettings.mRendererName = "GI-1.0";
+	renderSettings.mRendererName = "MyRenderer";
 	renderSettings.mNativeDisplay = mContext->getWindow()->getNativeDisplay();
 	renderSettings.mNativeWindow = mContext->getWindow()->getNativeWindow();
 	renderSettings.mResolutionWidth = mContext->getWindow()->getParams().mWidth;
@@ -16,10 +16,10 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 	
 	mRenderContext.initialize(renderSettings);
 
-	mRenderer = Capsaicin::Renderer::make(renderSettings.mRendererName);
+	mRenderer = mrender::Renderer::make(renderSettings.mRendererName);
 	if (mRenderer)
 	{
-		mTechniques = std::move(mRenderer->setupRenderTechniques(mRenderContext));
+		mTechniques = std::move(mRenderer->setupRenderSystems(mRenderContext));
 
 		for (auto& technique : mTechniques)
 		{

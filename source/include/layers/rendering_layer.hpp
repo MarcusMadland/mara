@@ -14,6 +14,6 @@ public:
 private:
     mapp::AppContext* mContext;
     mrender::RenderContext mRenderContext;
-    std::unique_ptr<Capsaicin::Renderer> mRenderer;
-    std::vector<std::unique_ptr<Capsaicin::RenderTechnique>> mTechniques;
+    std::unique_ptr<mrender::Renderer> mRenderer;
+    std::vector<std::unique_ptr<mrender::RenderSystem>> mTechniques;
 };
