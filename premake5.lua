@@ -4,7 +4,7 @@ local MCORE_DIR       = "mcore"
 local MRENDER_DIR     = "mrender"
 
 -- Main directory
-local THIRDPARTY_DIR = "3rd-party"
+local THIRDPARTY_DIR = "third-party"
 local APPLICATION_DIR = "source"
 
 -- Application Workspace
@@ -56,6 +56,11 @@ group "internal"
 	include(path.join(MRENDER_DIR, "premake.lua"))
 group ""
 
+group "external"
+	outputdir = "binaries/" .. "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}" .. "/%{prj.name}"
+	include(path.join(THIRDPARTY_DIR, "imgui/premake5.lua"))
+group ""
+
 -- Application Project
 project "application"
 	kind "ConsoleApp"
@@ -65,7 +70,7 @@ project "application"
 	location (APPLICATION_DIR)
 	
 	targetdir ("binaries/" .. "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}" .. "/%{prj.name}")
-    	objdir ("intermediate/" .. "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}" .. "/%{prj.name}")
+    objdir ("intermediate/" .. "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}" .. "/%{prj.name}")
 
 	files 
 	{
@@ -81,6 +86,8 @@ project "application"
 		path.join(MAPP_DIR,    "include"),
 		path.join(MCORE_DIR,   "include"),
 		path.join(MRENDER_DIR, "include"),
+
+		path.join(THIRDPARTY_DIR, "imgui"),
 	}
 
 	links
@@ -88,4 +95,5 @@ project "application"
 		"mapp", 
 		--"mcore",
 		"mrender",
+		"imgui",
 	}

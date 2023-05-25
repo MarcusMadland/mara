@@ -7,9 +7,9 @@ int main(int argc, char** argv)
 {
     // Create and initialize the Window
     mapp::WindowParams windowParams;
-    windowParams.mTitle = "My App";
-    windowParams.mWidth = 720;
-    windowParams.mHeight = 480;
+    windowParams.mTitle = "My Application";
+    windowParams.mWidth = 1280;
+    windowParams.mHeight = 720;
     mapp::Window* window = mapp::Window::create(windowParams);
 
     // Create the application
