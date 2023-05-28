@@ -1,6 +1,5 @@
 #include "mapp/layer.hpp"
-#include "mrender/handler/render_context.hpp"
-#include "mrender/renderers/renderer.hpp"
+#include "mrender/mrender.hpp"
 
 class RenderingLayer : public mapp::Layer
 {
@@ -20,8 +19,7 @@ private:
 
 private:
     mapp::AppContext* mAppContext;
-    mrender::RenderContext mRenderContext;
-    mrender::RenderSettings mRenderSettings;
+    std::unique_ptr<mrender::RenderContext> mRenderContext;
 
     bool mDrawDebugText = false;
 };
