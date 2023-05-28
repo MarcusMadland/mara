@@ -8,98 +8,102 @@
 
 void RenderingLayer::onInit(mapp::AppContext& context)
 {
-	mContext = &context;
+	mAppContext = &context;
 
 	// MRENDER
-	mrender::RenderSettings renderSettings;
-	renderSettings.mRendererName = "MyRenderer";
-	renderSettings.mNativeDisplay = mContext->getWindow()->getNativeDisplay();
-	renderSettings.mNativeWindow = mContext->getWindow()->getNativeWindow();
-	renderSettings.mResolutionWidth = mContext->getWindow()->getParams().mWidth;
-	renderSettings.mResolutionHeight = mContext->getWindow()->getParams().mHeight;
-	
-	mRenderContext.initialize(renderSettings);
+	mRenderSettings.mRendererName = "MyRenderer";
+	mRenderSettings.mNativeDisplay = mAppContext->getWindow()->getNativeDisplay();
+	mRenderSettings.mNativeWindow = mAppContext->getWindow()->getNativeWindow();
+	mRenderSettings.mResolutionWidth = mAppContext->getWindow()->getParams().mWidth;
+	mRenderSettings.mResolutionHeight = mAppContext->getWindow()->getParams().mHeight;
+	mRenderSettings.mVSync = true;
+	mRenderContext.initialize(mRenderSettings);
 
-	mRenderer = mrender::Renderer::make(renderSettings.mRendererName);
-	if (mRenderer)
-	{
-		mRenderSystems = std::move(mRenderer->setupRenderSystems(mRenderContext));
-
-		std::cout << "Enabled these render systems:" << std::endl;
-		for (auto& renderSystem : mRenderSystems)
-		{
-			std::cout << "noname" << std::endl;
-			renderSystem->init(mRenderContext);
-		}
-	}
-	
-	// IMGUI
-	IMGUI_CHECKVERSION();
-	ImGui::CreateContext();
-	ImGuiIO& io = ImGui::GetIO();
-	
-	ImGui_ImplMapp_Init(mContext->getWindow()->getNativeWindow());
-	ImGui_Implbgfx_Init(255);
+	imguiImplInit();
 }
 
 void RenderingLayer::onShutdown()
 {
-	// MRENDER
 	mRenderContext.cleanup();
 
-	// IMGUI
-	ImGui_Implbgfx_Shutdown();
-	ImGui_ImplMapp_Shutdown();
-	ImGui::DestroyContext();
+	imguiImplShutdown();
 }
 
 void RenderingLayer::onEvent(mapp::Event& event)
 {
-	ImGui_ImplMapp_ProcessEvent(event, mContext->getWindow());
+	ImGui_ImplMApp_ProcessEvent(event, mAppContext->getWindow());
 
 	mapp::EventDispatcher dispatcher = mapp::EventDispatcher(event);
 
 	dispatcher.dispatch<mapp::WindowResizeEvent>(
 		[&](const mapp::WindowResizeEvent& e)
 		{
-			mRenderContext.reset(0, e.getWidth(), e.getHeight());
+			mRenderSettings.mResolutionWidth = e.getWidth();
+			mRenderSettings.mResolutionHeight = e.getHeight();
 
 			return 0;
 		});
 }
 
-void RenderingLayer::onUpdate(const float& dt)
-{
-	// IMGUI
-	ImGui_Implbgfx_NewFrame();
-	ImGui_ImplMapp_NewFrame();
-	ImGui::NewFrame();
-}
 
-void RenderingLayer::onRender(const float& dt)
+void RenderingLayer::onRender()
 {
-	// MRENDER
-	for (auto& renderSystem : mRenderSystems)
-	{
-		renderSystem->render(mRenderContext);
-	}
+	// Render
+	mRenderContext.render(mRenderSettings);
 
 	// IMGUI TEST
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
-	if (ImGui::Begin("Rendering Framework | mrender"))
+	imguiImplBegin();
+	renderUserInterface();
+	imguiImplEnd();
+
+	// Debug text (application performance)
 	{
-		ImGui::Text("Some text about the renderer");
+		uint16_t y = 2;
+		uint16_t x = 45;
+		const float deltaTime = mAppContext->getApp()->getDeltaTime();
+		static uint32_t counter = 0; counter++;
+		static float fps = 0;
+		static float ms = 0;
+		if (!(counter % 10))
+		{
+			fps = 1 / deltaTime;
+			ms = 1000 * deltaTime;
+		}
+
+		if (mDrawDebugText)
+		{
+			mRenderContext.submitDebugTextOnScreen(x, y, "cpu(application):  %.2f ms [26.05 ms]", ms);
+			mRenderContext.submitDebugTextOnScreen(x, y + 1, "cpu(mrender):      %.2f ms [16.12 ms]", 0);
+			mRenderContext.submitDebugTextOnScreen(x, y + 2, "gpu:               %.2f ms [24.93 ms]", 0);
+			mRenderContext.submitDebugTextOnScreen(x, y + 3, "framerate:         %.2f fps", fps);
+			mRenderContext.submitDebugTextOnScreen(x, y + 4, "textures:          %.2f / 1454 MiB", 0);
+		}
+	}
+
+	// Swap buffers
+	mRenderContext.frame();
+}
+
+void RenderingLayer::renderUserInterface()
+{
+	ImGui::SetNextWindowPos(ImVec2(10, 10));
+
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
+	if (ImGui::Begin(" MRender | Rendering Framework", (bool*)0, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings))
+	{
+		ImGui::Text("A 3D Rendering framework with support\nfor PBR and GI");
+		ImGui::Checkbox("Draw Debug Text", &mDrawDebugText);
 		ImGui::Separator();
 
 		if (ImGui::CollapsingHeader("Render Settings", ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			std::vector<std::string_view> allRenderers = mRenderer->getNames();
-			static const char* currentItem = mRenderContext.getSettings().mRendererName.data();
+			std::vector<std::string_view> allRenderers = mRenderContext.getRenderer()->getNames();
+			static const char* currentItem = mRenderSettings.mRendererName.data();
 			if (ImGui::BeginCombo("Renderer", currentItem))
 			{
 				for (int n = 0; n < allRenderers.size(); n++)
 				{
-					bool isSelected = (currentItem == allRenderers[n]);
+					bool isSelected = (currentItem == allRenderers[n].data());
 					if (ImGui::Selectable(allRenderers[n].data(), isSelected))
 					{
 						currentItem = allRenderers[n].data();
@@ -109,31 +113,64 @@ void RenderingLayer::onRender(const float& dt)
 						ImGui::SetItemDefaultFocus();
 					}
 				}
+				mRenderSettings.mRendererName = currentItem;
 
 				ImGui::EndCombo();
 			}
 
-			const mrender::RenderStats* renderStats = mRenderContext.getStats();
-			ImGui::Text("Num draw calls		: %u", renderStats->mNumDrawCalls);
-			ImGui::Text("Runtime memory		: %umb / 16000mb", renderStats->mRuntimeMemory);
-			ImGui::Text("Render Resolution	 : %ux%u", mRenderContext.getSettings().mResolutionWidth, mRenderContext.getSettings().mResolutionHeight);
-			ImGui::Text("VSync				 : %s", mRenderContext.getSettings().mVSync ? "true" : "false");
+			const mrender::RenderStats renderStats = mRenderContext.getStats();
+			ImGui::Text("Num draw calls		: %u", renderStats.mNumDrawCalls);
+			ImGui::Text("Render Resolution	 : %ux%u", mRenderSettings.mResolutionWidth, mRenderSettings.mResolutionHeight);
+			ImGui::Checkbox("VSync	", &mRenderSettings.mVSync);
 
 		}
-		ImGui::End();
+
+		if (ImGui::CollapsingHeader("Render Systems", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			for (uint32_t i = 0; i < mRenderContext.getRenderSystems().size(); i++)
+			{
+				ImGui::Text(mRenderContext.getRenderSystems()[i]->getName().data());
+			}
+		}
 	}
+	ImGui::End();
 	ImGui::PopStyleVar();
+
+	//ImGui::ShowDemoWindow();
 }
 
-void RenderingLayer::onPostRender(const float& dt)
+void RenderingLayer::imguiImplInit()
 {
-	// IMGUI
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
 	ImGuiIO& io = ImGui::GetIO();
-	io.DisplaySize = ImVec2(static_cast<float>(mContext->getWindow()->getParams().mWidth),
-		static_cast<float>(mContext->getWindow()->getParams().mHeight));
-	io.DeltaTime = dt;
 
+	ImGui_ImplMApp_Init(mAppContext->getWindow()->getNativeWindow());
+	ImGui_ImplMRender_Init(255);
+}
+
+void RenderingLayer::imguiImplShutdown()
+{
+	ImGui_ImplMRender_Shutdown();
+	ImGui_ImplMApp_Shutdown();
+	ImGui::DestroyContext();
+}
+
+void RenderingLayer::imguiImplBegin()
+{
+	ImGui_ImplMRender_NewFrame();
+	ImGui_ImplMApp_NewFrame();
+	ImGui::NewFrame();
+
+	ImGuiIO& io = ImGui::GetIO();
+	io.DisplaySize = ImVec2(static_cast<float>(mAppContext->getWindow()->getParams().mWidth),
+		static_cast<float>(mAppContext->getWindow()->getParams().mHeight));
+}
+
+void RenderingLayer::imguiImplEnd()
+{
+	
 	ImGui::EndFrame();
 	ImGui::Render();
-	ImGui_Implbgfx_RenderDrawData(ImGui::GetDrawData());
+	ImGui_ImplMRender_RenderDrawData(ImGui::GetDrawData());
 }

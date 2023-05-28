@@ -19,6 +19,21 @@ workspace "workspace"
 	}
 
 	-- temp --------------------------------
+	defines
+	{
+		--"BGFX_CONFIG_RENDERER_AGC"     
+		--"BGFX_CONFIG_RENDERER_DIRECT3D9"  
+		--"BGFX_CONFIG_RENDERER_DIRECT3D11" 
+		--"BGFX_CONFIG_RENDERER_DIRECT3D12" 
+		--"BGFX_CONFIG_RENDERER_GNM"        
+		--"BGFX_CONFIG_RENDERER_METAL"      
+		--"BGFX_CONFIG_RENDERER_NVN"        
+		"BGFX_CONFIG_RENDERER_OPENGL"     
+		--"BGFX_CONFIG_RENDERER_OPENGLES"
+		--"BGFX_CONFIG_RENDERER_VULKAN"  
+		--"BGFX_CONFIG_RENDERER_WEBGPU"
+	}
+
 	filter "system:macosx"
 		links
 		{

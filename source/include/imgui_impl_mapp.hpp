@@ -8,14 +8,14 @@
 #ifdef MAPP_PLATFORM_WIN32
 
 #include <iostream>
-#include "../../third-party/imgui/examples/imgui_impl_win32.h"
+#include "imgui_impl_win32.h"
 
 static bool sMousePressed[3] = { false,false,false };
 static float sMouseScrollAxis = 0.0f;
 
-void ImGui_ImplMapp_Init(void* window) { ImGui_ImplWin32_Init(window); } // should this be init for mrender?
-void ImGui_ImplMapp_Shutdown() { ImGui_ImplWin32_Shutdown(); }
-void ImGui_ImplMapp_NewFrame()
+void ImGui_ImplMApp_Init(void* window) { ImGui_ImplWin32_Init(window); } // should this be init for mrender?
+void ImGui_ImplMApp_Shutdown() { ImGui_ImplWin32_Shutdown(); }
+void ImGui_ImplMApp_NewFrame()
 {
 	ImGui_ImplWin32_NewFrame();
 
@@ -24,9 +24,9 @@ void ImGui_ImplMapp_NewFrame()
 	io.MouseDown[1] = sMousePressed[1];
 	io.MouseDown[2] = sMousePressed[2];
 
-	ImGui::GetPlatformIO().Monitors.resize(0);
+	//ImGui::GetPlatformIO().Monitors.resize(0);
 }
-void ImGui_ImplMapp_ProcessEvent(mapp::Event& event, mapp::Window* window) 
+void ImGui_ImplMApp_ProcessEvent(mapp::Event& event, mapp::Window* window) 
 { 
 	ImGuiIO& io = ImGui::GetIO();
 
