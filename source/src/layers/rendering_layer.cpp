@@ -96,7 +96,11 @@ void RenderingLayer::renderUserInterface()
 	if (ImGui::Begin(" MRender | Rendering Framework", (bool*)0, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings))
 	{
 		ImGui::Text("A 3D Rendering framework with support\nfor PBR and GI");
-		ImGui::Checkbox("Draw Debug Text", &mDrawDebugText);
+		if (ImGui::Button("Reload shaders"))
+		{
+			mRenderContext->reloadShaders();
+		}
+		ImGui::Checkbox("Draw stats", &mDrawDebugText);
 		ImGui::Separator();
 
 		if (ImGui::CollapsingHeader("Render Settings", ImGuiTreeNodeFlags_DefaultOpen))
