@@ -50,6 +50,11 @@ void RenderingLayer::onEvent(mapp::Event& event)
 		});
 }
 
+void RenderingLayer::onUpdate(const float& dt)
+{
+	
+}
+
 void RenderingLayer::onRender()
 {
 	// Render
@@ -98,6 +103,7 @@ void RenderingLayer::renderUserInterface()
 		ImGui::Text("A 3D Rendering framework with support\nfor PBR and GI");
 		if (ImGui::Button("Reload shaders"))
 		{
+			mRenderContext->compileShaders();
 			mRenderContext->reloadShaders();
 		}
 		ImGui::Checkbox("Draw stats", &mDrawDebugText);

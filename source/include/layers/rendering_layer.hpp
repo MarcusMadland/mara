@@ -7,6 +7,7 @@ public:
     virtual void onInit(mapp::AppContext& context) override;
     virtual void onShutdown() override;
     virtual void onEvent(mapp::Event& event) override;
+    virtual void onUpdate(const float& dt) override;
     virtual void onRender() override;
 
 private:
