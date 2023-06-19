@@ -35,7 +35,7 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 		{ mrender::AttribType::Float, 3, mrender::Attrib::Position },
 		{ mrender::AttribType::Uint8, 4, mrender::Attrib::Color0 },
 	} };
-	std::shared_ptr<mrender::Geometry> cubeGeo = mRenderContext->createGeometry(layout, s_bunnyVertices.data(), s_bunnyVertices.size() * sizeof(Vertex), s_bunnyTriList);
+	std::shared_ptr<mrender::Geometry> cubeGeo = mRenderContext->createGeometry(layout, s_bunnyVertices.data(), static_cast<uint32_t>(s_bunnyVertices.size() * sizeof(Vertex)), s_bunnyTriList);
 
 	// Renerables
 	std::shared_ptr<mrender::Renderable> cubeRender1 = mRenderContext->createRenderable(cubeGeo, "simple");
@@ -46,8 +46,8 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 
 	// Camera
 	mrender::CameraSettings cameraSettings;
-	cameraSettings.width = mRenderContext->getSettings().mResolutionWidth;
-	cameraSettings.height = mRenderContext->getSettings().mResolutionHeight;
+	cameraSettings.width = static_cast<float>(mRenderContext->getSettings().mResolutionWidth);
+	cameraSettings.height = static_cast<float>(mRenderContext->getSettings().mResolutionHeight);
 	cameraSettings.postion[2] = -5.0f;
 	mCamera = mRenderContext->createCamera(cameraSettings);
 
