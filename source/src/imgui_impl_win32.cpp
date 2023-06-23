@@ -49,8 +49,8 @@
 //  2018-02-06: Misc: Removed call to ImGui::Shutdown() which is not available from 1.60 WIP, user needs to call CreateContext/DestroyContext themselves.
 //  2018-01-20: Inputs: Added Horizontal Mouse Wheel support.
 //  2018-01-08: Inputs: Added mapping for ImGuiKey_Insert.
-//  2018-01-05: Inputs: Added WM_LBUTTONDBLCLK double-click handlers for window classes with the CS_DBLCLKS flag.
-//  2017-10-23: Inputs: Added WM_SYSKEYDOWN / WM_SYSKEYUP handlers so e.g. the VK_MENU key can be read.
+//  2018-01-05: Inputs: Added WM_LBUTTONDBLCLK double-click gfxs for window classes with the CS_DBLCLKS flag.
+//  2017-10-23: Inputs: Added WM_SYSKEYDOWN / WM_SYSKEYUP gfxs so e.g. the VK_MENU key can be read.
 //  2017-10-23: Inputs: Using Win32 ::SetCapture/::GetCapture() to retrieve mouse positions outside the client area when dragging.
 //  2016-11-12: Inputs: Only call Win32 ::SetCursor(NULL) when io.MouseDrawCursor is set.
 
@@ -87,7 +87,7 @@ bool    ImGui_ImplWin32_Init(void* hwnd)
     // Our mouse update function expect PlatformHandle to be filled for the main viewport
     g_hWnd = (HWND)hwnd;
     ImGuiViewport* main_viewport = ImGui::GetMainViewport();
-    main_viewport->PlatformHandle = main_viewport->PlatformHandleRaw = (void*)g_hWnd;
+    main_viewport->PlatformHandle = main_viewport->PlatformHandle = (void*)g_hWnd;
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
         ImGui_ImplWin32_InitPlatformInterface();
 
@@ -315,7 +315,7 @@ void    ImGui_ImplWin32_NewFrame()
     io.KeyShift = (::GetKeyState(VK_SHIFT) & 0x8000) != 0;
     io.KeyAlt = (::GetKeyState(VK_MENU) & 0x8000) != 0;
     io.KeySuper = false;
-    // io.KeysDown[], io.MousePos, io.MouseDown[], io.MouseWheel: filled by the WndProc handler below.
+    // io.KeysDown[], io.MousePos, io.MouseDown[], io.MouseWheel: filled by the WndProc gfx below.
 
     // Update OS mouse position
     ImGui_ImplWin32_UpdateMousePos();
@@ -340,19 +340,19 @@ void    ImGui_ImplWin32_NewFrame()
 #define DBT_DEVNODES_CHANGED 0x0007
 #endif
 
-// Win32 message handler (process Win32 mouse/keyboard inputs, etc.)
-// Call from your application's message handler.
+// Win32 message gfx (process Win32 mouse/keyboard inputs, etc.)
+// Call from your application's message gfx.
 // When implementing your own back-end, you can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if Dear ImGui wants to use your inputs.
 // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application.
 // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application.
 // Generally you may always pass all inputs to Dear ImGui, and hide them from your application based on those two flags.
-// PS: In this Win32 handler, we use the capture API (GetCapture/SetCapture/ReleaseCapture) to be able to read mouse coordinates when dragging mouse outside of our window bounds.
+// PS: In this Win32 gfx, we use the capture API (GetCapture/SetCapture/ReleaseCapture) to be able to read mouse coordinates when dragging mouse outside of our window bounds.
 // PS: We treat DBLCLK messages as regular mouse down messages, so this code will work on windows classes that have the CS_DBLCLKS flag set. Our own example app code doesn't set this flag.
 #if 0
 // Copy this line into your .cpp file to forward declare the function.
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcgfx(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 #endif
-IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcgfx(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     if (ImGui::GetCurrentContext() == NULL)
         return 0;
@@ -610,7 +610,7 @@ static void ImGui_ImplWin32_CreateWindow(ImGuiViewport* viewport)
         parent_window, NULL, ::GetModuleHandle(NULL), NULL);                    // Parent window, Menu, Instance, Param
     data->HwndOwned = true;
     viewport->PlatformRequestResize = false;
-    viewport->PlatformHandle = viewport->PlatformHandleRaw = data->Hwnd;
+    viewport->PlatformHandle = viewport->PlatformHandle = data->Hwnd;
 }
 
 static void ImGui_ImplWin32_DestroyWindow(ImGuiViewport* viewport)
@@ -778,9 +778,9 @@ static void ImGui_ImplWin32_OnChangedViewport(ImGuiViewport* viewport)
 #endif
 }
 
-static LRESULT CALLBACK ImGui_ImplWin32_WndProcHandler_PlatformWindow(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+static LRESULT CALLBACK ImGui_ImplWin32_WndProcgfx_PlatformWindow(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-    if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
+    if (ImGui_ImplWin32_WndProcgfx(hWnd, msg, wParam, lParam))
         return true;
 
     if (ImGuiViewport* viewport = ImGui::FindViewportByPlatformHandle((void*)hWnd))
@@ -819,7 +819,7 @@ static void ImGui_ImplWin32_InitPlatformInterface()
     WNDCLASSEX wcex;
     wcex.cbSize = sizeof(WNDCLASSEX);
     wcex.style = CS_HREDRAW | CS_VREDRAW;
-    wcex.lpfnWndProc = ImGui_ImplWin32_WndProcHandler_PlatformWindow;
+    wcex.lpfnWndProc = ImGui_ImplWin32_WndProcgfx_PlatformWindow;
     wcex.cbClsExtra = 0;
     wcex.cbWndExtra = 0;
     wcex.hInstance = ::GetModuleHandle(NULL);
