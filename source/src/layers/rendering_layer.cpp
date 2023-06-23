@@ -46,9 +46,10 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 
 	// Camera
 	mrender::CameraSettings cameraSettings;
-	cameraSettings.width = static_cast<float>(mRenderContext->getSettings().mResolutionWidth);
-	cameraSettings.height = static_cast<float>(mRenderContext->getSettings().mResolutionHeight);
-	cameraSettings.postion[2] = -5.0f;
+	cameraSettings.mProjectionType = mrender::ProjectionType::Perspective;
+	cameraSettings.mWidth = static_cast<float>(mRenderContext->getSettings().mResolutionWidth);
+	cameraSettings.mHeight = static_cast<float>(mRenderContext->getSettings().mResolutionHeight);
+	cameraSettings.mPosition[2] = -5.0f;
 	mCamera = mRenderContext->createCamera(cameraSettings);
 
 	// ImGui
@@ -79,8 +80,8 @@ void RenderingLayer::onEvent(mapp::Event& event)
 
 			// Resize Camera
 			mrender::CameraSettings cameraSettings = mCamera->getSettings();
-			cameraSettings.width = static_cast<float>(mRenderContext->getSettings().mResolutionWidth);
-			cameraSettings.height = static_cast<float>(mRenderContext->getSettings().mResolutionHeight);
+			cameraSettings.mWidth = static_cast<float>(mRenderContext->getSettings().mResolutionWidth);
+			cameraSettings.mHeight = static_cast<float>(mRenderContext->getSettings().mResolutionHeight);
 			mCamera->setSettings(cameraSettings);
 
 			return 0;
