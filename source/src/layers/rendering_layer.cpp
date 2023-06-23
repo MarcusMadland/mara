@@ -179,7 +179,8 @@ void RenderingLayer::renderUserInterface()
 				ImGui::EndCombo();
 			}
 
-			ImGui::Text("Num render passes	: %u", mRenderContext->getPassCount());
+			ImGui::Text("Num render states	: %u", mRenderContext->getRenderStateCount());
+			ImGui::Text("Num buffers	 : %u", mRenderContext->getBuffers().size());
 			ImGui::Text("Num draw calls		: %u", 0);
 			ImGui::Text("Render Resolution	: %ux%u", mRenderContext->getSettings().mResolutionWidth, mRenderContext->getSettings().mResolutionHeight);
 			
