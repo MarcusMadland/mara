@@ -26,8 +26,8 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 	mRenderContext->setClearColor(0xFF00FFFF);
 
 	// Shaders
-	mRenderContext->loadShader("simple", "C:/Users/marcu/Dev/my-application/mrender/shaders/simple");
-	mRenderContext->loadShader("flat", "C:/Users/marcu/Dev/my-application/mrender/shaders/flat");
+	mRenderContext->loadShader("simple", "C:/Users/marcu/Dev/mengine/mrender/shaders/simple");
+	mRenderContext->loadShader("flat", "C:/Users/marcu/Dev/mengine/mrender/shaders/flat");
 
 	// Geometry
 	mrender::BufferLayout layout =
@@ -71,10 +71,17 @@ void RenderingLayer::onEvent(mapp::Event& event)
 	dispatcher.dispatch<mapp::WindowResizeEvent>(
 		[&](const mapp::WindowResizeEvent& e)
 		{
+			// Resize Renderer
 			mrender::RenderSettings settings = mRenderContext->getSettings();
 			settings.mResolutionWidth = e.getWidth();
 			settings.mResolutionHeight = e.getHeight();
 			mRenderContext->setSettings(settings);
+
+			// Resize Camera
+			mrender::CameraSettings cameraSettings = mCamera->getSettings();
+			cameraSettings.width = static_cast<float>(mRenderContext->getSettings().mResolutionWidth);
+			cameraSettings.height = static_cast<float>(mRenderContext->getSettings().mResolutionHeight);
+			mCamera->setSettings(cameraSettings);
 
 			return 0;
 		});
@@ -137,7 +144,7 @@ void RenderingLayer::renderUserInterface()
 		ImGui::Text("A 3D Rendering framework with support\nfor PBR and GI");
 		if (ImGui::Button("Recompile & load shaders"))
 		{
-			const char* scriptPath = "C:/Users/marcu/Dev/my-application/compile-shaders-win.bat";
+			const char* scriptPath = "C:/Users/marcu/Dev/mengine/compile-shaders-win.bat";
 			int result = system(scriptPath);
 			if (result == 0)
 			{
@@ -173,7 +180,6 @@ void RenderingLayer::renderUserInterface()
 			}
 
 			ImGui::Text("Num render passes	: %u", mRenderContext->getPassCount());
-			ImGui::Text("Num buffers		: %u", mRenderContext->getBuffers().size());
 			ImGui::Text("Num draw calls		: %u", 0);
 			ImGui::Text("Render Resolution	: %ux%u", mRenderContext->getSettings().mResolutionWidth, mRenderContext->getSettings().mResolutionHeight);
 			

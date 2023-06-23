@@ -5,7 +5,7 @@ echo Compiling shaders ...
 REM VARIABLES
 set PLATFORM = windows
 set API = s_5_0
-set SHADERS=simple flat screen
+set SHADERS=simple flat screen shadow
 
 REM Enter the current script directory in case we call this script from the application
 cd /d "%~dp0"
@@ -19,7 +19,7 @@ for %%i in (%SHADERS%) do (
 
 REM Exit the loop and display the pause message
 echo All shaders compiled successfully
-
+REM PAUSE
 EXIT /B %ERRORLEVEL%
 
 REM Function to compile a vertex shader

@@ -12,15 +12,17 @@ workspace "workspace"
 	architecture "x86_64"
 	startproject "application"
 
-	configurations 
-	{ 
+	buildoptions {
+		"/Zc:__cplusplus",
+	}
+
+	configurations { 
 		"Release", 
 		"Debug" 
 	}
 
 	-- temp --------------------------------
-	defines
-	{
+	defines {
 		--"BGFX_CONFIG_RENDERER_AGC"     
 		--"BGFX_CONFIG_RENDERER_DIRECT3D9"  
 		--"BGFX_CONFIG_RENDERER_DIRECT3D11" 
@@ -33,31 +35,13 @@ workspace "workspace"
 		--"BGFX_CONFIG_RENDERER_VULKAN"  
 		--"BGFX_CONFIG_RENDERER_WEBGPU"
 	}
+	----------------------------------------
 
 	filter "system:macosx"
-		xcodebuildsettings 
-		{
+		xcodebuildsettings {
 			["MACOSX_DEPLOYMENT_TARGET"] = "10.9",
 			["ALWAYS_SEARCH_USER_PATHS"] = "YES", 
 		}
-
-	filter "configurations:Release"
-		defines
-		{
-			"NDEBUG",
-			"BX_CONFIG_DEBUG=0"
-		}
-		optimize "Full"
-		
-	filter "configurations:Debug*"
-		defines
-		{
-			"_DEBUG",
-			"BX_CONFIG_DEBUG=1"
-		}
-		optimize "Debug"
-		symbols "On"
-	----------------------------------------
 
 group "internal"
 	include(path.join(MAPP_DIR,    "premake.lua"))
