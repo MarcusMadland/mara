@@ -300,7 +300,8 @@ void    ImGui_ImplWin32_NewFrame()
     // Setup display size (every frame to accommodate for window resizing)
     RECT rect;
     ::GetClientRect(g_hWnd, &rect);
-    io.DisplaySize = ImVec2((float)(rect.right - rect.left), (float)(rect.bottom - rect.top));
+    ImVec2 displaySize = ImVec2((float)(rect.right - rect.left), (float)(rect.bottom - rect.top));
+    io.DisplaySize = displaySize.x < 0.0f || displaySize.y < 0.0f ? ImVec2(0.0f, 0.0f) : displaySize;
     if (g_WantUpdateMonitors)
         ImGui_ImplWin32_UpdateMonitors();
 

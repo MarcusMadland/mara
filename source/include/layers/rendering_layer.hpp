@@ -1,6 +1,8 @@
 #include "mapp/layer.hpp"
 #include "mrender/mrender.hpp"
 
+#include "utils/camera_orbit_controller.hpp"
+
 struct Vertex
 {
     float x;
@@ -43,7 +45,7 @@ private:
 private:
     mapp::AppContext* mAppContext;
     std::shared_ptr<mrender::RenderContext> mRenderContext;
-    std::shared_ptr<mrender::Camera> mCamera;
+    std::shared_ptr<CameraOrbitController> mCamera;
 
     bool mDrawDebugText = false;
 };

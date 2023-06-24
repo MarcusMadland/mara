@@ -2,6 +2,7 @@
 #include "mapp/app.hpp"
 #include "imgui_impl_mapp.hpp"
 #include "mrender/imgui_impl_mrender.hpp"
+#include "mcore/math.hpp"
 
 #include <imgui.h>
 #include <iostream>
@@ -39,10 +40,12 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 
 	// Renerables
 	std::shared_ptr<mrender::Renderable> cubeRender1 = mRenderContext->createRenderable(cubeGeo, "simple");
-	std::shared_ptr<mrender::Renderable> cubeRender2 = mRenderContext->createRenderable(cubeGeo, "flat");
+	std::shared_ptr<mrender::Renderable> cubeRender2 = mRenderContext->createRenderable(cubeGeo, "simple");
+	std::shared_ptr<mrender::Renderable> floorRender = mRenderContext->createRenderable(cubeGeo, "flat");
 
 	mRenderContext->addRenderable(cubeRender1);
 	mRenderContext->addRenderable(cubeRender2);
+	mRenderContext->addRenderable(floorRender);
 
 	// Camera
 	mrender::CameraSettings cameraSettings;
@@ -50,7 +53,8 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 	cameraSettings.mWidth = static_cast<float>(mRenderContext->getSettings().mResolutionWidth);
 	cameraSettings.mHeight = static_cast<float>(mRenderContext->getSettings().mResolutionHeight);
 	cameraSettings.mPosition[2] = -5.0f;
-	mCamera = mRenderContext->createCamera(cameraSettings);
+	auto camera = mRenderContext->createCamera(cameraSettings);
+	mCamera = std::make_shared<CameraOrbitController>(camera);
 
 	// ImGui
 	imguiImplInit();
@@ -66,6 +70,7 @@ void RenderingLayer::onShutdown()
 void RenderingLayer::onEvent(mapp::Event& event)
 {
 	ImGui_ImplMApp_ProcessEvent(event, mAppContext->getWindow());
+	mCamera->onEvent(event);
 
 	mapp::EventDispatcher dispatcher = mapp::EventDispatcher(event);
 
@@ -78,25 +83,54 @@ void RenderingLayer::onEvent(mapp::Event& event)
 			settings.mResolutionHeight = e.getHeight();
 			mRenderContext->setSettings(settings);
 
-			// Resize Camera
-			mrender::CameraSettings cameraSettings = mCamera->getSettings();
-			cameraSettings.mWidth = static_cast<float>(mRenderContext->getSettings().mResolutionWidth);
-			cameraSettings.mHeight = static_cast<float>(mRenderContext->getSettings().mResolutionHeight);
-			mCamera->setSettings(cameraSettings);
-
 			return 0;
 		});
 }
 
 void RenderingLayer::onUpdate(const float& dt)
 {
-	
+	mCamera->onUpdate(dt);
 }
 
 void RenderingLayer::onRender()
 {
+	float deltaTime = mAppContext->getApp()->getDeltaTime();
+	static float rotationSpeed = 20.0f;
+	static float accumulatedTime = 0.0f;
+	static float rotationAngle = 0.0f;
+	accumulatedTime += deltaTime;
+	float targetRotationAngle = rotationSpeed * accumulatedTime;
+
+	{
+		mcore::Vector<float, 3> position = { -1.5f, 0.0f, 0.0f };
+		mcore::Matrix4x4<float> translation = mcore::Matrix4x4<float>::identity();
+		mcore::translate(translation, position);
+		mcore::Matrix4x4<float> rotation = mcore::Matrix4x4<float>::identity();
+		mcore::rotateX(rotation, targetRotationAngle);
+		mcore::Matrix4x4<float> model = rotation * translation;
+		mRenderContext->getRenderables()[0]->setTransform(&model[0]);
+	}
+	{
+		mcore::Vector<float, 3> position = { 1.5f, 0.0f, 0.0f };
+		mcore::Matrix4x4<float> translation = mcore::Matrix4x4<float>::identity();
+		mcore::translate(translation, position);
+		mcore::Matrix4x4<float> rotation = mcore::Matrix4x4<float>::identity();
+		mcore::rotateY(rotation, targetRotationAngle);
+		mcore::Matrix4x4<float> model = rotation * translation;
+		mRenderContext->getRenderables()[1]->setTransform(&model[0]);
+	}
+	{
+		mcore::Vector<float, 3> position = { 0.0f, -1.5f, 0.0f };
+		mcore::Matrix4x4<float> translation = mcore::Matrix4x4<float>::identity();
+		mcore::translate(translation, position);
+		mcore::Matrix4x4<float> scale = mcore::Matrix4x4<float>::identity();
+		mcore::scale(scale, {10.0f, 0.01f, 10.0f });
+		mcore::Matrix4x4<float> model = scale * translation;
+		mRenderContext->getRenderables()[2]->setTransform(&model[0]);
+	}
+
 	// Render
-	mRenderContext->render(mCamera);
+	mRenderContext->render(mCamera->getCamera());
 	
 	// IMGUI TEST
 	imguiImplBegin();
@@ -132,7 +166,7 @@ void RenderingLayer::onRender()
 	}
 	
 	// Swap buffers
-	mRenderContext->frame();
+	mRenderContext->swapBuffers();
 }
 
 void RenderingLayer::renderUserInterface()
@@ -212,6 +246,10 @@ void RenderingLayer::renderUserInterface()
 			}
 		}
 	}
+	else
+	{
+		printf("Failed");
+	}
 	ImGui::End();
 	ImGui::PopStyleVar();
 }
@@ -246,7 +284,7 @@ void RenderingLayer::imguiImplBegin()
 
 void RenderingLayer::imguiImplEnd()
 {
-	ImGui::EndFrame();
 	ImGui::Render();
+	ImGui::EndFrame();
 	ImGui_ImplMRender_RenderDrawData(ImGui::GetDrawData());
 }
