@@ -174,6 +174,7 @@ void RenderingLayer::onRender()
 		mcore::scale(scale, {10.0f, 0.01f, 10.0f });
 		mcore::Matrix4x4<float> model = scale * translation;
 		mRenderContext->getRenderables()[2]->setTransform(&model[0]);
+
 	}
 
 	// Render
