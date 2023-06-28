@@ -3,6 +3,9 @@
 #include "layers/application_layer.hpp"
 #include "layers/rendering_layer.hpp"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 int main(int argc, char** argv)
 {
     // Create and initialize the Window

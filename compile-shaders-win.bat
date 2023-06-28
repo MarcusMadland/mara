@@ -2,10 +2,10 @@
 
 echo Compiling shaders ...
 
-REM VARIABLES
+REM Variables
 set PLATFORM = windows
 set API = s_5_0
-set SHADERS=simple flat screen shadow
+set SHADERS=simple flat screen shadow uber
 
 REM Enter the current script directory in case we call this script from the application
 cd /d "%~dp0"

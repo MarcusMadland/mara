@@ -80,6 +80,7 @@ project "application"
 		path.join(MCORE_DIR,   "include"),
 		path.join(MRENDER_DIR, "include"),
 
+		path.join(THIRDPARTY_DIR, "stb"),
 		path.join(THIRDPARTY_DIR, "imgui"),
 	}
 
@@ -88,6 +89,7 @@ project "application"
 		"mapp", 
 		--"mcore",
 		"mrender",
+
 		"imgui",
 	}
 

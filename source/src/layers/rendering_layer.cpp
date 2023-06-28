@@ -5,6 +5,7 @@
 #include "mcore/math.hpp"
 
 #include <imgui.h>
+#include <stb_image.h>
 #include <iostream>
 
 void RenderingLayer::onInit(mapp::AppContext& context)
@@ -27,21 +28,66 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 	mRenderContext->setClearColor(0xFF00FFFF);
 
 	// Shaders
-	mRenderContext->loadShader("simple", "C:/Users/marcu/Dev/mengine/mrender/shaders/simple");
-	mRenderContext->loadShader("flat", "C:/Users/marcu/Dev/mengine/mrender/shaders/flat");
+	mRenderContext->loadShader("uber", "C:/Users/marcu/Dev/mengine/mrender/shaders/uber");
 
 	// Geometry
 	mrender::BufferLayout layout =
 	{ {
 		{ mrender::AttribType::Float, 3, mrender::Attrib::Position },
-		{ mrender::AttribType::Uint8, 4, mrender::Attrib::Color0 },
+		{ mrender::AttribType::Uint8, 4, mrender::Attrib::Normal },
+		{ mrender::AttribType::Uint8, 4, mrender::Attrib::Tangent },
+		{ mrender::AttribType::Int16, 2, mrender::Attrib::TexCoord0 },
 	} };
 	std::shared_ptr<mrender::Geometry> cubeGeo = mRenderContext->createGeometry(layout, s_bunnyVertices.data(), static_cast<uint32_t>(s_bunnyVertices.size() * sizeof(Vertex)), s_bunnyTriList);
 
-	// Renerables
-	std::shared_ptr<mrender::Renderable> cubeRender1 = mRenderContext->createRenderable(cubeGeo, "simple");
-	std::shared_ptr<mrender::Renderable> cubeRender2 = mRenderContext->createRenderable(cubeGeo, "simple");
-	std::shared_ptr<mrender::Renderable> floorRender = mRenderContext->createRenderable(cubeGeo, "flat");
+	// Materials
+	std::shared_ptr<mrender::Material> textureMaterial = mRenderContext->createMaterial("uber");
+	{
+		{
+			stbi_set_flip_vertically_on_load(true);
+			int width = 0, height = 0, channels = 0;
+			const uint8_t* data = stbi_load("C:/Users/marcu/Dev/mengine/resources/albedo.png", &width, &height,
+				&channels, 4);
+			static std::shared_ptr<mrender::Texture> texture = mRenderContext->createTexture(data, mrender::TextureFormat::RGBA8, 0, width, height, 4);
+			
+			textureMaterial->setUniform("u_albedo", mrender::UniformType::Sampler, texture);
+		}
+		{
+			stbi_set_flip_vertically_on_load(true);
+			int width = 0, height = 0, channels = 0;
+			const uint8_t* data = stbi_load("C:/Users/marcu/Dev/mengine/resources/normal.png", &width, &height,
+				&channels, 4);
+			static std::shared_ptr<mrender::Texture> texture = mRenderContext->createTexture(data, mrender::TextureFormat::RGBA8, 0, width, height, 4);
+			
+			textureMaterial->setUniform("u_normal", mrender::UniformType::Sampler, texture);
+		}
+		{
+			stbi_set_flip_vertically_on_load(true);
+			int width = 0, height = 0, channels = 0;
+			const uint8_t* data = stbi_load("C:/Users/marcu/Dev/mengine/resources/specular.png", &width, &height,
+				&channels, 4);
+			static std::shared_ptr<mrender::Texture> texture = mRenderContext->createTexture(data, mrender::TextureFormat::RGBA8, 0, width, height, 4);
+			
+			textureMaterial->setUniform("u_specular", mrender::UniformType::Sampler, texture);
+		}
+		
+	}
+	std::shared_ptr<mrender::Material> whiteMaterial = mRenderContext->createMaterial("uber");
+	{
+		{
+			stbi_set_flip_vertically_on_load(true);
+			int width = 0, height = 0, channels = 0;
+			const uint8_t* data = stbi_load("C:/Users/marcu/Dev/mengine/resources/white.png", &width, &height,
+				&channels, 4);
+			static std::shared_ptr<mrender::Texture> texture = mRenderContext->createTexture(data, mrender::TextureFormat::RGBA8, 0, width, height, 4);
+			whiteMaterial->setUniform("u_albedo", mrender::UniformType::Sampler, texture);
+		}
+	}
+
+	// Renderables
+	std::shared_ptr<mrender::Renderable> cubeRender1 = mRenderContext->createRenderable(cubeGeo, textureMaterial);
+	std::shared_ptr<mrender::Renderable> cubeRender2 = mRenderContext->createRenderable(cubeGeo, textureMaterial);
+	std::shared_ptr<mrender::Renderable> floorRender = mRenderContext->createRenderable(cubeGeo, whiteMaterial);
 
 	mRenderContext->addRenderable(cubeRender1);
 	mRenderContext->addRenderable(cubeRender2);
@@ -52,6 +98,7 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 	cameraSettings.mProjectionType = mrender::ProjectionType::Perspective;
 	cameraSettings.mWidth = static_cast<float>(mRenderContext->getSettings().mResolutionWidth);
 	cameraSettings.mHeight = static_cast<float>(mRenderContext->getSettings().mResolutionHeight);
+	cameraSettings.mClipFar = 10000.0f;
 	cameraSettings.mPosition[2] = -5.0f;
 	auto camera = mRenderContext->createCamera(cameraSettings);
 	mCamera = std::make_shared<CameraOrbitController>(camera);
