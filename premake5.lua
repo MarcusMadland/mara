@@ -7,10 +7,10 @@ local MRENDER_DIR     = "mrender"
 local THIRDPARTY_DIR = "third-party"
 local APPLICATION_DIR = "source"
 
--- Application Workspace
+-- Workspace
 workspace "workspace"
 	architecture "x86_64"
-	startproject "application"
+	startproject "mengine"
 
 	buildoptions {
 		"/Zc:__cplusplus",
@@ -54,8 +54,8 @@ group "external"
 	include(path.join(THIRDPARTY_DIR, "imgui/premake5.lua"))
 group ""
 
--- Application Project
-project "application"
+-- MENGINE
+project "mengine"
 	kind "ConsoleApp"
 	language "C++"
 	cppdialect "C++20"
@@ -92,6 +92,11 @@ project "application"
 
 		"imgui",
 	}
+
+	filter "configurations:Release"
+		defines "MENGINE_RELEASE"
+	filter "configurations:Debug"
+		defines "MENGINE_DEBUG"
 
 	filter "system:windows"
 		links { "gdi32", "kernel32", "psapi" }

@@ -4,13 +4,13 @@
 #include "layers/rendering_layer.hpp"
 
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+#include <stb_image.h>
 
 int main(int argc, char** argv)
 {
     // Create and initialize the Window
     mapp::WindowParams windowParams;
-    windowParams.mTitle = "My Application";
+    windowParams.mTitle = "mengine";
     windowParams.mWidth = 1280;
     windowParams.mHeight = 720;
     mapp::Window* window = mapp::Window::create(windowParams);

@@ -14,12 +14,17 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 
 	// MRENDER
 	mrender::RenderSettings renderSettings;
-	renderSettings.mRendererName = "MyRenderer";
+	renderSettings.mRendererName = "Deferred";
 	renderSettings.mNativeDisplay = mAppContext->getWindow()->getNativeDisplay();
 	renderSettings.mNativeWindow = mAppContext->getWindow()->getNativeWindow();
 	renderSettings.mResolutionWidth = mAppContext->getWindow()->getParams().mWidth;
 	renderSettings.mResolutionHeight = mAppContext->getWindow()->getParams().mHeight;
 	renderSettings.mVSync = false;
+#ifdef MENGINE_DEBUG
+	renderSettings.mRenderDebugText = true;
+#else
+	renderSettings.mRenderDebugText = false;
+#endif
 
 	mRenderContext = mrender::createRenderContext();
 	mRenderContext->initialize(renderSettings);
@@ -40,49 +45,20 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 	} };
 	std::shared_ptr<mrender::Geometry> cubeGeo = mRenderContext->createGeometry(layout, s_bunnyVertices.data(), static_cast<uint32_t>(s_bunnyVertices.size() * sizeof(Vertex)), s_bunnyTriList);
 
+	// Textures @todo fix life time of these, the textures need to be loaded of the lifetime of the rendering layer, so make member variables?
+	static std::shared_ptr<mrender::Texture> albedoTex = loadTexture(mRenderContext, "C:/Users/marcu/Dev/mengine/resources/albedo.png");
+	static std::shared_ptr<mrender::Texture> normalTex = loadTexture(mRenderContext, "C:/Users/marcu/Dev/mengine/resources/normal.png");
+	static std::shared_ptr<mrender::Texture> specularTex = loadTexture(mRenderContext, "C:/Users/marcu/Dev/mengine/resources/specular.png");
+	static mcore::Vector<float, 4> whiteColor = { 0.8f, 0.8f, 0.8f, 1.0f };
+
 	// Materials
 	std::shared_ptr<mrender::Material> textureMaterial = mRenderContext->createMaterial("uber");
-	{
-		{
-			stbi_set_flip_vertically_on_load(true);
-			int width = 0, height = 0, channels = 0;
-			const uint8_t* data = stbi_load("C:/Users/marcu/Dev/mengine/resources/albedo.png", &width, &height,
-				&channels, 4);
-			static std::shared_ptr<mrender::Texture> texture = mRenderContext->createTexture(data, mrender::TextureFormat::RGBA8, 0, width, height, 4);
-			
-			textureMaterial->setUniform("u_albedo", mrender::UniformType::Sampler, texture);
-		}
-		{
-			stbi_set_flip_vertically_on_load(true);
-			int width = 0, height = 0, channels = 0;
-			const uint8_t* data = stbi_load("C:/Users/marcu/Dev/mengine/resources/normal.png", &width, &height,
-				&channels, 4);
-			static std::shared_ptr<mrender::Texture> texture = mRenderContext->createTexture(data, mrender::TextureFormat::RGBA8, 0, width, height, 4);
-			
-			textureMaterial->setUniform("u_normal", mrender::UniformType::Sampler, texture);
-		}
-		{
-			stbi_set_flip_vertically_on_load(true);
-			int width = 0, height = 0, channels = 0;
-			const uint8_t* data = stbi_load("C:/Users/marcu/Dev/mengine/resources/specular.png", &width, &height,
-				&channels, 4);
-			static std::shared_ptr<mrender::Texture> texture = mRenderContext->createTexture(data, mrender::TextureFormat::RGBA8, 0, width, height, 4);
-			
-			textureMaterial->setUniform("u_specular", mrender::UniformType::Sampler, texture);
-		}
-		
-	}
+	textureMaterial->setUniform("u_albedo", mrender::UniformType::Sampler, albedoTex);
+	textureMaterial->setUniform("u_normal", mrender::UniformType::Sampler, normalTex);
+	textureMaterial->setUniform("u_specular", mrender::UniformType::Sampler, specularTex);
+	
 	std::shared_ptr<mrender::Material> whiteMaterial = mRenderContext->createMaterial("uber");
-	{
-		{
-			stbi_set_flip_vertically_on_load(true);
-			int width = 0, height = 0, channels = 0;
-			const uint8_t* data = stbi_load("C:/Users/marcu/Dev/mengine/resources/white.png", &width, &height,
-				&channels, 4);
-			static std::shared_ptr<mrender::Texture> texture = mRenderContext->createTexture(data, mrender::TextureFormat::RGBA8, 0, width, height, 4);
-			whiteMaterial->setUniform("u_albedo", mrender::UniformType::Sampler, texture);
-		}
-	}
+	whiteMaterial->setUniform("u_albedoColor", mrender::UniformType::Vec4, std::shared_ptr<void>(&whiteColor));
 
 	// Renderables
 	std::shared_ptr<mrender::Renderable> cubeRender1 = mRenderContext->createRenderable(cubeGeo, textureMaterial);
@@ -104,23 +80,28 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 	mCamera = std::make_shared<CameraOrbitController>(camera);
 
 	// ImGui
+#ifdef MENGINE_DEBUG
 	imguiImplInit();
+#endif
 }
 
 void RenderingLayer::onShutdown()
 {
 	mRenderContext->cleanup();
 
+#ifdef MENGINE_DEBUG
 	imguiImplShutdown();
+#endif
 }
 
 void RenderingLayer::onEvent(mapp::Event& event)
 {
-	ImGui_ImplMApp_ProcessEvent(event, mAppContext->getWindow());
+	// Camera events
 	mCamera->onEvent(event);
 
+	// Rendering events
 	mapp::EventDispatcher dispatcher = mapp::EventDispatcher(event);
-
+	
 	dispatcher.dispatch<mapp::WindowResizeEvent>(
 		[&](const mapp::WindowResizeEvent& e)
 		{
@@ -132,6 +113,11 @@ void RenderingLayer::onEvent(mapp::Event& event)
 
 			return 0;
 		});
+
+	// ImGui events
+#ifdef MENGINE_DEBUG
+	ImGui_ImplMApp_ProcessEvent(event, mAppContext->getWindow());
+#endif
 }
 
 void RenderingLayer::onUpdate(const float& dt)
@@ -141,6 +127,8 @@ void RenderingLayer::onUpdate(const float& dt)
 
 void RenderingLayer::onRender()
 {
+	mrender::PROFILE_SCOPE("RenderingLayer");
+
 	float deltaTime = mAppContext->getApp()->getDeltaTime();
 	static float rotationSpeed = 20.0f;
 	static float accumulatedTime = 0.0f;
@@ -180,45 +168,54 @@ void RenderingLayer::onRender()
 	// Render
 	mRenderContext->render(mCamera->getCamera());
 	
-	// IMGUI TEST
-	imguiImplBegin();
-	renderUserInterface();
-	imguiImplEnd();
+	// Render ImGui
+#ifdef MENGINE_DEBUG
+	imguiUpdate();
+#endif
 
 	// Debug text (application performance)
+
+	constexpr uint16_t textY = 2;
+	constexpr uint16_t textX = 40;
+
+	if (mDrawDebugText)
 	{
-		uint16_t y = 2;
-		uint16_t x = 45;
-		const float deltaTime = mAppContext->getApp()->getDeltaTime();
-		static uint32_t counter = 0; counter++;
-		static float fps = 0;
-		static float ms = 0;
-		static float msHighest = 0;
-		if (!(counter % 10))
-		{
-			fps = 1 / deltaTime;
-			ms = 1000 * deltaTime;
-			if (ms > msHighest) msHighest = ms;
-		}
+		float cpuRender = mProfileResults.at("RenderingLayer");
+		static float cpuRenderHighest = 0.0f;
+		if (cpuRender > cpuRenderHighest) cpuRenderHighest = cpuRender;
 
-		if (mDrawDebugText)
-		{
-			mRenderContext->submitDebugTextOnScreen(x, y, "cpu(application):  %.2f ms [%.2f ms]", ms, msHighest);
-			mRenderContext->submitDebugTextOnScreen(x, y + 1, "cpu(mrender):      %.2f ms [%.2f ms]", 0, 0);
-			mRenderContext->submitDebugTextOnScreen(x, y + 2, "gpu:               %.2f ms [%.2f ms]", 0, 0);
-			mRenderContext->submitDebugTextOnScreen(x, y + 3, "framerate:         %.2f fps", fps);
-			mRenderContext->submitDebugTextOnScreen(x, y + 4, "textures:          %.2f / 1454 MiB", 0);
+		float gpu = 0.0f;// @todo handle stats in rendercontext
+		static float gpuHighest = 0.0f;
+		if (gpu > gpuHighest) gpuHighest = gpu;
 
-			mRenderContext->submitDebugTextOnScreen(x - 20, y, mrender::Color::Red, true, false, "Too many meshes!!", 0);
-		}
+		float fps = 0.0f;
+		float texture = 0.0f;
+
+		mRenderContext->submitDebugTextOnScreen(textX, textY + 0, "%-15s %.2f ms [%.2f ms]", "cpu(game):", 0, 0);
+		mRenderContext->submitDebugTextOnScreen(textX, textY + 1, "%-15s %.2f ms [%.2f ms]", "cpu(render):", cpuRender, cpuRenderHighest);
+		mRenderContext->submitDebugTextOnScreen(textX, textY + 2, "%-15s %.2f ms [%.2f ms]", "gpu:", gpu, gpuHighest);
+		mRenderContext->submitDebugTextOnScreen(textX, textY + 3, "%-15s %.2f fps", "framerate:", fps);
+		mRenderContext->submitDebugTextOnScreen(textX, textY + 4, "%-15s %.2f / 1454 MiB", "textures:", texture);
+
+		//mRenderContext->submitDebugTextOnScreen(textX - 20, textY, mrender::Color::Red, true, false, "Too many meshes!!", 0);
 	}
+	
 	
 	// Swap buffers
 	mRenderContext->swapBuffers();
 }
 
-void RenderingLayer::renderUserInterface()
+void RenderingLayer::imguiUpdate()
 {
+	ImGui_ImplMRender_NewFrame();
+	ImGui_ImplMApp_NewFrame();
+	ImGui::NewFrame();
+
+	ImGuiIO& io = ImGui::GetIO();
+	io.DisplaySize = ImVec2(static_cast<float>(mAppContext->getWindow()->getParams().mWidth),
+		static_cast<float>(mAppContext->getWindow()->getParams().mHeight));
+
+	// Render mrender debug window
 	ImGui::SetNextWindowPos(ImVec2(10, 10));
 
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
@@ -262,11 +259,10 @@ void RenderingLayer::renderUserInterface()
 				ImGui::EndCombo();
 			}
 
-			ImGui::Text("Num render states	: %u", mRenderContext->getRenderStateCount());
-			ImGui::Text("Num buffers	 : %u", mRenderContext->getBuffers().size());
-			ImGui::Text("Num draw calls		: %u", 0);
-			ImGui::Text("Render Resolution	: %ux%u", mRenderContext->getSettings().mResolutionWidth, mRenderContext->getSettings().mResolutionHeight);
-			
+			ImGui::Text("%-23s: %u", "Render States", mRenderContext->getRenderStateCount());
+			ImGui::Text("%-23s: %u", "Buffers", mRenderContext->getBuffers().size());
+			ImGui::Text("%-23s: %u", "Draw Calls", 0);
+			ImGui::Text("%-23s: %ux%u", "Resolution", mRenderContext->getSettings().mResolutionWidth, mRenderContext->getSettings().mResolutionHeight);
 
 			static bool vSync = mRenderContext->getSettings().mVSync;
 			if (ImGui::Checkbox("VSync	", &vSync))
@@ -282,7 +278,34 @@ void RenderingLayer::renderUserInterface()
 		{
 			for (uint32_t i = 0; i < mRenderContext->getRenderSystems().size(); i++)
 			{
-				ImGui::Text(mRenderContext->getRenderSystems()[i]->getName().data());
+				auto name = mRenderContext->getRenderSystems()[i]->getName().data();
+				uint32_t size = mRenderContext->getRenderSystems()[i]->mProfileResults.size();
+				bool hasTree = false;
+				std::vector<std::pair<std::string_view, float>> childProfiles;
+				for (auto& profileResult : mRenderContext->getRenderSystems()[i]->mProfileResults)
+				{
+					if (profileResult.first == name)
+					{
+						hasTree = ImGui::TreeNodeEx(name, size > 1 ? ImGuiTreeNodeFlags_None : ImGuiTreeNodeFlags_Leaf, "%-20s: %.3fms", profileResult.first.data(), profileResult.second);
+					}
+					else
+					{
+						childProfiles.push_back({ profileResult.first, profileResult.second });
+					}
+				}
+				if (hasTree)
+				{
+					for (auto& child : childProfiles)
+					{
+						if (ImGui::TreeNodeEx(child.first.data(), ImGuiTreeNodeFlags_Leaf, "%-17s: %.3fms", child.first.data(), child.second))
+						{
+							ImGui::TreePop();
+						}
+						
+					}
+					ImGui::TreePop();
+				}
+				
 			}
 		}
 
@@ -294,12 +317,13 @@ void RenderingLayer::renderUserInterface()
 			}
 		}
 	}
-	else
-	{
-		printf("Failed");
-	}
 	ImGui::End();
 	ImGui::PopStyleVar();
+	//
+
+	ImGui::Render();
+	ImGui::EndFrame();
+	ImGui_ImplMRender_RenderDrawData(ImGui::GetDrawData());
 }
 
 void RenderingLayer::imguiImplInit()
@@ -319,20 +343,3 @@ void RenderingLayer::imguiImplShutdown()
 	ImGui::DestroyContext();
 }
 
-void RenderingLayer::imguiImplBegin()
-{
-	ImGui_ImplMRender_NewFrame();
-	ImGui_ImplMApp_NewFrame();
-	ImGui::NewFrame();
-
-	ImGuiIO& io = ImGui::GetIO();
-	io.DisplaySize = ImVec2(static_cast<float>(mAppContext->getWindow()->getParams().mWidth),
-		static_cast<float>(mAppContext->getWindow()->getParams().mHeight));
-}
-
-void RenderingLayer::imguiImplEnd()
-{
-	ImGui::Render();
-	ImGui::EndFrame();
-	ImGui_ImplMRender_RenderDrawData(ImGui::GetDrawData());
-}
