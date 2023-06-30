@@ -259,7 +259,6 @@ void RenderingLayer::imguiUpdate()
 				ImGui::EndCombo();
 			}
 
-			ImGui::Text("%-23s: %u", "Render States", mRenderContext->getRenderStateCount());
 			ImGui::Text("%-23s: %u", "Buffers", mRenderContext->getBuffers().size());
 			ImGui::Text("%-23s: %u", "Draw Calls", 0);
 			ImGui::Text("%-23s: %ux%u", "Resolution", mRenderContext->getSettings().mResolutionWidth, mRenderContext->getSettings().mResolutionHeight);
