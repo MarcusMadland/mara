@@ -25,9 +25,7 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 #else
 	renderSettings.mRenderDebugText = false;
 #endif
-
-	mRenderContext = mrender::createRenderContext();
-	mRenderContext->initialize(renderSettings);
+	mRenderContext = mrender::createRenderContext(renderSettings);
 
 	// Clear color
 	mRenderContext->setClearColor(0xFF00FFFF);
@@ -87,8 +85,6 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 
 void RenderingLayer::onShutdown()
 {
-	mRenderContext->cleanup();
-
 #ifdef MENGINE_DEBUG
 	imguiImplShutdown();
 #endif
