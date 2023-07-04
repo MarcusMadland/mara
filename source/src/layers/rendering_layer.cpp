@@ -25,57 +25,61 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 #else
 	renderSettings.mRenderDebugText = false;
 #endif
-	mRenderContext = mrender::createRenderContext(renderSettings);
+	mGfxContext = mrender::createGfxContext(renderSettings);
 
 	// Clear color
-	mRenderContext->setClearColor(0xFF00FFFF);
+	mGfxContext->setClearColor(0xFF00FFFF);
 
 	// Shaders
-	mRenderContext->loadShader("uber", "C:/Users/marcu/Dev/mengine/mrender/shaders/uber");
+	mrender::ShaderHandle shader = mGfxContext->createShader("uber", "C:/Users/marcu/Dev/mengine/mrender/shaders/uber");
 
 	// Geometry
 	mrender::BufferLayout layout =
-	{ {
-		{ mrender::AttribType::Float, 3, mrender::Attrib::Position },
-		{ mrender::AttribType::Uint8, 4, mrender::Attrib::Normal },
-		{ mrender::AttribType::Uint8, 4, mrender::Attrib::Tangent },
-		{ mrender::AttribType::Int16, 2, mrender::Attrib::TexCoord0 },
-	} };
-	std::shared_ptr<mrender::Geometry> cubeGeo = mRenderContext->createGeometry(layout, s_bunnyVertices.data(), static_cast<uint32_t>(s_bunnyVertices.size() * sizeof(Vertex)), s_bunnyTriList);
+	{
+		{ mrender::BufferElement::AttribType::Float, mrender::BufferElement::Attrib::Position, 3 },
+		{ mrender::BufferElement::AttribType::Uint8, mrender::BufferElement::Attrib::Normal, 4 },
+		{ mrender::BufferElement::AttribType::Uint8, mrender::BufferElement::Attrib::Tangent, 4 },
+		{ mrender::BufferElement::AttribType::Int16, mrender::BufferElement::Attrib::TexCoord0, 2 },
+	};
+	mrender::GeometryHandle cubeGeo = mGfxContext->createGeometry(layout, s_bunnyVertices.data(), static_cast<uint32_t>(s_bunnyVertices.size() * sizeof(Vertex)), s_bunnyTriList);
 
 	// Textures @todo fix life time of these, the textures need to be loaded of the lifetime of the rendering layer, so make member variables?
-	static std::shared_ptr<mrender::Texture> albedoTex = loadTexture(mRenderContext, "C:/Users/marcu/Dev/mengine/resources/albedo.png");
-	static std::shared_ptr<mrender::Texture> normalTex = loadTexture(mRenderContext, "C:/Users/marcu/Dev/mengine/resources/normal.png");
-	static std::shared_ptr<mrender::Texture> specularTex = loadTexture(mRenderContext, "C:/Users/marcu/Dev/mengine/resources/specular.png");
+	mrender::TextureHandle albedoTex = loadTexture(mGfxContext, "C:/Users/marcu/Dev/mengine/resources/albedo.png");
+	mrender::TextureHandle normalTex = loadTexture(mGfxContext, "C:/Users/marcu/Dev/mengine/resources/normal.png");
+	mrender::TextureHandle specularTex = loadTexture(mGfxContext, "C:/Users/marcu/Dev/mengine/resources/specular.png");
 	static mcore::Vector<float, 4> whiteColor = { 0.8f, 0.8f, 0.8f, 1.0f };
+	static mcore::Vector<float, 4> blueColor = { 0.0f, 0.0f, 0.8f, 1.0f };
 
 	// Materials
-	std::shared_ptr<mrender::Material> textureMaterial = mRenderContext->createMaterial("uber");
-	textureMaterial->setUniform("u_albedo", mrender::UniformType::Sampler, albedoTex);
-	textureMaterial->setUniform("u_normal", mrender::UniformType::Sampler, normalTex);
-	textureMaterial->setUniform("u_specular", mrender::UniformType::Sampler, specularTex);
+	mrender::MaterialHandle textureMaterial = mGfxContext->createMaterial(shader);
+	mGfxContext->setMaterialTextureData(textureMaterial, "u_albedo", albedoTex);
+	mGfxContext->setMaterialTextureData(textureMaterial, "u_normal", normalTex);
+	mGfxContext->setMaterialTextureData(textureMaterial, "u_specular", specularTex);
 	
-	std::shared_ptr<mrender::Material> whiteMaterial = mRenderContext->createMaterial("uber");
-	whiteMaterial->setUniform("u_albedoColor", mrender::UniformType::Vec4, std::shared_ptr<void>(&whiteColor));
+	mrender::MaterialHandle whiteMaterial = mGfxContext->createMaterial(shader);
+	mGfxContext->setMaterialUniformData(whiteMaterial, "u_albedoColor", mrender::UniformData::UniformType::Vec4, std::shared_ptr<void>(&whiteColor));
+
+	mrender::MaterialHandle blueMaterial = mGfxContext->createMaterial(shader);
+	mGfxContext->setMaterialUniformData(blueMaterial, "u_albedoColor", mrender::UniformData::UniformType::Vec4, std::shared_ptr<void>(&blueColor));
 
 	// Renderables
-	std::shared_ptr<mrender::Renderable> cubeRender1 = mRenderContext->createRenderable(cubeGeo, textureMaterial);
-	std::shared_ptr<mrender::Renderable> cubeRender2 = mRenderContext->createRenderable(cubeGeo, textureMaterial);
-	std::shared_ptr<mrender::Renderable> floorRender = mRenderContext->createRenderable(cubeGeo, whiteMaterial);
+	mCube = mGfxContext->createRenderable(cubeGeo, textureMaterial);
+	mCube2 = mGfxContext->createRenderable(cubeGeo, blueMaterial);
+	mFloor = mGfxContext->createRenderable(cubeGeo, whiteMaterial);
 
-	mRenderContext->addRenderable(cubeRender1);
-	mRenderContext->addRenderable(cubeRender2);
-	mRenderContext->addRenderable(floorRender);
+	mGfxContext->setActiveRenderable(mCube);
+	mGfxContext->setActiveRenderable(mCube2);
+	mGfxContext->setActiveRenderable(mFloor);
 
 	// Camera
 	mrender::CameraSettings cameraSettings;
-	cameraSettings.mProjectionType = mrender::ProjectionType::Perspective;
-	cameraSettings.mWidth = static_cast<float>(mRenderContext->getSettings().mResolutionWidth);
-	cameraSettings.mHeight = static_cast<float>(mRenderContext->getSettings().mResolutionHeight);
+	cameraSettings.mProjectionType = mrender::CameraSettings::Perspective;
+	cameraSettings.mWidth = static_cast<float>(mGfxContext->getSettings().mResolutionWidth);
+	cameraSettings.mHeight = static_cast<float>(mGfxContext->getSettings().mResolutionHeight);
 	cameraSettings.mClipFar = 10000.0f;
 	cameraSettings.mPosition[2] = -5.0f;
-	auto camera = mRenderContext->createCamera(cameraSettings);
-	mCamera = std::make_shared<CameraOrbitController>(camera);
+	auto camera = mGfxContext->createCamera(cameraSettings);
+	mCamera = std::make_shared<CameraOrbitController>(mGfxContext, camera);
 
 	// ImGui
 #ifdef MENGINE_DEBUG
@@ -102,10 +106,10 @@ void RenderingLayer::onEvent(mapp::Event& event)
 		[&](const mapp::WindowResizeEvent& e)
 		{
 			// Resize Renderer
-			mrender::RenderSettings settings = mRenderContext->getSettings();
+			mrender::RenderSettings settings = mGfxContext->getSettings();
 			settings.mResolutionWidth = e.getWidth();
 			settings.mResolutionHeight = e.getHeight();
-			mRenderContext->setSettings(settings);
+			mGfxContext->setSettings(settings);
 
 			return 0;
 		});
@@ -139,7 +143,7 @@ void RenderingLayer::onRender()
 		mcore::Matrix4x4<float> rotation = mcore::Matrix4x4<float>::identity();
 		mcore::rotateX(rotation, targetRotationAngle);
 		mcore::Matrix4x4<float> model = rotation * translation;
-		mRenderContext->getRenderables()[0]->setTransform(&model[0]);
+		mGfxContext->setRenderableTransform(mCube, &model[0]);
 	}
 	{
 		mcore::Vector<float, 3> position = { 1.5f, 0.0f, 0.0f };
@@ -148,7 +152,7 @@ void RenderingLayer::onRender()
 		mcore::Matrix4x4<float> rotation = mcore::Matrix4x4<float>::identity();
 		mcore::rotateY(rotation, targetRotationAngle);
 		mcore::Matrix4x4<float> model = rotation * translation;
-		mRenderContext->getRenderables()[1]->setTransform(&model[0]);
+		mGfxContext->setRenderableTransform(mCube2, &model[0]);
 	}
 	{
 		mcore::Vector<float, 3> position = { 0.0f, -1.5f, 0.0f };
@@ -157,12 +161,12 @@ void RenderingLayer::onRender()
 		mcore::Matrix4x4<float> scale = mcore::Matrix4x4<float>::identity();
 		mcore::scale(scale, {10.0f, 0.01f, 10.0f });
 		mcore::Matrix4x4<float> model = scale * translation;
-		mRenderContext->getRenderables()[2]->setTransform(&model[0]);
+		mGfxContext->setRenderableTransform(mFloor, &model[0]);
 
 	}
 
 	// Render
-	mRenderContext->render(mCamera->getCamera());
+	mGfxContext->render(mCamera->getCamera());
 	
 	// Render ImGui
 #ifdef MENGINE_DEBUG
@@ -180,25 +184,25 @@ void RenderingLayer::onRender()
 		static float cpuRenderHighest = 0.0f;
 		if (cpuRender > cpuRenderHighest) cpuRenderHighest = cpuRender;
 
-		float gpu = 0.0f;// @todo handle stats in rendercontext
+		float gpu = 0.0f;// @todo handle stats in GfxContext
 		static float gpuHighest = 0.0f;
 		if (gpu > gpuHighest) gpuHighest = gpu;
 
 		float fps = 0.0f;
 		float texture = 0.0f;
 
-		mRenderContext->submitDebugTextOnScreen(textX, textY + 0, "%-15s %.2f ms [%.2f ms]", "cpu(game):", 0, 0);
-		mRenderContext->submitDebugTextOnScreen(textX, textY + 1, "%-15s %.2f ms [%.2f ms]", "cpu(render):", cpuRender, cpuRenderHighest);
-		mRenderContext->submitDebugTextOnScreen(textX, textY + 2, "%-15s %.2f ms [%.2f ms]", "gpu:", gpu, gpuHighest);
-		mRenderContext->submitDebugTextOnScreen(textX, textY + 3, "%-15s %.2f fps", "framerate:", fps);
-		mRenderContext->submitDebugTextOnScreen(textX, textY + 4, "%-15s %.2f / 1454 MiB", "textures:", texture);
+		mGfxContext->submitDebugText(textX, textY + 0, "%-15s %.2f ms [%.2f ms]", "cpu(game):", 0, 0);
+		mGfxContext->submitDebugText(textX, textY + 1, "%-15s %.2f ms [%.2f ms]", "cpu(render):", cpuRender, cpuRenderHighest);
+		mGfxContext->submitDebugText(textX, textY + 2, "%-15s %.2f ms [%.2f ms]", "gpu:", gpu, gpuHighest);
+		mGfxContext->submitDebugText(textX, textY + 3, "%-15s %.2f fps", "framerate:", fps);
+		mGfxContext->submitDebugText(textX, textY + 4, "%-15s %.2f / 1454 MiB", "textures:", texture);
 
-		//mRenderContext->submitDebugTextOnScreen(textX - 20, textY, mrender::Color::Red, true, false, "Too many meshes!!", 0);
+		//mGfxContext->submitDebugText(textX - 20, textY, mrender::Color::Red, true, false, "Too many meshes!!", 0);
 	}
 	
 	
 	// Swap buffers
-	mRenderContext->swapBuffers();
+	mGfxContext->swapBuffers();
 }
 
 void RenderingLayer::imguiUpdate()
@@ -215,6 +219,7 @@ void RenderingLayer::imguiUpdate()
 	ImGui::SetNextWindowPos(ImVec2(10, 10));
 
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
+	/*
 	if (ImGui::Begin(" MRender | Rendering Framework", (bool*)0, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings))
 	{
 		ImGui::Text("A 3D Rendering framework with support\nfor PBR and GI");
@@ -224,7 +229,7 @@ void RenderingLayer::imguiUpdate()
 			int result = system(scriptPath);
 			if (result == 0)
 			{
-				mRenderContext->reloadShaders();
+				mGfxContext->reloadShaders();
 			}
 		}
 		ImGui::Checkbox("Draw stats", &mDrawDebugText);
@@ -232,8 +237,8 @@ void RenderingLayer::imguiUpdate()
 
 		if (ImGui::CollapsingHeader("Render Settings", ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			std::vector<std::string_view> allRenderers = mRenderContext->getRenderer()->getNames();
-			static const char* currentItem = mRenderContext->getSettings().mRendererName.data();
+			std::vector<std::string_view> allRenderers = mGfxContext->getRenderer()->getNames();
+			static const char* currentItem = mGfxContext->getSettings().mRendererName.data();
 			if (ImGui::BeginCombo("Renderer", currentItem))
 			{
 				for (int n = 0; n < allRenderers.size(); n++)
@@ -248,36 +253,36 @@ void RenderingLayer::imguiUpdate()
 						ImGui::SetItemDefaultFocus();
 					}
 				}
-				mrender::RenderSettings settings = mRenderContext->getSettings();
+				mrender::RenderSettings settings = mGfxContext->getSettings();
 				settings.mRendererName = currentItem;
-				mRenderContext->setSettings(settings);
+				mGfxContext->setSettings(settings);
 
 				ImGui::EndCombo();
 			}
 
-			ImGui::Text("%-23s: %u", "Buffers", mRenderContext->getBuffers().size());
+			ImGui::Text("%-23s: %u", "Buffers", mGfxContext->getBuffers().size());
 			ImGui::Text("%-23s: %u", "Draw Calls", 0);
-			ImGui::Text("%-23s: %ux%u", "Resolution", mRenderContext->getSettings().mResolutionWidth, mRenderContext->getSettings().mResolutionHeight);
+			ImGui::Text("%-23s: %ux%u", "Resolution", mGfxContext->getSettings().mResolutionWidth, mGfxContext->getSettings().mResolutionHeight);
 
-			static bool vSync = mRenderContext->getSettings().mVSync;
+			static bool vSync = mGfxContext->getSettings().mVSync;
 			if (ImGui::Checkbox("VSync	", &vSync))
 			{
-				mrender::RenderSettings settings = mRenderContext->getSettings();
+				mrender::RenderSettings settings = mGfxContext->getSettings();
 				settings.mVSync = vSync;
-				mRenderContext->setSettings(settings);
+				mGfxContext->setSettings(settings);
 			}
 
 		}
 
 		if (ImGui::CollapsingHeader("Render Systems", ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			for (uint32_t i = 0; i < mRenderContext->getRenderSystems().size(); i++)
+			for (uint32_t i = 0; i < mGfxContext->getRenderSystems().size(); i++)
 			{
-				auto name = mRenderContext->getRenderSystems()[i]->getName().data();
-				uint32_t size = mRenderContext->getRenderSystems()[i]->mProfileResults.size();
+				auto name = mGfxContext->getRenderSystems()[i]->getName().data();
+				uint32_t size = mGfxContext->getRenderSystems()[i]->mProfileResults.size();
 				bool hasTree = false;
 				std::vector<std::pair<std::string_view, float>> childProfiles;
-				for (auto& profileResult : mRenderContext->getRenderSystems()[i]->mProfileResults)
+				for (auto& profileResult : mGfxContext->getRenderSystems()[i]->mProfileResults)
 				{
 					if (profileResult.first == name)
 					{
@@ -306,13 +311,13 @@ void RenderingLayer::imguiUpdate()
 
 		if (ImGui::CollapsingHeader("Shaders", ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			for (auto& shader : mRenderContext->getShaders())
+			for (auto& shader : mGfxContext->getShaders())
 			{
 				ImGui::Text(shader.first.data());
 			}
 		}
 	}
-	ImGui::End();
+	ImGui::End();*/
 	ImGui::PopStyleVar();
 	//
 

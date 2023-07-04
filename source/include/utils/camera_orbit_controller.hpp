@@ -8,18 +8,19 @@
 class CameraOrbitController
 {
 public:
-	CameraOrbitController(std::shared_ptr<mrender::Camera> camera);
+	CameraOrbitController(mrender::GfxContext* context, mrender::CameraHandle camera);
 
 	void onEvent(mapp::Event& event);
 	void onUpdate(const float& dt);
 
-	[[nodiscard]] std::shared_ptr<mrender::Camera> getCamera() { return mCamera; }
+	[[nodiscard]] mrender::CameraHandle getCamera() { return mCamera; }
 private:
-	std::shared_ptr<mrender::Camera> mCamera;
+	mrender::GfxContext* mContext;
+	mrender::CameraHandle mCamera;
 
 	bool mMousePressed;
 	float mDistanceFromTarget, mYaw, mPitch;
-	mcore::Vector<float, 3> mTargetPosition = { mCamera->getSettings().mLookAt };
-	mcore::Vector<float, 3> mPosition = { mCamera->getSettings().mPosition };
+	mcore::Vector<float, 3> mTargetPosition;
+	mcore::Vector<float, 3> mPosition;
 	
 };

@@ -3,10 +3,12 @@
 
 #include "mapp/input.hpp"
 
-CameraOrbitController::CameraOrbitController(std::shared_ptr<mrender::Camera> camera)
-	: mCamera(std::move(camera)), mMousePressed(false), mDistanceFromTarget(5.0f), mYaw(0.0f), mPitch(0.0f)
+CameraOrbitController::CameraOrbitController(mrender::GfxContext* context, mrender::CameraHandle camera)
+	: mContext(context), mCamera(camera), mMousePressed(false), mDistanceFromTarget(5.0f), mYaw(0.0f), mPitch(0.0f)
 {
-	
+	mrender::CameraSettings settings = mContext->getCameraSettings(mCamera);
+	mTargetPosition = { settings.mLookAt[0], settings.mLookAt[1], settings.mLookAt[2] };
+	mPosition = { settings.mPosition[0], settings.mPosition[1], settings.mPosition[2] };
 }
 
 void CameraOrbitController::onEvent(mapp::Event& event)
@@ -78,10 +80,10 @@ void CameraOrbitController::onEvent(mapp::Event& event)
 	dispatcher.dispatch<mapp::WindowResizeEvent>(
 		[&](const mapp::WindowResizeEvent& e)
 		{
-			mrender::CameraSettings settings = mCamera->getSettings();
+			mrender::CameraSettings settings = mContext->getCameraSettings(mCamera);
 			settings.mWidth = static_cast<float>(e.getWidth());
 			settings.mHeight = static_cast<float>(e.getHeight());
-			mCamera->setSettings(settings);
+			mContext->setCameraSettings(mCamera, settings);
 
 			return 0;
 		});
@@ -89,21 +91,21 @@ void CameraOrbitController::onEvent(mapp::Event& event)
 
 void CameraOrbitController::onUpdate(const float& dt)
 {
-	mTargetPosition = { mCamera->getSettings().mLookAt };
-	mPosition = { mCamera->getSettings().mPosition };
+	mTargetPosition = { mContext->getCameraSettings(mCamera).mLookAt };
+	mPosition = { mContext->getCameraSettings(mCamera).mPosition };
 
 	mPosition[0] = mTargetPosition[0] + mDistanceFromTarget * std::cos(mcore::toRadians(mYaw)) * std::cos(mcore::toRadians(mPitch));
 	mPosition[1] = mTargetPosition[1] + mDistanceFromTarget * std::sin(mcore::toRadians(mPitch));
 	mPosition[2] = mTargetPosition[2] + mDistanceFromTarget * std::sin(mcore::toRadians(mYaw)) * std::cos(mcore::toRadians(mPitch));
 
 	// Update the camera settings
-	mrender::CameraSettings settings = mCamera->getSettings();
+	mrender::CameraSettings settings = mContext->getCameraSettings(mCamera);
 	settings.mPosition[0] = mPosition[0];
 	settings.mPosition[1] = mPosition[1];
 	settings.mPosition[2] = mPosition[2];
 	settings.mLookAt[0] = mTargetPosition[0];
 	settings.mLookAt[1] = mTargetPosition[1];
 	settings.mLookAt[2] = mTargetPosition[2];
-	mCamera->setSettings(settings);
+	mContext->setCameraSettings(mCamera, settings);
 	
 }

@@ -67,8 +67,12 @@ private:
 
 private:
     mapp::AppContext* mAppContext;
-    std::shared_ptr<mrender::RenderContext> mRenderContext;
+    mrender::GfxContext* mGfxContext;
     std::shared_ptr<CameraOrbitController> mCamera;
+
+    mrender::RenderableHandle mCube;
+    mrender::RenderableHandle mCube2;
+    mrender::RenderableHandle mFloor;
 
     bool mDrawDebugText = false;
 };

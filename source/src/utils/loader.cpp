@@ -30,26 +30,10 @@ uint32_t encodeNormalRgba8(float _x, float _y, float _z, float _w)
 	return dst;
 }
 
-std::shared_ptr<mrender::Texture> loadTexture(std::shared_ptr<mrender::RenderContext>& context, std::string_view filename)
+mrender::TextureHandle loadTexture(mrender::GfxContext* context, std::string_view filename)
 {
 	stbi_set_flip_vertically_on_load(true);
 	int width = 0, height = 0, channels = 0;
 	const uint8_t* data = stbi_load(filename.data(), &width, &height, &channels, 4);
 	return context->createTexture(data, mrender::TextureFormat::RGBA8, 0, width, height, 4);
-}
-
-std::shared_ptr<mrender::Geometry> loadGeometry(std::shared_ptr<mrender::RenderContext>& context, std::string_view filename)
-{
-	std::vector<Vertex> vertices;
-	std::vector<uint16_t> indices;
-
-	mrender::BufferLayout layout =
-	{ {
-		{ mrender::AttribType::Float, 3, mrender::Attrib::Position },
-		{ mrender::AttribType::Uint8, 4, mrender::Attrib::Normal },
-		{ mrender::AttribType::Uint8, 4, mrender::Attrib::Tangent },
-		{ mrender::AttribType::Int16, 2, mrender::Attrib::TexCoord0 },
-	} };
-
-	return context->createGeometry(layout, vertices.data(), static_cast<uint32_t>(vertices.size() * sizeof(Vertex)), indices);
 }
