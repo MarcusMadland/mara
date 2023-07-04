@@ -20,7 +20,9 @@ private:
 
 	bool mMousePressed;
 	float mDistanceFromTarget, mYaw, mPitch;
+	float mTargetYaw, mTargetPitch;  // Interpolated target rotation values
 	mcore::Vector<float, 3> mTargetPosition;
 	mcore::Vector<float, 3> mPosition;
 	
+	float mInterpolationSpeed = 5.0f;  // Speed at which rotation values are interpolated
 };

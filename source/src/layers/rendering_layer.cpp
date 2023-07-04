@@ -130,7 +130,7 @@ void RenderingLayer::onRender()
 	mrender::PROFILE_SCOPE("RenderingLayer");
 
 	float deltaTime = mAppContext->getApp()->getDeltaTime();
-	static float rotationSpeed = 20.0f;
+	static float rotationSpeed = 0.0f;//20.0f;
 	static float accumulatedTime = 0.0f;
 	static float rotationAngle = 0.0f;
 	accumulatedTime += deltaTime;
@@ -197,7 +197,9 @@ void RenderingLayer::onRender()
 		mGfxContext->submitDebugText(textX, textY + 3, "%-15s %.2f fps", "framerate:", fps);
 		mGfxContext->submitDebugText(textX, textY + 4, "%-15s %.2f / 1454 MiB", "textures:", texture);
 
-		//mGfxContext->submitDebugText(textX - 20, textY, mrender::Color::Red, true, false, "Too many meshes!!", 0);
+		//mGfxContext->submitDebugText(textX - 20, textY, mrender::Color::Red, true, false, "Too many vertices", 0);
+		//mGfxContext->submitDebugText(textX - 20, textY, mrender::Color::Red, true, false, "Too many this", 0);
+		//mGfxContext->submitDebugText(textX - 20, textY, mrender::Color::Red, true, false, "Too many that", 0);
 	}
 	
 	
@@ -219,7 +221,7 @@ void RenderingLayer::imguiUpdate()
 	ImGui::SetNextWindowPos(ImVec2(10, 10));
 
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
-	/*
+	
 	if (ImGui::Begin(" MRender | Rendering Framework", (bool*)0, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings))
 	{
 		ImGui::Text("A 3D Rendering framework with support\nfor PBR and GI");
@@ -234,7 +236,7 @@ void RenderingLayer::imguiUpdate()
 		}
 		ImGui::Checkbox("Draw stats", &mDrawDebugText);
 		ImGui::Separator();
-
+		/*
 		if (ImGui::CollapsingHeader("Render Settings", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			std::vector<std::string_view> allRenderers = mGfxContext->getRenderer()->getNames();
@@ -273,7 +275,8 @@ void RenderingLayer::imguiUpdate()
 			}
 
 		}
-
+		*/
+		/*
 		if (ImGui::CollapsingHeader("Render Systems", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			for (uint32_t i = 0; i < mGfxContext->getRenderSystems().size(); i++)
@@ -307,17 +310,17 @@ void RenderingLayer::imguiUpdate()
 				}
 				
 			}
-		}
-
+		}*/
+		/*
 		if (ImGui::CollapsingHeader("Shaders", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			for (auto& shader : mGfxContext->getShaders())
 			{
 				ImGui::Text(shader.first.data());
 			}
-		}
+		}*/
 	}
-	ImGui::End();*/
+	ImGui::End();
 	ImGui::PopStyleVar();
 	//
 

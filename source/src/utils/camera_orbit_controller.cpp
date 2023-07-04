@@ -4,11 +4,13 @@
 #include "mapp/input.hpp"
 
 CameraOrbitController::CameraOrbitController(mrender::GfxContext* context, mrender::CameraHandle camera)
-	: mContext(context), mCamera(camera), mMousePressed(false), mDistanceFromTarget(5.0f), mYaw(0.0f), mPitch(0.0f)
+	: mContext(context), mCamera(camera), mMousePressed(false), mDistanceFromTarget(10.0f), mYaw(0.0f), mPitch(0.0f)
 {
 	mrender::CameraSettings settings = mContext->getCameraSettings(mCamera);
 	mTargetPosition = { settings.mLookAt[0], settings.mLookAt[1], settings.mLookAt[2] };
 	mPosition = { settings.mPosition[0], settings.mPosition[1], settings.mPosition[2] };
+	mTargetYaw = mYaw;
+	mTargetPitch = mPitch;
 }
 
 void CameraOrbitController::onEvent(mapp::Event& event)
@@ -58,13 +60,13 @@ void CameraOrbitController::onEvent(mapp::Event& event)
 			if (mMousePressed)
 			{
 				// Update camera yaw and pitch based on mouse movement
-				mYaw -= deltaX * sensitivity;
-				mPitch += deltaY * sensitivity;
+				mTargetYaw -= deltaX * sensitivity;
+				mTargetPitch += deltaY * sensitivity;
 
 				// Clamp the pitch to avoid flipping the camera
 				const float maxPitch = 89.0f;
 				const float minPitch = -89.0f;
-				mPitch = std::clamp(mPitch, minPitch, maxPitch);
+				mTargetPitch = std::clamp(mTargetPitch, minPitch, maxPitch);
 			}
 			return false;
 		});
@@ -93,6 +95,11 @@ void CameraOrbitController::onUpdate(const float& dt)
 {
 	mTargetPosition = { mContext->getCameraSettings(mCamera).mLookAt };
 	mPosition = { mContext->getCameraSettings(mCamera).mPosition };
+
+	// Interpolate rotation values towards the target rotation values
+	float rotationInterpolationSpeed = mInterpolationSpeed * dt;
+	mYaw = mcore::lerp(mYaw, mTargetYaw, rotationInterpolationSpeed);
+	mPitch = mcore::lerp(mPitch, mTargetPitch, rotationInterpolationSpeed);
 
 	mPosition[0] = mTargetPosition[0] + mDistanceFromTarget * std::cos(mcore::toRadians(mYaw)) * std::cos(mcore::toRadians(mPitch));
 	mPosition[1] = mTargetPosition[1] + mDistanceFromTarget * std::sin(mcore::toRadians(mPitch));
