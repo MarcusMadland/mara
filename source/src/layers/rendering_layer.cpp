@@ -31,7 +31,7 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 	mGfxContext->setClearColor(0xFF00FFFF);
 
 	// Shaders
-	mrender::ShaderHandle shader = mGfxContext->createShader("uber", "C:/Users/marcu/Dev/mengine/mrender/shaders/uber");
+	mrender::ShaderHandle shader = mGfxContext->createShader("deferred_geo", "C:/Users/marcu/Dev/mengine/mrender/shaders/deferred_geo");
 
 	// Geometry
 	mrender::BufferLayout layout =
@@ -57,10 +57,10 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 	mGfxContext->setMaterialTextureData(textureMaterial, "u_specular", specularTex);
 	
 	mrender::MaterialHandle whiteMaterial = mGfxContext->createMaterial(shader);
-	mGfxContext->setMaterialUniformData(whiteMaterial, "u_albedoColor", mrender::UniformData::UniformType::Vec4, std::shared_ptr<void>(&whiteColor));
+	mGfxContext->setMaterialUniformData(whiteMaterial, "u_albedoColor", mrender::UniformData::UniformType::Vec4, &whiteColor);
 
 	mrender::MaterialHandle blueMaterial = mGfxContext->createMaterial(shader);
-	mGfxContext->setMaterialUniformData(blueMaterial, "u_albedoColor", mrender::UniformData::UniformType::Vec4, std::shared_ptr<void>(&blueColor));
+	mGfxContext->setMaterialUniformData(blueMaterial, "u_albedoColor", mrender::UniformData::UniformType::Vec4, &blueColor);
 
 	// Renderables
 	mCube = mGfxContext->createRenderable(cubeGeo, textureMaterial);
@@ -180,20 +180,27 @@ void RenderingLayer::onRender()
 
 	if (mDrawDebugText)
 	{
-		float cpuRender = mProfileResults.at("RenderingLayer");
+		mrender::Stats* stats = mGfxContext->getStats();
+
+		// CPU
+		float cpuRender = stats->mCpuTime;
 		static float cpuRenderHighest = 0.0f;
 		if (cpuRender > cpuRenderHighest) cpuRenderHighest = cpuRender;
 
-		float gpu = 0.0f;// @todo handle stats in GfxContext
-		static float gpuHighest = 0.0f;
-		if (gpu > gpuHighest) gpuHighest = gpu;
+		// GPU
+		float gpuRender = stats->mGpuTime;
+		static float gpuRenderHighest = 0.0f;
+		if (gpuRender > gpuRenderHighest) gpuRenderHighest = gpuRender;
 
-		float fps = 0.0f;
-		float texture = 0.0f;
+		// FPS
+		float fps = 1 / deltaTime;
+
+		// MEMORY
+		float texture = stats->mTextureMemoryUsed;
 
 		mGfxContext->submitDebugText(textX, textY + 0, "%-15s %.2f ms [%.2f ms]", "cpu(game):", 0, 0);
 		mGfxContext->submitDebugText(textX, textY + 1, "%-15s %.2f ms [%.2f ms]", "cpu(render):", cpuRender, cpuRenderHighest);
-		mGfxContext->submitDebugText(textX, textY + 2, "%-15s %.2f ms [%.2f ms]", "gpu:", gpu, gpuHighest);
+		mGfxContext->submitDebugText(textX, textY + 2, "%-15s %.2f ms [%.2f ms]", "gpu:", gpuRender, gpuRenderHighest);
 		mGfxContext->submitDebugText(textX, textY + 3, "%-15s %.2f fps", "framerate:", fps);
 		mGfxContext->submitDebugText(textX, textY + 4, "%-15s %.2f / 1454 MiB", "textures:", texture);
 
@@ -236,7 +243,7 @@ void RenderingLayer::imguiUpdate()
 		}
 		ImGui::Checkbox("Draw stats", &mDrawDebugText);
 		ImGui::Separator();
-		/*
+		
 		if (ImGui::CollapsingHeader("Render Settings", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			std::vector<std::string_view> allRenderers = mGfxContext->getRenderer()->getNames();
@@ -261,9 +268,9 @@ void RenderingLayer::imguiUpdate()
 
 				ImGui::EndCombo();
 			}
-
-			ImGui::Text("%-23s: %u", "Buffers", mGfxContext->getBuffers().size());
-			ImGui::Text("%-23s: %u", "Draw Calls", 0);
+			mrender::Stats* stats = mGfxContext->getStats();
+			ImGui::Text("%-23s: %u", "Buffers", mGfxContext->getSharedBuffers().size());
+			ImGui::Text("%-23s: %u", "Draw Calls", stats->mNumDrawCalls);
 			ImGui::Text("%-23s: %ux%u", "Resolution", mGfxContext->getSettings().mResolutionWidth, mGfxContext->getSettings().mResolutionHeight);
 
 			static bool vSync = mGfxContext->getSettings().mVSync;
@@ -275,8 +282,7 @@ void RenderingLayer::imguiUpdate()
 			}
 
 		}
-		*/
-		/*
+		
 		if (ImGui::CollapsingHeader("Render Systems", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			for (uint32_t i = 0; i < mGfxContext->getRenderSystems().size(); i++)
@@ -310,15 +316,21 @@ void RenderingLayer::imguiUpdate()
 				}
 				
 			}
-		}*/
-		/*
-		if (ImGui::CollapsingHeader("Shaders", ImGuiTreeNodeFlags_DefaultOpen))
+		}
+		
+		if (ImGui::CollapsingHeader("Data"/*, ImGuiTreeNodeFlags_DefaultOpen*/))
 		{
-			for (auto& shader : mGfxContext->getShaders())
-			{
-				ImGui::Text(shader.first.data());
-			}
-		}*/
+			mrender::Stats* stats = mGfxContext->getStats();
+			
+			ImGui::Text("%-23s: %u", "Cameras", stats->mNumCameras);
+			ImGui::Text("%-23s: %u", "Framebuffers", stats->mNumFramebuffers);
+			ImGui::Text("%-23s: %u", "RenderStates", stats->mNumRenderStates);
+			ImGui::Text("%-23s: %u", "Materials", stats->mNumMaterials);
+			ImGui::Text("%-23s: %u", "Textures", stats->mNumTextures);
+			ImGui::Text("%-23s: %u", "Shaders", stats->mNumShaders);
+			ImGui::Text("%-23s: %u", "Geometries", stats->mNumGeometries);
+			ImGui::Text("%-23s: %u", "Renderables", stats->mNumRenderables);
+		}
 	}
 	ImGui::End();
 	ImGui::PopStyleVar();
