@@ -32,6 +32,7 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 
 	// Shaders
 	mrender::ShaderHandle shader = mGfxContext->createShader("deferred_geo", "C:/Users/marcu/Dev/mengine/mrender/shaders/deferred_geo");
+	mrender::ShaderHandle testObjectShader = mGfxContext->createShader("debug_draw", "C:/Users/marcu/Dev/mengine/mrender/shaders/debug_draw");
 
 	// Geometry
 	mrender::BufferLayout layout =
@@ -62,21 +63,87 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 	mrender::MaterialHandle blueMaterial = mGfxContext->createMaterial(shader);
 	mGfxContext->setMaterialUniformData(blueMaterial, "u_albedoColor", mrender::UniformData::UniformType::Vec4, &blueColor);
 
+	mrender::MaterialHandle testObjectMaterial = mGfxContext->createMaterial(testObjectShader);
+	static mcore::Vector<float, 4> redColor = { 0.8f, 0.0f, 0.0f, 1.0f };
+	mGfxContext->setMaterialUniformData(testObjectMaterial, "u_debugColor", mrender::UniformData::UniformType::Vec4, &redColor);
+
 	// Renderables
 	mCube = mGfxContext->createRenderable(cubeGeo, textureMaterial);
 	mCube2 = mGfxContext->createRenderable(cubeGeo, blueMaterial);
 	mFloor = mGfxContext->createRenderable(cubeGeo, whiteMaterial);
 
+	mrender::RenderableList lightObjects;
+	for (int i = 0; i < 4; i++)
+	{
+		lightObjects.push_back(mGfxContext->createRenderable(cubeGeo, testObjectMaterial));
+	}
+
 	mGfxContext->setActiveRenderable(mCube);
 	mGfxContext->setActiveRenderable(mCube2);
 	mGfxContext->setActiveRenderable(mFloor);
+
+	mGfxContext->setActiveRenderables(lightObjects);
+
+	{
+		mcore::Matrix4x4<float> translation = mcore::Matrix4x4<float>::identity();
+		mcore::Vector<float, 3> position = { 3.0f, 0.0f, 3.0f };
+		mcore::translate(translation, position);
+
+		mcore::Matrix4x4<float> scale = mcore::Matrix4x4<float>::identity();
+		mcore::Vector<float, 3> scaleVal = { 0.1f, 0.1f, 0.1f };
+		mcore::scale(scale, scaleVal);
+
+		mcore::Matrix4x4<float> model = scale * translation;
+
+		mGfxContext->setRenderableTransform(lightObjects[0], &model[0]);
+	}
+	{
+		mcore::Matrix4x4<float> translation = mcore::Matrix4x4<float>::identity();
+		mcore::Vector<float, 3> position = { 3.0f, 0.0f, -3.0f };
+		mcore::translate(translation, position);
+
+		mcore::Matrix4x4<float> scale = mcore::Matrix4x4<float>::identity();
+		mcore::Vector<float, 3> scaleVal = { 0.1f, 0.1f, 0.1f };
+		mcore::scale(scale, scaleVal);
+
+		mcore::Matrix4x4<float> model = scale * translation;
+
+		mGfxContext->setRenderableTransform(lightObjects[1], &model[0]);
+	}
+	{
+		mcore::Matrix4x4<float> translation = mcore::Matrix4x4<float>::identity();
+		mcore::Vector<float, 3> position = { -3.0f, 0.0f, 3.0f };
+		mcore::translate(translation, position);
+
+		mcore::Matrix4x4<float> scale = mcore::Matrix4x4<float>::identity();
+		mcore::Vector<float, 3> scaleVal = { 0.1f, 0.1f, 0.1f };
+		mcore::scale(scale, scaleVal);
+
+		mcore::Matrix4x4<float> model = scale * translation;
+
+		mGfxContext->setRenderableTransform(lightObjects[2], &model[0]);
+	}
+	{
+		mcore::Matrix4x4<float> translation = mcore::Matrix4x4<float>::identity();
+		mcore::Vector<float, 3> position = { -3.0f, 0.0f, -3.0f };
+		mcore::translate(translation, position);
+
+		mcore::Matrix4x4<float> scale = mcore::Matrix4x4<float>::identity();
+		mcore::Vector<float, 3> scaleVal = { 0.1f, 0.1f, 0.1f };
+		mcore::scale(scale, scaleVal);
+
+		mcore::Matrix4x4<float> model = scale * translation;
+
+		mGfxContext->setRenderableTransform(lightObjects[3], &model[0]);
+	}
+
 
 	// Camera
 	mrender::CameraSettings cameraSettings;
 	cameraSettings.mProjectionType = mrender::CameraSettings::Perspective;
 	cameraSettings.mWidth = static_cast<float>(mGfxContext->getSettings().mResolutionWidth);
 	cameraSettings.mHeight = static_cast<float>(mGfxContext->getSettings().mResolutionHeight);
-	cameraSettings.mClipFar = 10000.0f;
+	cameraSettings.mClipFar = 100.0f;
 	cameraSettings.mPosition[2] = -5.0f;
 	auto camera = mGfxContext->createCamera(cameraSettings);
 	mCamera = std::make_shared<CameraOrbitController>(mGfxContext, camera);
@@ -204,6 +271,17 @@ void RenderingLayer::onRender()
 		mGfxContext->submitDebugText(textX, textY + 3, "%-15s %.2f fps", "framerate:", fps);
 		mGfxContext->submitDebugText(textX, textY + 4, "%-15s %.2f / 1454 MiB", "textures:", texture);
 
+		{
+			mcore::Vector<float, 3> position = { -1.5f, 0.0f, 0.0f };
+			mcore::Matrix4x4<float> translation = mcore::Matrix4x4<float>::identity();
+			mcore::translate(translation, position);
+			mcore::Vector<float, 3> size = { 0.2f, 0.2f, 0.2f };
+			mcore::Matrix4x4<float> scale = mcore::Matrix4x4<float>::identity();
+			mcore::scale(scale, size);
+			mcore::Matrix4x4<float> model = scale * translation;
+			//mGfxContext->submitDebugCube(&model[0], mrender::Color::Red);
+		}
+
 		//mGfxContext->submitDebugText(textX - 20, textY, mrender::Color::Red, true, false, "Too many vertices", 0);
 		//mGfxContext->submitDebugText(textX - 20, textY, mrender::Color::Red, true, false, "Too many this", 0);
 		//mGfxContext->submitDebugText(textX - 20, textY, mrender::Color::Red, true, false, "Too many that", 0);
@@ -228,7 +306,6 @@ void RenderingLayer::imguiUpdate()
 	ImGui::SetNextWindowPos(ImVec2(10, 10));
 
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
-	
 	if (ImGui::Begin(" MRender | Rendering Framework", (bool*)0, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings))
 	{
 		ImGui::Text("A 3D Rendering framework with support\nfor PBR and GI");
@@ -334,6 +411,29 @@ void RenderingLayer::imguiUpdate()
 	}
 	ImGui::End();
 	ImGui::PopStyleVar();
+
+	if (ImGui::Begin("Buffers"))
+	{
+		mrender::TextureHandle shadowMap = mGfxContext->getSharedBuffers().at("ShadowMap");
+		mrender::TextureHandle diffuse = mGfxContext->getSharedBuffers().at("GDiffuse");
+		mrender::TextureHandle normal = mGfxContext->getSharedBuffers().at("GNormal");
+		mrender::TextureHandle specular = mGfxContext->getSharedBuffers().at("GSpecular");
+		mrender::TextureHandle position = mGfxContext->getSharedBuffers().at("GPosition");
+		mrender::TextureHandle light = mGfxContext->getSharedBuffers().at("Light");
+
+		ImGui::Image(ImTextureID(mGfxContext->getTextureID(shadowMap)), ImVec2(128, 128), ImVec2(-1, 1), ImVec2(0, 0));
+		ImGui::SameLine();
+		ImGui::Image(ImTextureID(mGfxContext->getTextureID(diffuse)), ImVec2(217, 128), ImVec2(-1, 1), ImVec2(0, 0));
+		ImGui::SameLine();
+		ImGui::Image(ImTextureID(mGfxContext->getTextureID(normal)), ImVec2(217, 128), ImVec2(-1, 1), ImVec2(0, 0));
+		ImGui::SameLine();
+		ImGui::Image(ImTextureID(mGfxContext->getTextureID(specular)), ImVec2(217, 128), ImVec2(-1, 1), ImVec2(0, 0));
+		ImGui::SameLine();
+		ImGui::Image(ImTextureID(mGfxContext->getTextureID(position)), ImVec2(217, 128), ImVec2(-1, 1), ImVec2(0, 0));
+		ImGui::SameLine();
+		ImGui::Image(ImTextureID(mGfxContext->getTextureID(light)), ImVec2(217, 128), ImVec2(-1, 1), ImVec2(0, 0));
+	}
+	ImGui::End();
 	//
 
 	ImGui::Render();
