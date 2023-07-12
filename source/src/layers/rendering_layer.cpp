@@ -32,7 +32,7 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 
 	// Shaders
 	mrender::ShaderHandle shader = mGfxContext->createShader("deferred_geo", "C:/Users/marcu/Dev/mengine/mrender/shaders/deferred_geo");
-	mrender::ShaderHandle testObjectShader = mGfxContext->createShader("debug_draw", "C:/Users/marcu/Dev/mengine/mrender/shaders/debug_draw");
+	mrender::ShaderHandle debugDrawShader = mGfxContext->createShader("debug_draw", "C:/Users/marcu/Dev/mengine/mrender/shaders/debug_draw");
 
 	// Geometry
 	mrender::BufferLayout layout =
@@ -50,40 +50,59 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 	mrender::TextureHandle specularTex = loadTexture(mGfxContext, "C:/Users/marcu/Dev/mengine/resources/specular.png");
 	static mcore::Vector<float, 4> whiteColor = { 0.8f, 0.8f, 0.8f, 1.0f };
 	static mcore::Vector<float, 4> blueColor = { 0.0f, 0.0f, 0.8f, 1.0f };
+	static mcore::Vector<float, 4> redColor = { 0.8f, 0.0f, 0.0f, 1.0f };
 
 	// Materials
 	mrender::MaterialHandle textureMaterial = mGfxContext->createMaterial(shader);
 	mGfxContext->setMaterialTextureData(textureMaterial, "u_albedo", albedoTex);
 	mGfxContext->setMaterialTextureData(textureMaterial, "u_normal", normalTex);
 	mGfxContext->setMaterialTextureData(textureMaterial, "u_specular", specularTex);
-	
-	mrender::MaterialHandle whiteMaterial = mGfxContext->createMaterial(shader);
-	mGfxContext->setMaterialUniformData(whiteMaterial, "u_albedoColor", mrender::UniformData::UniformType::Vec4, &whiteColor);
 
-	mrender::MaterialHandle blueMaterial = mGfxContext->createMaterial(shader);
-	mGfxContext->setMaterialUniformData(blueMaterial, "u_albedoColor", mrender::UniformData::UniformType::Vec4, &blueColor);
+	mrender::MaterialHandle debugDrawMaterial = mGfxContext->createMaterial(debugDrawShader);
+	mGfxContext->setMaterialUniformData(debugDrawMaterial, "u_debugColor", mrender::UniformData::UniformType::Vec4, &redColor);
 
-	mrender::MaterialHandle testObjectMaterial = mGfxContext->createMaterial(testObjectShader);
-	static mcore::Vector<float, 4> redColor = { 0.8f, 0.0f, 0.0f, 1.0f };
-	mGfxContext->setMaterialUniformData(testObjectMaterial, "u_debugColor", mrender::UniformData::UniformType::Vec4, &redColor);
-
-	// Renderables
-	mCube = mGfxContext->createRenderable(cubeGeo, textureMaterial);
-	mCube2 = mGfxContext->createRenderable(cubeGeo, textureMaterial);
-	mFloor = mGfxContext->createRenderable(cubeGeo, whiteMaterial);
-
+	// Renderables (lights)
 	for (int i = 0; i < 4; i++)
 	{
-		mLights.push_back(mGfxContext->createRenderable(cubeGeo, testObjectMaterial));
+		mLights.push_back(mGfxContext->createRenderable(cubeGeo, debugDrawMaterial));
 	}
-
-	mGfxContext->setActiveRenderable(mCube);
-	mGfxContext->setActiveRenderable(mCube2);
-	//mGfxContext->setActiveRenderable(mFloor);
-
 	mGfxContext->setActiveRenderables(mLights);
 
-	
+	// Renderables (cubes)
+	for (int x = -10; x < 10; x++)
+	{
+		for (int y = -10; y < 10; y++)
+		{
+			mrender::RenderableHandle renderable = mGfxContext->createRenderable(cubeGeo, textureMaterial);
+			{
+				mcore::Matrix4x4<float> translation = mcore::Matrix4x4<float>::identity();
+				mcore::Vector<float, 3> position = { (float)x * 3, (float)y * 3, 0.0f };
+				mcore::translate(translation, position);
+
+				mcore::Matrix4x4<float> scale = mcore::Matrix4x4<float>::identity();
+				mcore::Vector<float, 3> scaleVal = { 1.0f, 1.0f, 1.0f };
+				mcore::scale(scale, scaleVal);
+
+				mcore::Matrix4x4<float> model = scale * translation;
+
+				mGfxContext->setRenderableTransform(renderable, &model[0]);
+			}
+
+			mCubes.push_back(renderable);
+		}
+	}
+	mGfxContext->setActiveRenderables(mCubes);
+
+	mGfxContext->mLightPositions[0][0] = 0.0f;
+	mGfxContext->mLightPositions[0][1] = 0.0f;
+	mGfxContext->mLightPositions[0][2] = 2.0f;
+	mGfxContext->mLightPositions[0][3] = 6.0f;
+
+	mGfxContext->mLightColors[0][0] = 0.5f;
+	mGfxContext->mLightColors[0][1] = 0.5f;
+	mGfxContext->mLightColors[0][2] = 0.5f;
+	mGfxContext->mLightColors[0][3] = 0.1f;
+
 
 
 	// Camera
@@ -91,7 +110,7 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 	cameraSettings.mProjectionType = mrender::CameraSettings::Perspective;
 	cameraSettings.mWidth = static_cast<float>(mGfxContext->getSettings().mResolutionWidth);
 	cameraSettings.mHeight = static_cast<float>(mGfxContext->getSettings().mResolutionHeight);
-	cameraSettings.mClipFar = 100.0f;
+	cameraSettings.mClipFar = 1000.0f;
 	cameraSettings.mPosition[2] = -5.0f;
 	auto camera = mGfxContext->createCamera(cameraSettings);
 	mCamera = std::make_shared<CameraOrbitController>(mGfxContext, camera);
@@ -198,6 +217,7 @@ void RenderingLayer::onRender()
 	mrender::PROFILE_SCOPE("RenderingLayer");
 
 	float deltaTime = mAppContext->getApp()->getDeltaTime();
+	/*
 	static float rotationSpeed = 0.0f;//20.0f;
 	static float accumulatedTime = 0.0f;
 	static float rotationAngle = 0.0f;
@@ -231,7 +251,7 @@ void RenderingLayer::onRender()
 		mcore::Matrix4x4<float> model = scale * translation;
 		mGfxContext->setRenderableTransform(mFloor, &model[0]);
 
-	}
+	}*/
 
 	// Render
 	mGfxContext->render(mCamera->getCamera());
@@ -438,10 +458,8 @@ void RenderingLayer::imguiUpdate()
 
 	if (ImGui::Begin("Light"))
 	{
-		ImGui::SliderFloat3("Light 1", mGfxContext->mLightPositions[0], -10.0f, 10.0f);
-		ImGui::SliderFloat3("Light 2", mGfxContext->mLightPositions[1], -10.0f, 10.0f);
-		ImGui::SliderFloat3("Light 3", mGfxContext->mLightPositions[2], -10.0f, 10.0f);
-		ImGui::SliderFloat3("Light 4", mGfxContext->mLightPositions[3], -10.0f, 10.0f);
+		ImGui::SliderFloat4("Light PosRadius", mGfxContext->mLightPositions[0], -10.0f, 10.0f);
+		ImGui::SliderFloat4("Light RbgRadius", mGfxContext->mLightColors[0], 0.0f, 1.0f);
 	}
 	ImGui::End();
 	//
