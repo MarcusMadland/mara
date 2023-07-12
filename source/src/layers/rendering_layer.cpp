@@ -28,7 +28,7 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 	mGfxContext = mrender::createGfxContext(renderSettings);
 
 	// Clear color
-	mGfxContext->setClearColor(0xFF00FFFF);
+	mGfxContext->setClearColor(0x00000000);
 
 	// Shaders
 	mrender::ShaderHandle shader = mGfxContext->createShader("deferred_geo", "C:/Users/marcu/Dev/mengine/mrender/shaders/deferred_geo");
@@ -69,73 +69,21 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 
 	// Renderables
 	mCube = mGfxContext->createRenderable(cubeGeo, textureMaterial);
-	mCube2 = mGfxContext->createRenderable(cubeGeo, blueMaterial);
+	mCube2 = mGfxContext->createRenderable(cubeGeo, textureMaterial);
 	mFloor = mGfxContext->createRenderable(cubeGeo, whiteMaterial);
 
-	mrender::RenderableList lightObjects;
 	for (int i = 0; i < 4; i++)
 	{
-		lightObjects.push_back(mGfxContext->createRenderable(cubeGeo, testObjectMaterial));
+		mLights.push_back(mGfxContext->createRenderable(cubeGeo, testObjectMaterial));
 	}
 
 	mGfxContext->setActiveRenderable(mCube);
 	mGfxContext->setActiveRenderable(mCube2);
-	mGfxContext->setActiveRenderable(mFloor);
+	//mGfxContext->setActiveRenderable(mFloor);
 
-	mGfxContext->setActiveRenderables(lightObjects);
+	mGfxContext->setActiveRenderables(mLights);
 
-	{
-		mcore::Matrix4x4<float> translation = mcore::Matrix4x4<float>::identity();
-		mcore::Vector<float, 3> position = { 3.0f, 0.0f, 3.0f };
-		mcore::translate(translation, position);
-
-		mcore::Matrix4x4<float> scale = mcore::Matrix4x4<float>::identity();
-		mcore::Vector<float, 3> scaleVal = { 0.1f, 0.1f, 0.1f };
-		mcore::scale(scale, scaleVal);
-
-		mcore::Matrix4x4<float> model = scale * translation;
-
-		mGfxContext->setRenderableTransform(lightObjects[0], &model[0]);
-	}
-	{
-		mcore::Matrix4x4<float> translation = mcore::Matrix4x4<float>::identity();
-		mcore::Vector<float, 3> position = { 3.0f, 0.0f, -3.0f };
-		mcore::translate(translation, position);
-
-		mcore::Matrix4x4<float> scale = mcore::Matrix4x4<float>::identity();
-		mcore::Vector<float, 3> scaleVal = { 0.1f, 0.1f, 0.1f };
-		mcore::scale(scale, scaleVal);
-
-		mcore::Matrix4x4<float> model = scale * translation;
-
-		mGfxContext->setRenderableTransform(lightObjects[1], &model[0]);
-	}
-	{
-		mcore::Matrix4x4<float> translation = mcore::Matrix4x4<float>::identity();
-		mcore::Vector<float, 3> position = { -3.0f, 0.0f, 3.0f };
-		mcore::translate(translation, position);
-
-		mcore::Matrix4x4<float> scale = mcore::Matrix4x4<float>::identity();
-		mcore::Vector<float, 3> scaleVal = { 0.1f, 0.1f, 0.1f };
-		mcore::scale(scale, scaleVal);
-
-		mcore::Matrix4x4<float> model = scale * translation;
-
-		mGfxContext->setRenderableTransform(lightObjects[2], &model[0]);
-	}
-	{
-		mcore::Matrix4x4<float> translation = mcore::Matrix4x4<float>::identity();
-		mcore::Vector<float, 3> position = { -3.0f, 0.0f, -3.0f };
-		mcore::translate(translation, position);
-
-		mcore::Matrix4x4<float> scale = mcore::Matrix4x4<float>::identity();
-		mcore::Vector<float, 3> scaleVal = { 0.1f, 0.1f, 0.1f };
-		mcore::scale(scale, scaleVal);
-
-		mcore::Matrix4x4<float> model = scale * translation;
-
-		mGfxContext->setRenderableTransform(lightObjects[3], &model[0]);
-	}
+	
 
 
 	// Camera
@@ -190,6 +138,59 @@ void RenderingLayer::onEvent(mapp::Event& event)
 void RenderingLayer::onUpdate(const float& dt)
 {
 	mCamera->onUpdate(dt);
+
+	{
+		mcore::Matrix4x4<float> translation = mcore::Matrix4x4<float>::identity();
+		mcore::Vector<float, 3> position = { mGfxContext->mLightPositions[0] };
+		mcore::translate(translation, position);
+
+		mcore::Matrix4x4<float> scale = mcore::Matrix4x4<float>::identity();
+		mcore::Vector<float, 3> scaleVal = { 0.1f, 0.1f, 0.1f };
+		mcore::scale(scale, scaleVal);
+
+		mcore::Matrix4x4<float> model = scale * translation;
+
+		mGfxContext->setRenderableTransform(mLights[0], &model[0]);
+	}
+	{
+		mcore::Matrix4x4<float> translation = mcore::Matrix4x4<float>::identity();
+		mcore::Vector<float, 3> position = { mGfxContext->mLightPositions[1] };
+		mcore::translate(translation, position);
+
+		mcore::Matrix4x4<float> scale = mcore::Matrix4x4<float>::identity();
+		mcore::Vector<float, 3> scaleVal = { 0.1f, 0.1f, 0.1f };
+		mcore::scale(scale, scaleVal);
+
+		mcore::Matrix4x4<float> model = scale * translation;
+
+		mGfxContext->setRenderableTransform(mLights[1], &model[0]);
+	}
+	{
+		mcore::Matrix4x4<float> translation = mcore::Matrix4x4<float>::identity();
+		mcore::Vector<float, 3> position = { mGfxContext->mLightPositions[2] };
+		mcore::translate(translation, position);
+
+		mcore::Matrix4x4<float> scale = mcore::Matrix4x4<float>::identity();
+		mcore::Vector<float, 3> scaleVal = { 0.1f, 0.1f, 0.1f };
+		mcore::scale(scale, scaleVal);
+
+		mcore::Matrix4x4<float> model = scale * translation;
+
+		mGfxContext->setRenderableTransform(mLights[2], &model[0]);
+	}
+	{
+		mcore::Matrix4x4<float> translation = mcore::Matrix4x4<float>::identity();
+		mcore::Vector<float, 3> position = { mGfxContext->mLightPositions[3] };
+		mcore::translate(translation, position);
+
+		mcore::Matrix4x4<float> scale = mcore::Matrix4x4<float>::identity();
+		mcore::Vector<float, 3> scaleVal = { 0.1f, 0.1f, 0.1f };
+		mcore::scale(scale, scaleVal);
+
+		mcore::Matrix4x4<float> model = scale * translation;
+
+		mGfxContext->setRenderableTransform(mLights[3], &model[0]);
+	}
 }
 
 void RenderingLayer::onRender()
@@ -432,6 +433,15 @@ void RenderingLayer::imguiUpdate()
 		ImGui::Image(ImTextureID(mGfxContext->getTextureID(position)), ImVec2(217, 128), ImVec2(-1, 1), ImVec2(0, 0));
 		ImGui::SameLine();
 		ImGui::Image(ImTextureID(mGfxContext->getTextureID(light)), ImVec2(217, 128), ImVec2(-1, 1), ImVec2(0, 0));
+	}
+	ImGui::End();
+
+	if (ImGui::Begin("Light"))
+	{
+		ImGui::SliderFloat3("Light 1", mGfxContext->mLightPositions[0], -10.0f, 10.0f);
+		ImGui::SliderFloat3("Light 2", mGfxContext->mLightPositions[1], -10.0f, 10.0f);
+		ImGui::SliderFloat3("Light 3", mGfxContext->mLightPositions[2], -10.0f, 10.0f);
+		ImGui::SliderFloat3("Light 4", mGfxContext->mLightPositions[3], -10.0f, 10.0f);
 	}
 	ImGui::End();
 	//

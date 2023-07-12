@@ -2,16 +2,7 @@
 
 #include "mrender/mrender.hpp"
 
-struct Vertex
-{
-    float mX;
-    float mY;
-    float mZ;
-    uint32_t mNormal;
-    uint32_t mTangent;
-    int16_t mU;
-    int16_t mV;
-};
+
 
 uint32_t toUnorm(float _value, float _scale);
 void packRgba8(void* _dst, const float* _src);
