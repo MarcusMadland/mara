@@ -5,7 +5,7 @@ echo Compiling shaders ...
 REM Variables
 set PLATFORM = windows
 set API = s_5_0
-set SHADERS=simple flat screen shadow uber deferred_geo deferred_light deferred_combine debug_draw
+set SHADERS=debug_draw deferred_geo deferred_light_point deferred_light_directional deferred_light_spot screen shadow
 
 REM Enter the current script directory in case we call this script from the application
 cd /d "%~dp0"
@@ -26,7 +26,7 @@ REM Function to compile a vertex shader
 :compileVertexShader
   echo Compiling vertex shader %1 ...
   tools\shaderc.exe ^
-  -f mrender\shaders\%1\%1-vert.sc -o mrender\shaders\%1\%1-vert.bin ^
+  -f mrender\shaders\src\%1\%1-vert.sc -o mrender\shaders\build\%1-vert.bin ^
   --platform %PLATFORM% --type vertex --verbose -i ./ -p %API%
 goto :eof
 
@@ -34,7 +34,7 @@ REM Function to compile a fragment shader
 :compileFragmentShader
   echo Compiling fragment shader %1 ...
   tools\shaderc.exe ^
-  -f mrender\shaders\%1\%1-frag.sc -o mrender\shaders\%1\%1-frag.bin ^
+  -f mrender\shaders\src\%1\%1-frag.sc -o mrender\shaders\build\%1-frag.bin ^
   --platform %PLATFORM% --type fragment --verbose -i ./ -p %API%
 goto :eof
 EXIT /B 0

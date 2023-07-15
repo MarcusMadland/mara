@@ -14,6 +14,7 @@ public:
 	void onUpdate(const float& dt);
 
 	[[nodiscard]] mrender::CameraHandle getCamera() { return mCamera; }
+
 private:
 	mrender::GfxContext* mContext;
 	mrender::CameraHandle mCamera;

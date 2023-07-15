@@ -31,8 +31,12 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 	mGfxContext->setClearColor(0x00000000);
 
 	// Shaders
-	mrender::ShaderHandle shader = mGfxContext->createShader("deferred_geo", "C:/Users/marcu/Dev/mengine/mrender/shaders/deferred_geo");
-	mrender::ShaderHandle debugDrawShader = mGfxContext->createShader("debug_draw", "C:/Users/marcu/Dev/mengine/mrender/shaders/debug_draw");
+	mrender::ShaderHandle shader = mGfxContext->createShader(
+		"C:/Users/marcu/Dev/mengine/mrender/shaders/build/deferred_geo-vert.bin", 
+		"C:/Users/marcu/Dev/mengine/mrender/shaders/build/deferred_geo-frag.bin");
+	mrender::ShaderHandle debugDrawShader = mGfxContext->createShader(
+		"C:/Users/marcu/Dev/mengine/mrender/shaders/build/debug_draw-vert.bin",
+		"C:/Users/marcu/Dev/mengine/mrender/shaders/build/debug_draw-frag.bin");
 
 	// Geometry
 	mrender::BufferLayout layout =
@@ -61,13 +65,6 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 	mrender::MaterialHandle debugDrawMaterial = mGfxContext->createMaterial(debugDrawShader);
 	mGfxContext->setMaterialUniformData(debugDrawMaterial, "u_debugColor", mrender::UniformData::UniformType::Vec4, &redColor);
 
-	// Renderables (lights)
-	for (int i = 0; i < 4; i++)
-	{
-		mLights.push_back(mGfxContext->createRenderable(cubeGeo, debugDrawMaterial));
-	}
-	mGfxContext->setActiveRenderables(mLights);
-
 	// Renderables (cubes)
 	for (int x = -10; x < 10; x++)
 	{
@@ -93,17 +90,10 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 	}
 	mGfxContext->setActiveRenderables(mCubes);
 
-	mGfxContext->mLightPositions[0][0] = 0.0f;
-	mGfxContext->mLightPositions[0][1] = 0.0f;
-	mGfxContext->mLightPositions[0][2] = 2.0f;
-	mGfxContext->mLightPositions[0][3] = 6.0f;
-
-	mGfxContext->mLightColors[0][0] = 0.5f;
-	mGfxContext->mLightColors[0][1] = 0.5f;
-	mGfxContext->mLightColors[0][2] = 0.5f;
-	mGfxContext->mLightColors[0][3] = 0.1f;
-
-
+	// Lights
+	mrender::LightSettings lightSettings;
+	mrender::LightHandle light01 = mGfxContext->createLight(lightSettings);
+	mGfxContext->setActiveLight(light01);
 
 	// Camera
 	mrender::CameraSettings cameraSettings;
@@ -131,7 +121,11 @@ void RenderingLayer::onShutdown()
 void RenderingLayer::onEvent(mapp::Event& event)
 {
 	// Camera events
-	mCamera->onEvent(event);
+	ImGuiIO io = ImGui::GetIO();
+	if (!io.WantCaptureMouse)
+	{
+		mCamera->onEvent(event);
+	}
 
 	// Rendering events
 	mapp::EventDispatcher dispatcher = mapp::EventDispatcher(event);
@@ -157,59 +151,6 @@ void RenderingLayer::onEvent(mapp::Event& event)
 void RenderingLayer::onUpdate(const float& dt)
 {
 	mCamera->onUpdate(dt);
-
-	{
-		mcore::Matrix4x4<float> translation = mcore::Matrix4x4<float>::identity();
-		mcore::Vector<float, 3> position = { mGfxContext->mLightPositions[0] };
-		mcore::translate(translation, position);
-
-		mcore::Matrix4x4<float> scale = mcore::Matrix4x4<float>::identity();
-		mcore::Vector<float, 3> scaleVal = { 0.1f, 0.1f, 0.1f };
-		mcore::scale(scale, scaleVal);
-
-		mcore::Matrix4x4<float> model = scale * translation;
-
-		mGfxContext->setRenderableTransform(mLights[0], &model[0]);
-	}
-	{
-		mcore::Matrix4x4<float> translation = mcore::Matrix4x4<float>::identity();
-		mcore::Vector<float, 3> position = { mGfxContext->mLightPositions[1] };
-		mcore::translate(translation, position);
-
-		mcore::Matrix4x4<float> scale = mcore::Matrix4x4<float>::identity();
-		mcore::Vector<float, 3> scaleVal = { 0.1f, 0.1f, 0.1f };
-		mcore::scale(scale, scaleVal);
-
-		mcore::Matrix4x4<float> model = scale * translation;
-
-		mGfxContext->setRenderableTransform(mLights[1], &model[0]);
-	}
-	{
-		mcore::Matrix4x4<float> translation = mcore::Matrix4x4<float>::identity();
-		mcore::Vector<float, 3> position = { mGfxContext->mLightPositions[2] };
-		mcore::translate(translation, position);
-
-		mcore::Matrix4x4<float> scale = mcore::Matrix4x4<float>::identity();
-		mcore::Vector<float, 3> scaleVal = { 0.1f, 0.1f, 0.1f };
-		mcore::scale(scale, scaleVal);
-
-		mcore::Matrix4x4<float> model = scale * translation;
-
-		mGfxContext->setRenderableTransform(mLights[2], &model[0]);
-	}
-	{
-		mcore::Matrix4x4<float> translation = mcore::Matrix4x4<float>::identity();
-		mcore::Vector<float, 3> position = { mGfxContext->mLightPositions[3] };
-		mcore::translate(translation, position);
-
-		mcore::Matrix4x4<float> scale = mcore::Matrix4x4<float>::identity();
-		mcore::Vector<float, 3> scaleVal = { 0.1f, 0.1f, 0.1f };
-		mcore::scale(scale, scaleVal);
-
-		mcore::Matrix4x4<float> model = scale * translation;
-
-		mGfxContext->setRenderableTransform(mLights[3], &model[0]);
-	}
 }
 
 void RenderingLayer::onRender()
@@ -217,41 +158,6 @@ void RenderingLayer::onRender()
 	mrender::PROFILE_SCOPE("RenderingLayer");
 
 	float deltaTime = mAppContext->getApp()->getDeltaTime();
-	/*
-	static float rotationSpeed = 0.0f;//20.0f;
-	static float accumulatedTime = 0.0f;
-	static float rotationAngle = 0.0f;
-	accumulatedTime += deltaTime;
-	float targetRotationAngle = rotationSpeed * accumulatedTime;
-
-	{
-		mcore::Vector<float, 3> position = { -1.5f, 0.0f, 0.0f };
-		mcore::Matrix4x4<float> translation = mcore::Matrix4x4<float>::identity();
-		mcore::translate(translation, position);
-		mcore::Matrix4x4<float> rotation = mcore::Matrix4x4<float>::identity();
-		mcore::rotateX(rotation, targetRotationAngle);
-		mcore::Matrix4x4<float> model = rotation * translation;
-		mGfxContext->setRenderableTransform(mCube, &model[0]);
-	}
-	{
-		mcore::Vector<float, 3> position = { 1.5f, 0.0f, 0.0f };
-		mcore::Matrix4x4<float> translation = mcore::Matrix4x4<float>::identity();
-		mcore::translate(translation, position);
-		mcore::Matrix4x4<float> rotation = mcore::Matrix4x4<float>::identity();
-		mcore::rotateY(rotation, targetRotationAngle);
-		mcore::Matrix4x4<float> model = rotation * translation;
-		mGfxContext->setRenderableTransform(mCube2, &model[0]);
-	}
-	{
-		mcore::Vector<float, 3> position = { 0.0f, -1.5f, 0.0f };
-		mcore::Matrix4x4<float> translation = mcore::Matrix4x4<float>::identity();
-		mcore::translate(translation, position);
-		mcore::Matrix4x4<float> scale = mcore::Matrix4x4<float>::identity();
-		mcore::scale(scale, {10.0f, 0.01f, 10.0f });
-		mcore::Matrix4x4<float> model = scale * translation;
-		mGfxContext->setRenderableTransform(mFloor, &model[0]);
-
-	}*/
 
 	// Render
 	mGfxContext->render(mCamera->getCamera());
@@ -307,7 +213,6 @@ void RenderingLayer::onRender()
 		//mGfxContext->submitDebugText(textX - 20, textY, mrender::Color::Red, true, false, "Too many this", 0);
 		//mGfxContext->submitDebugText(textX - 20, textY, mrender::Color::Red, true, false, "Too many that", 0);
 	}
-	
 	
 	// Swap buffers
 	mGfxContext->swapBuffers();
@@ -415,8 +320,16 @@ void RenderingLayer::imguiUpdate()
 				
 			}
 		}
+
+		if (ImGui::CollapsingHeader("Shaders"))
+		{
+			for (auto& shader : mGfxContext->getActiveShaders())
+			{
+				ImGui::Text("%-20s", shader.first.c_str());
+			}
+		}
 		
-		if (ImGui::CollapsingHeader("Data"/*, ImGuiTreeNodeFlags_DefaultOpen*/))
+		if (ImGui::CollapsingHeader("Data"))
 		{
 			mrender::Stats* stats = mGfxContext->getStats();
 			
@@ -428,6 +341,7 @@ void RenderingLayer::imguiUpdate()
 			ImGui::Text("%-23s: %u", "Shaders", stats->mNumShaders);
 			ImGui::Text("%-23s: %u", "Geometries", stats->mNumGeometries);
 			ImGui::Text("%-23s: %u", "Renderables", stats->mNumRenderables);
+			ImGui::Text("%-23s: %u", "Lights", stats->mNumLights);
 		}
 	}
 	ImGui::End();
@@ -455,13 +369,20 @@ void RenderingLayer::imguiUpdate()
 		ImGui::Image(ImTextureID(mGfxContext->getTextureID(light)), ImVec2(217, 128), ImVec2(-1, 1), ImVec2(0, 0));
 	}
 	ImGui::End();
-
+	
+	static mrender::LightSettings lightSettings;
 	if (ImGui::Begin("Light"))
 	{
-		ImGui::SliderFloat4("Light PosRadius", mGfxContext->mLightPositions[0], -10.0f, 10.0f);
-		ImGui::SliderFloat4("Light RbgRadius", mGfxContext->mLightColors[0], 0.0f, 1.0f);
+		ImGui::SliderFloat3("Position", lightSettings.mPosition, -20.0f, 20.0f);
+		ImGui::SliderFloat3("RGB", lightSettings.mColor, 0.0f, 1.0f);
+		ImGui::SliderFloat("Intensity", &lightSettings.mIntensity, 0.0f, 10.0f);
+		ImGui::SliderFloat("Range", &lightSettings.mRange, 0.0f, 10.0f);
+
+
 	}
 	ImGui::End();
+	mGfxContext->setLightSettings(mGfxContext->getActiveLights()[0], lightSettings);
+
 	//
 
 	ImGui::Render();
