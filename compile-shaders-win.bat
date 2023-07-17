@@ -5,7 +5,7 @@ echo Compiling shaders ...
 REM Variables
 set PLATFORM = windows
 set API = s_5_0
-set SHADERS=debug_draw deferred_geo deferred_light_point deferred_light_directional deferred_light_spot screen shadow
+set SHADERS=debug_draw deferred_combine deferred_geo deferred_light_point deferred_light_directional deferred_light_spot screen shadow
 
 REM Enter the current script directory in case we call this script from the application
 cd /d "%~dp0"

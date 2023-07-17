@@ -46,14 +46,15 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 		{ mrender::BufferElement::AttribType::Uint8, mrender::BufferElement::Attrib::Tangent, 4 },
 		{ mrender::BufferElement::AttribType::Int16, mrender::BufferElement::Attrib::TexCoord0, 2 },
 	};
-	mrender::GeometryHandle cubeGeo = mGfxContext->createGeometry(layout, s_bunnyVertices.data(), static_cast<uint32_t>(s_bunnyVertices.size() * sizeof(Vertex)), s_bunnyTriList);
+	mrender::GeometryHandle cubeGeo = mGfxContext->createGeometry(layout, sCubeVertices.data(), static_cast<uint32_t>(sCubeVertices.size() * sizeof(Vertex)), sCubeIndices);
 
 	// Textures @todo fix life time of these, the textures need to be loaded of the lifetime of the rendering layer, so make member variables?
 	mrender::TextureHandle albedoTex = loadTexture(mGfxContext, "C:/Users/marcu/Dev/mengine/resources/albedo.png");
 	mrender::TextureHandle normalTex = loadTexture(mGfxContext, "C:/Users/marcu/Dev/mengine/resources/normal.png");
 	mrender::TextureHandle specularTex = loadTexture(mGfxContext, "C:/Users/marcu/Dev/mengine/resources/specular.png");
+	mrender::TextureHandle blankNormalTex = loadTexture(mGfxContext, "C:/Users/marcu/Dev/mengine/resources/blank_normal.jpg");
 	static mcore::Vector<float, 4> whiteColor = { 0.8f, 0.8f, 0.8f, 1.0f };
-	static mcore::Vector<float, 4> blueColor = { 0.0f, 0.0f, 0.8f, 1.0f };
+	static mcore::Vector<float, 4> normalColor = { 0.5f, 0.5f, 1.0f, 1.0f };
 	static mcore::Vector<float, 4> redColor = { 0.8f, 0.0f, 0.0f, 1.0f };
 
 	// Materials
@@ -62,13 +63,17 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 	mGfxContext->setMaterialTextureData(textureMaterial, "u_normal", normalTex);
 	mGfxContext->setMaterialTextureData(textureMaterial, "u_specular", specularTex);
 
+	mrender::MaterialHandle floorMaterial = mGfxContext->createMaterial(shader);
+	mGfxContext->setMaterialUniformData(floorMaterial, "u_albedoColor", mrender::UniformData::UniformType::Vec4, &whiteColor);
+	mGfxContext->setMaterialUniformData(floorMaterial, "u_normalColor", mrender::UniformData::UniformType::Vec4, &normalColor);
+
 	mrender::MaterialHandle debugDrawMaterial = mGfxContext->createMaterial(debugDrawShader);
 	mGfxContext->setMaterialUniformData(debugDrawMaterial, "u_debugColor", mrender::UniformData::UniformType::Vec4, &redColor);
 
 	// Renderables (cubes)
 	for (int x = -10; x < 10; x++)
 	{
-		for (int y = -10; y < 10; y++)
+		for (int y = 1; y < 11; y++)
 		{
 			mrender::RenderableHandle renderable = mGfxContext->createRenderable(cubeGeo, textureMaterial);
 			{
@@ -90,10 +95,30 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 	}
 	mGfxContext->setActiveRenderables(mCubes);
 
+	// Renderable (floor)
+	mFloor = mGfxContext->createRenderable(cubeGeo, floorMaterial);
+	{
+		mcore::Matrix4x4<float> translation = mcore::Matrix4x4<float>::identity();
+		mcore::Vector<float, 3> position = { 0.0f, -50.0f, 0.0f };
+		mcore::translate(translation, position);
+
+		mcore::Matrix4x4<float> scale = mcore::Matrix4x4<float>::identity();
+		mcore::Vector<float, 3> scaleVal = { 50.0f, 50.0f, 50.0f };
+		mcore::scale(scale, scaleVal);
+
+		mcore::Matrix4x4<float> model = scale * translation;
+
+		mGfxContext->setRenderableTransform(mFloor, &model[0]);
+	}
+	mGfxContext->setActiveRenderable(mFloor);
+
 	// Lights
-	mrender::LightSettings lightSettings;
-	mrender::LightHandle light01 = mGfxContext->createLight(lightSettings);
-	mGfxContext->setActiveLight(light01);
+	for (uint32_t i = 0; i < mNumLights; i++)
+	{
+		mrender::LightSettings lightSettings;
+		mrender::LightHandle light = mGfxContext->createLight(lightSettings);
+		mGfxContext->setActiveLight(light);
+	}
 
 	// Camera
 	mrender::CameraSettings cameraSettings;
@@ -150,7 +175,35 @@ void RenderingLayer::onEvent(mapp::Event& event)
 
 void RenderingLayer::onUpdate(const float& dt)
 {
+	// Update Camera
 	mCamera->onUpdate(dt);
+
+	// Update light animation
+	const float speed =  1.0f / mNumLights;     
+	static float time = 0.0f;			 
+	const float offset = 15.0f;
+	for (auto light : mGfxContext->getActiveLights())
+	{
+		mrender::LightSettings settings = mGfxContext->getLightSettings(light);
+
+		settings.mRange = 2.0f;
+		settings.mIntensity = 1.5f;
+
+		// Animate position
+		float lightTime = time * speed * (sin(light.idx / float(30) * 1.57079632679) * 0.5f + 0.5f);
+		settings.mPosition[0] = sin(((lightTime + light.idx * 0.47f) + 1.57079632679 * 1.37f)) * offset;
+		settings.mPosition[1] = cos(((lightTime + light.idx * 0.69f) + 1.57079632679 * 1.49f)) * offset;
+		settings.mPosition[2] = sin(((lightTime + light.idx * 0.37f) + 1.57079632679 * 1.57f)) * 2.0f;
+		time += dt;
+
+		// Animate color
+		uint8_t val = light.idx & 7;
+		settings.mColor[0] = val & 0x1 ? 1.0f : 0.25f,
+		settings.mColor[1] = val & 0x2 ? 1.0f : 0.25f,
+		settings.mColor[2] = val & 0x4 ? 1.0f : 0.25f,
+
+		mGfxContext->setLightSettings(light, settings);
+	}
 }
 
 void RenderingLayer::onRender()
@@ -228,9 +281,10 @@ void RenderingLayer::imguiUpdate()
 	io.DisplaySize = ImVec2(static_cast<float>(mAppContext->getWindow()->getParams().mWidth),
 		static_cast<float>(mAppContext->getWindow()->getParams().mHeight));
 
-	// Render mrender debug window
-	ImGui::SetNextWindowPos(ImVec2(10, 10));
+	static bool showXRayWindow = false;
 
+	// MAIN Window
+	ImGui::SetNextWindowPos(ImVec2(10, 10));
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
 	if (ImGui::Begin(" MRender | Rendering Framework", (bool*)0, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings))
 	{
@@ -243,6 +297,11 @@ void RenderingLayer::imguiUpdate()
 			{
 				mGfxContext->reloadShaders();
 			}
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("XRay"))
+		{
+			showXRayWindow = !showXRayWindow;
 		}
 		ImGui::Checkbox("Draw stats", &mDrawDebugText);
 		ImGui::Separator();
@@ -347,41 +406,64 @@ void RenderingLayer::imguiUpdate()
 	ImGui::End();
 	ImGui::PopStyleVar();
 
-	if (ImGui::Begin("Buffers"))
+	// XRAY Window
+	if (showXRayWindow)
 	{
-		mrender::TextureHandle shadowMap = mGfxContext->getSharedBuffers().at("ShadowMap");
-		mrender::TextureHandle diffuse = mGfxContext->getSharedBuffers().at("GDiffuse");
-		mrender::TextureHandle normal = mGfxContext->getSharedBuffers().at("GNormal");
-		mrender::TextureHandle specular = mGfxContext->getSharedBuffers().at("GSpecular");
-		mrender::TextureHandle position = mGfxContext->getSharedBuffers().at("GPosition");
-		mrender::TextureHandle light = mGfxContext->getSharedBuffers().at("Light");
+		const float desiredWindowSize = mGfxContext->getSettings().mResolutionHeight - 28.0f;
+		ImGui::SetNextWindowContentSize(ImVec2(desiredWindowSize, desiredWindowSize));
+		if (ImGui::Begin("XRay", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
+		{
+			const char* items[] = { "GDiffuse", "GNormal", "GPosition", "Light" };
+			static const char* current_item = "GDiffuse";
+			if (ImGui::BeginCombo("##combo", current_item)) // The second parameter is the label previewed before opening the combo.
+			{
+				for (int n = 0; n < IM_ARRAYSIZE(items); n++)
+				{
+					bool is_selected = (current_item == items[n]); // You can store your selection however you want, outside or inside your objects
+					if (ImGui::Selectable(items[n], is_selected))
+						current_item = items[n];
+					if (is_selected)
+						ImGui::SetItemDefaultFocus();   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
+				}
+				ImGui::EndCombo();
+			}
+			if (current_item)
+			{
+				mrender::TextureHandle diffuse = mGfxContext->getSharedBuffers().at(current_item);
 
-		ImGui::Image(ImTextureID(mGfxContext->getTextureID(shadowMap)), ImVec2(128, 128), ImVec2(-1, 1), ImVec2(0, 0));
-		ImGui::SameLine();
-		ImGui::Image(ImTextureID(mGfxContext->getTextureID(diffuse)), ImVec2(217, 128), ImVec2(-1, 1), ImVec2(0, 0));
-		ImGui::SameLine();
-		ImGui::Image(ImTextureID(mGfxContext->getTextureID(normal)), ImVec2(217, 128), ImVec2(-1, 1), ImVec2(0, 0));
-		ImGui::SameLine();
-		ImGui::Image(ImTextureID(mGfxContext->getTextureID(specular)), ImVec2(217, 128), ImVec2(-1, 1), ImVec2(0, 0));
-		ImGui::SameLine();
-		ImGui::Image(ImTextureID(mGfxContext->getTextureID(position)), ImVec2(217, 128), ImVec2(-1, 1), ImVec2(0, 0));
-		ImGui::SameLine();
-		ImGui::Image(ImTextureID(mGfxContext->getTextureID(light)), ImVec2(217, 128), ImVec2(-1, 1), ImVec2(0, 0));
+				ImVec2 windowPos = ImGui::GetWindowPos();
+				ImVec2 windowSize = ImGui::GetContentRegionAvail();
+				ImVec2 screenSize = ImGui::GetIO().DisplaySize;
+
+				ImVec2 uv0 = ImVec2(windowPos.x / screenSize.x, (-windowPos.y + windowSize.y) / screenSize.y);
+				ImVec2 uv1 = ImVec2((windowPos.x + windowSize.x) / screenSize.x, -windowPos.y / screenSize.y);
+
+
+				ImGui::Image(ImTextureID(mGfxContext->getTextureID(diffuse)), windowSize, uv0, uv1);
+			}
+		}
+		ImGui::End();
+	}
+
+	if (ImGui::Begin("Lights"))
+	{
+		ImGui::InputInt("Number of lights", &mNumLights);
+		if (ImGui::Button("Recalculate"))
+		{
+			for (auto light : mGfxContext->getActiveLights())
+			{
+				mGfxContext->destroy(light);
+				mGfxContext->getActiveLights().clear();
+			}
+			for (uint32_t i = 0; i < mNumLights; i++)
+			{
+				mrender::LightSettings lightSettings;
+				mrender::LightHandle light = mGfxContext->createLight(lightSettings);
+				mGfxContext->setActiveLight(light);
+			}
+		}
 	}
 	ImGui::End();
-	
-	static mrender::LightSettings lightSettings;
-	if (ImGui::Begin("Light"))
-	{
-		ImGui::SliderFloat3("Position", lightSettings.mPosition, -20.0f, 20.0f);
-		ImGui::SliderFloat3("RGB", lightSettings.mColor, 0.0f, 1.0f);
-		ImGui::SliderFloat("Intensity", &lightSettings.mIntensity, 0.0f, 10.0f);
-		ImGui::SliderFloat("Range", &lightSettings.mRange, 0.0f, 10.0f);
-
-
-	}
-	ImGui::End();
-	mGfxContext->setLightSettings(mGfxContext->getActiveLights()[0], lightSettings);
 
 	//
 

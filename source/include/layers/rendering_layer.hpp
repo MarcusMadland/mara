@@ -16,7 +16,7 @@ struct Vertex
     int16_t mV;
 };
 
-static std::vector<Vertex> s_bunnyVertices =
+static std::vector<Vertex> sCubeVertices =
 {
     {-1.0f,  1.0f,  1.0f, encodeNormalRgba8(0.0f,  0.0f,  1.0f), 0,      0,      0 },
     { 1.0f,  1.0f,  1.0f, encodeNormalRgba8(0.0f,  0.0f,  1.0f), 0, 0x7fff,      0 },
@@ -44,9 +44,9 @@ static std::vector<Vertex> s_bunnyVertices =
     {-1.0f,  1.0f, -1.0f, encodeNormalRgba8(-1.0f,  0.0f,  0.0f), 0, 0x7fff, 0x7fff },
 };
 
-static const std::vector<uint16_t> s_bunnyTriList =
+static const std::vector<uint16_t> sCubeIndices =
 {
-    0,  2,  1,
+     0,  2,  1,
      1,  2,  3,
      4,  5,  6,
      5,  7,  6,
@@ -80,8 +80,11 @@ private:
 
     std::shared_ptr<CameraOrbitController> mCamera;
 
+    mrender::RenderableHandle mFloor;
     mrender::RenderableList mCubes;
     mrender::RenderableList mLights;
+
+    int mNumLights = 200;
 
     bool mDrawDebugText = false;
 };
