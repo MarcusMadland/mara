@@ -82,9 +82,9 @@ private:
 
     mrender::RenderableHandle mFloor;
     mrender::RenderableList mCubes;
-    mrender::RenderableList mLights;
+    mrender::RenderableList mLightCubes;
 
-    int mNumLights = 200;
+    int mNumLights = 50;
 
     bool mDrawDebugText = false;
 };

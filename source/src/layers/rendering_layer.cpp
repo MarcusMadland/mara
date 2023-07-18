@@ -68,7 +68,7 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 	mGfxContext->setMaterialUniformData(floorMaterial, "u_normalColor", mrender::UniformData::UniformType::Vec4, &normalColor);
 
 	mrender::MaterialHandle debugDrawMaterial = mGfxContext->createMaterial(debugDrawShader);
-	mGfxContext->setMaterialUniformData(debugDrawMaterial, "u_debugColor", mrender::UniformData::UniformType::Vec4, &redColor);
+	mGfxContext->setMaterialUniformData(debugDrawMaterial, "u_debugColor", mrender::UniformData::UniformType::Vec4, &whiteColor);
 
 	// Renderables (cubes)
 	for (int x = -10; x < 10; x++)
@@ -112,20 +112,26 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 	}
 	mGfxContext->setActiveRenderable(mFloor);
 
-	// Lights
+	// Renderable (lights)
 	for (uint32_t i = 0; i < mNumLights; i++)
 	{
+		// Create lights
 		mrender::LightSettings lightSettings;
 		mrender::LightHandle light = mGfxContext->createLight(lightSettings);
 		mGfxContext->setActiveLight(light);
+
+		// Create cubes representing the lights
+		mrender::RenderableHandle renderable = mGfxContext->createRenderable(cubeGeo, debugDrawMaterial);
+		mLightCubes.push_back(renderable);
 	}
+	mGfxContext->setActiveRenderables(mLightCubes);
 
 	// Camera
 	mrender::CameraSettings cameraSettings;
 	cameraSettings.mProjectionType = mrender::CameraSettings::Perspective;
 	cameraSettings.mWidth = static_cast<float>(mGfxContext->getSettings().mResolutionWidth);
 	cameraSettings.mHeight = static_cast<float>(mGfxContext->getSettings().mResolutionHeight);
-	cameraSettings.mClipFar = 1000.0f;
+	cameraSettings.mClipFar = 100.0f;
 	cameraSettings.mPosition[2] = -5.0f;
 	auto camera = mGfxContext->createCamera(cameraSettings);
 	mCamera = std::make_shared<CameraOrbitController>(mGfxContext, camera);
@@ -203,6 +209,20 @@ void RenderingLayer::onUpdate(const float& dt)
 		settings.mColor[2] = val & 0x4 ? 1.0f : 0.25f,
 
 		mGfxContext->setLightSettings(light, settings);
+		{
+			mcore::Matrix4x4<float> translation = mcore::Matrix4x4<float>::identity();
+			mcore::Vector<float, 3> position = mGfxContext->getLightSettings(light).mPosition;
+			mcore::translate(translation, position);
+
+			mcore::Matrix4x4<float> scale = mcore::Matrix4x4<float>::identity();
+			mcore::Vector<float, 3> scaleVal = { 0.1f, 0.1f, 0.1f };
+			mcore::scale(scale, scaleVal);
+
+			mcore::Matrix4x4<float> model = scale * translation;
+
+			mGfxContext->setRenderableTransform(mLightCubes[light.idx], &model[0]);
+		}
+
 	}
 }
 
@@ -413,7 +433,7 @@ void RenderingLayer::imguiUpdate()
 		ImGui::SetNextWindowContentSize(ImVec2(desiredWindowSize, desiredWindowSize));
 		if (ImGui::Begin("XRay", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
 		{
-			const char* items[] = { "GDiffuse", "GNormal", "GPosition", "Light" };
+			const char* items[] = { "GDiffuse", "GNormal", "Light", "GDepth" };
 			static const char* current_item = "GDiffuse";
 			if (ImGui::BeginCombo("##combo", current_item)) // The second parameter is the label previewed before opening the combo.
 			{
