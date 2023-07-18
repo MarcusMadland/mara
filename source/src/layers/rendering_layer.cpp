@@ -447,7 +447,7 @@ void RenderingLayer::imguiUpdate()
 
 	if (ImGui::Begin("Lights"))
 	{
-		ImGui::InputInt("Number of lights", &mNumLights);
+		ImGui::InputInt("Num", &mNumLights);
 		if (ImGui::Button("Recalculate"))
 		{
 			for (auto light : mGfxContext->getActiveLights())
