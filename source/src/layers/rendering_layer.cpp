@@ -68,9 +68,10 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 	mGfxContext->setMaterialUniformData(floorMaterial, "u_normalColor", mrender::UniformData::UniformType::Vec4, &normalColor);
 
 	mrender::MaterialHandle debugDrawMaterial = mGfxContext->createMaterial(debugDrawShader);
-	mGfxContext->setMaterialUniformData(debugDrawMaterial, "u_debugColor", mrender::UniformData::UniformType::Vec4, &whiteColor);
+	mGfxContext->setMaterialUniformData(debugDrawMaterial, "u_debugColor", mrender::UniformData::UniformType::Vec4, &redColor);
 
 	// Renderables (cubes)
+	/*
 	for (int x = -10; x < 10; x++)
 	{
 		for (int y = 1; y < 11; y++)
@@ -92,12 +93,84 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 
 			mCubes.push_back(renderable);
 		}
+	}*/
+	{
+		mrender::RenderableHandle renderable = mGfxContext->createRenderable(cubeGeo, textureMaterial);
+		{
+			mcore::Matrix4x4<float> translation = mcore::Matrix4x4<float>::identity();
+			mcore::Vector<float, 3> position = { 0.0f, 1.0f, 0.0f };
+			mcore::translate(translation, position);
+
+			mcore::Matrix4x4<float> scale = mcore::Matrix4x4<float>::identity();
+			mcore::Vector<float, 3> scaleVal = { 1.0f, 1.0f, 1.0f };
+			mcore::scale(scale, scaleVal);
+
+			mcore::Matrix4x4<float> model = scale * translation;
+
+			mGfxContext->setRenderableTransform(renderable, &model[0]);
+		}
+
+		mCubes.push_back(renderable);
+	}
+	{
+		mrender::RenderableHandle renderable = mGfxContext->createRenderable(cubeGeo, textureMaterial);
+		{
+			mcore::Matrix4x4<float> translation = mcore::Matrix4x4<float>::identity();
+			mcore::Vector<float, 3> position = { 5.0f, 1.5, 5.0f };
+			mcore::translate(translation, position);
+
+			mcore::Matrix4x4<float> scale = mcore::Matrix4x4<float>::identity();
+			mcore::Vector<float, 3> scaleVal = { 1.5f, 1.5f, 1.5f };
+			mcore::scale(scale, scaleVal);
+
+			mcore::Matrix4x4<float> model = scale * translation;
+
+			mGfxContext->setRenderableTransform(renderable, &model[0]);
+		}
+
+		mCubes.push_back(renderable);
+	}
+	{
+		mrender::RenderableHandle renderable = mGfxContext->createRenderable(cubeGeo, textureMaterial);
+		{
+			mcore::Matrix4x4<float> translation = mcore::Matrix4x4<float>::identity();
+			mcore::Vector<float, 3> position = { 3.0f, 1.5, -1.0f };
+			mcore::translate(translation, position);
+
+			mcore::Matrix4x4<float> scale = mcore::Matrix4x4<float>::identity();
+			mcore::Vector<float, 3> scaleVal = { 1.5f, 1.5f, 1.5f };
+			mcore::scale(scale, scaleVal);
+
+			mcore::Matrix4x4<float> model = scale * translation;
+
+			mGfxContext->setRenderableTransform(renderable, &model[0]);
+		}
+
+		mCubes.push_back(renderable);
 	}
 	mGfxContext->setActiveRenderables(mCubes);
-
-	// Renderable (floor)
-	mFloor = mGfxContext->createRenderable(cubeGeo, floorMaterial);
 	{
+		mrender::RenderableHandle renderable = mGfxContext->createRenderable(cubeGeo, debugDrawMaterial);
+		{
+			mcore::Matrix4x4<float> translation = mcore::Matrix4x4<float>::identity();
+			mcore::Vector<float, 3> position = { 5.0f, 5.0f, 2.0f };
+			mcore::translate(translation, position);
+
+			mcore::Matrix4x4<float> scale = mcore::Matrix4x4<float>::identity();
+			mcore::Vector<float, 3> scaleVal = { 0.1f, 0.1f, 0.1f };
+			mcore::scale(scale, scaleVal);
+
+			mcore::Matrix4x4<float> model = scale * translation;
+
+			mGfxContext->setRenderableTransform(renderable, &model[0]);
+		}
+
+		mCubes.push_back(renderable);
+	}
+	mGfxContext->setActiveRenderables(mCubes);
+	{
+		mFloor = mGfxContext->createRenderable(cubeGeo, floorMaterial);
+
 		mcore::Matrix4x4<float> translation = mcore::Matrix4x4<float>::identity();
 		mcore::Vector<float, 3> position = { 0.0f, -50.0f, 0.0f };
 		mcore::translate(translation, position);
@@ -113,25 +186,32 @@ void RenderingLayer::onInit(mapp::AppContext& context)
 	mGfxContext->setActiveRenderable(mFloor);
 
 	// Renderable (lights)
-	for (uint32_t i = 0; i < mNumLights; i++)
 	{
-		// Create lights
 		mrender::LightSettings lightSettings;
+		lightSettings.mType = mrender::LightSettings::Directional;
+		lightSettings.mIntensity = 2.0f;
+		lightSettings.mPosition[0] = 5.0f; 
+		lightSettings.mPosition[1] = 5.0f;
+		lightSettings.mPosition[2] = 2.0f;
 		mrender::LightHandle light = mGfxContext->createLight(lightSettings);
 		mGfxContext->setActiveLight(light);
-
-		// Create cubes representing the lights
-		mrender::RenderableHandle renderable = mGfxContext->createRenderable(cubeGeo, debugDrawMaterial);
-		mLightCubes.push_back(renderable);
 	}
-	mGfxContext->setActiveRenderables(mLightCubes);
+	/*
+	for (uint32_t i = 0; i < mNumLights; i++)
+	{
+		mrender::LightSettings lightSettings;
+		lightSettings.mType = mrender::LightSettings::Point;
+		mrender::LightHandle light = mGfxContext->createLight(lightSettings);
+		mGfxContext->setActiveLight(light);
+	}*/
+	
 
 	// Camera
 	mrender::CameraSettings cameraSettings;
 	cameraSettings.mProjectionType = mrender::CameraSettings::Perspective;
 	cameraSettings.mWidth = static_cast<float>(mGfxContext->getSettings().mResolutionWidth);
 	cameraSettings.mHeight = static_cast<float>(mGfxContext->getSettings().mResolutionHeight);
-	cameraSettings.mClipFar = 100.0f;
+	cameraSettings.mClipFar = 1000.0f;
 	cameraSettings.mPosition[2] = -5.0f;
 	auto camera = mGfxContext->createCamera(cameraSettings);
 	mCamera = std::make_shared<CameraOrbitController>(mGfxContext, camera);
@@ -184,34 +264,60 @@ void RenderingLayer::onUpdate(const float& dt)
 	// Update Camera
 	mCamera->onUpdate(dt);
 
+	/*
 	// Update light animation
-	const float speed =  1.0f / mNumLights;     
-	static float time = 0.0f;			 
+	const float speed = 0.05f;
+	static float time = 0.0f;
+	time += dt;
+
+	//
+	mrender::LightHandle dirLight = mGfxContext->getActiveLights().at(0);
+	mrender::LightSettings settings = mGfxContext->getLightSettings(dirLight);
+
+	float radius = 1.0f; 
+	float angle = time * speed * 2.0f * 3.14159f; 
+	float x = radius * cos(angle);
+	float z = radius * sin(angle);
+
+	settings.mPosition[0] = x;
+	settings.mPosition[1] = z;
+	settings.mPosition[2] = x;
+	std::array<float, 3> dirLightPos;
+	dirLightPos[0] = settings.mPosition[0];
+	dirLightPos[1] = settings.mPosition[1];
+	dirLightPos[2] = settings.mPosition[2];
+	mGfxContext->setOption("DirectionalLightPosition", dirLightPos);
+	mGfxContext->setLightSettings(dirLight, settings);
+
+	//
+	
 	const float offset = 15.0f;
-	for (auto light : mGfxContext->getActiveLights())
+	for (uint32_t i = 1; i < mGfxContext->getActiveLights().size(); i++)
 	{
-		mrender::LightSettings settings = mGfxContext->getLightSettings(light);
+		mrender::LightSettings settings = mGfxContext->getLightSettings(mGfxContext->getActiveLights().at(i));
+
+		if (settings.mType == mrender::LightSettings::LightType::Directional)
+			return;
 
 		settings.mRange = 2.0f;
 		settings.mIntensity = 1.5f;
 
 		// Animate position
-		float lightTime = time * speed * (sin(light.idx / float(30) * 1.57079632679) * 0.5f + 0.5f);
-		settings.mPosition[0] = sin(((lightTime + light.idx * 0.47f) + 1.57079632679 * 1.37f)) * offset;
-		settings.mPosition[1] = cos(((lightTime + light.idx * 0.69f) + 1.57079632679 * 1.49f)) * offset;
-		settings.mPosition[2] = sin(((lightTime + light.idx * 0.37f) + 1.57079632679 * 1.57f)) * 2.0f;
-		time += dt;
+		float lightTime = time * speed * (sin(i / float(30) * 1.57079632679) * 0.5f + 0.5f);
+		settings.mPosition[0] = sin(((lightTime + i * 0.47f) + 1.57079632679 * 1.37f)) * offset;
+		settings.mPosition[1] = cos(((lightTime + i * 0.69f) + 1.57079632679 * 1.49f)) * offset;
+		settings.mPosition[2] = sin(((lightTime + i * 0.37f) + 1.57079632679 * 1.57f)) * 2.0f;
 
 		// Animate color
-		uint8_t val = light.idx & 7;
+		uint8_t val = i & 7;
 		settings.mColor[0] = val & 0x1 ? 1.0f : 0.25f,
 		settings.mColor[1] = val & 0x2 ? 1.0f : 0.25f,
 		settings.mColor[2] = val & 0x4 ? 1.0f : 0.25f,
 
-		mGfxContext->setLightSettings(light, settings);
+		mGfxContext->setLightSettings(mGfxContext->getActiveLights().at(i), settings);
 		{
 			mcore::Matrix4x4<float> translation = mcore::Matrix4x4<float>::identity();
-			mcore::Vector<float, 3> position = mGfxContext->getLightSettings(light).mPosition;
+			mcore::Vector<float, 3> position = mGfxContext->getLightSettings(mGfxContext->getActiveLights().at(i)).mPosition;
 			mcore::translate(translation, position);
 
 			mcore::Matrix4x4<float> scale = mcore::Matrix4x4<float>::identity();
@@ -220,10 +326,12 @@ void RenderingLayer::onUpdate(const float& dt)
 
 			mcore::Matrix4x4<float> model = scale * translation;
 
-			mGfxContext->setRenderableTransform(mLightCubes[light.idx], &model[0]);
+			mGfxContext->setRenderableTransform(mLightCubes[i], &model[0]);
 		}
 
 	}
+	*/
+	
 }
 
 void RenderingLayer::onRender()
@@ -449,7 +557,7 @@ void RenderingLayer::imguiUpdate()
 			}
 			if (current_item)
 			{
-				mrender::TextureHandle diffuse = mGfxContext->getSharedBuffers().at(current_item);
+				mrender::TextureHandle map = mGfxContext->getSharedBuffers().at(current_item);
 
 				ImVec2 windowPos = ImGui::GetWindowPos();
 				ImVec2 windowSize = ImGui::GetContentRegionAvail();
@@ -459,27 +567,46 @@ void RenderingLayer::imguiUpdate()
 				ImVec2 uv1 = ImVec2((windowPos.x + windowSize.x) / screenSize.x, -windowPos.y / screenSize.y);
 
 
-				ImGui::Image(ImTextureID(mGfxContext->getTextureID(diffuse)), windowSize, uv0, uv1);
+				ImGui::Image(ImTextureID(mGfxContext->getTextureID(map)), windowSize, uv0, uv1);
 			}
 		}
 		ImGui::End();
 	}
 
-	if (ImGui::Begin("Lights"))
+	if (ImGui::Begin("ShadowTesting"))
 	{
-		ImGui::InputInt("Num", &mNumLights);
-		if (ImGui::Button("Recalculate"))
+		mrender::TextureHandle shadow = mGfxContext->getSharedBuffers().at("ShadowMap");
+		ImGui::Image(ImTextureID(mGfxContext->getTextureID(shadow)), {512, 512}, {-1.0f, 1.0f}, {0.0f, 0.0f});
+	}
+	ImGui::End();
+
+	if (ImGui::Begin("Option Testing"))
+	{
+		// OPTION TESTING
+		for (auto& option : mGfxContext->getOptions())
 		{
-			for (auto light : mGfxContext->getActiveLights())
+			if (std::holds_alternative<int>(option.second.mValue))
 			{
-				mGfxContext->destroy(light);
-				mGfxContext->getActiveLights().clear();
+				static int value = mGfxContext->getOptionValue<int>(option.first);;
+				ImGui::SliderInt(option.first.c_str(), &value, option.second.mMin, option.second.mMax);
+				mGfxContext->setOption(option.first, value);
 			}
-			for (uint32_t i = 0; i < mNumLights; i++)
+			if (std::holds_alternative<bool>(option.second.mValue))
 			{
-				mrender::LightSettings lightSettings;
-				mrender::LightHandle light = mGfxContext->createLight(lightSettings);
-				mGfxContext->setActiveLight(light);
+				static bool value = mGfxContext->getOptionValue<bool>(option.first);;
+				ImGui::Checkbox(option.first.c_str(), &value);
+				mGfxContext->setOption(option.first, value);
+			}
+			if (std::holds_alternative<std::array<float, 3>>(option.second.mValue))
+			{
+				static std::array<float, 3> value = mGfxContext->getOptionValue<std::array<float, 3>>(option.first);;
+				ImGui::SliderFloat3(option.first.c_str(), &value[0], option.second.mMin, option.second.mMax);
+				mGfxContext->setOption(option.first, value);
+				auto settings = mGfxContext->getLightSettings(mGfxContext->getActiveLights().at(0));
+				settings.mPosition[0] = value[0];
+				settings.mPosition[1] = value[1];
+				settings.mPosition[2] = value[2];
+				mGfxContext->setLightSettings(mGfxContext->getActiveLights().at(0), settings); // @todo temp
 			}
 		}
 	}

@@ -84,7 +84,7 @@ private:
     mrender::RenderableList mCubes;
     mrender::RenderableList mLightCubes;
 
-    int mNumLights = 50;
+    int mNumLights = 1;
 
     bool mDrawDebugText = false;
 };
