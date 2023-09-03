@@ -7,6 +7,3 @@
 [submodule "mrender"]
 	path = mrender
 	url = https://github.com/MarcusMadland/mrender.git
-[submodule "third-party/imgui"]
-	path = third-party/imgui
-	url = https://github.com/gabrielmaneru/imgui-premake.git

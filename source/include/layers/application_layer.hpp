@@ -1,11 +1,8 @@
-#include "mapp/layer.hpp"
+#include "mapp/mapp.hpp"
 
 class ApplicationLayer : public mapp::Layer
 {
 public:
-    virtual void onInit(mapp::AppContext& context) override;
-    virtual void onEvent(mapp::Event& event) override;
-
-private:
-    mapp::AppContext* mContext;
+	virtual void update(const float dt) override;
+	virtual void postUpdate(const float dt) override;
 };
