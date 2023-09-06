@@ -1,5 +1,7 @@
 #include "render-systems/deferred/deferred.hpp"
 
+#include <filesystem>
+
 namespace mrender {
 
 Deferred::Deferred(GfxContext* context)
@@ -99,20 +101,20 @@ bool Deferred::init(GfxContext* context)
 
 	// Light Material
 	mShadowShader = context->createShader(
-		"C:/Users/marcu/Dev/mengine-cmake/examples/example-01/shaders/build/shadow-vert.bin",
-		"C:/Users/marcu/Dev/mengine-cmake/examples/example-01/shaders/build/shadow-frag.bin");
+		std::filesystem::current_path().string() + "/data/shaders/shadow-vert.bin",
+		std::filesystem::current_path().string() + "/data/shaders/shadow-frag.bin");
 	mPointLightShader = context->createShader(
-		"C:/Users/marcu/Dev/mengine-cmake/examples/example-01/shaders/build/screen-vert.bin",
-		"C:/Users/marcu/Dev/mengine-cmake/examples/example-01/shaders/build/deferred_light_point-frag.bin");
+		std::filesystem::current_path().string() + "/data/shaders/screen-vert.bin",
+		std::filesystem::current_path().string() + "/data/shaders/deferred_light_point-frag.bin");
 	mSpotLightShader = context->createShader(
-		"C:/Users/marcu/Dev/mengine-cmake/examples/example-01/shaders/build/screen-vert.bin",
-		"C:/Users/marcu/Dev/mengine-cmake/examples/example-01/shaders/build/deferred_light_spot-frag.bin");
+		std::filesystem::current_path().string() + "/data/shaders/screen-vert.bin",
+		std::filesystem::current_path().string() + "/data/shaders/deferred_light_spot-frag.bin");
 	mDirectionalLightShader = context->createShader(
-		"C:/Users/marcu/Dev/mengine-cmake/examples/example-01/shaders/build/screen-vert.bin",
-		"C:/Users/marcu/Dev/mengine-cmake/examples/example-01/shaders/build/deferred_light_directional-frag.bin");
+		std::filesystem::current_path().string() + "/data/shaders/screen-vert.bin",
+		std::filesystem::current_path().string() + "/data/shaders/deferred_light_directional-frag.bin");
 	mCombineShader = context->createShader(
-		"C:/Users/marcu/Dev/mengine-cmake/examples/example-01/shaders/build/screen-vert.bin",
-		"C:/Users/marcu/Dev/mengine-cmake/examples/example-01/shaders/build/deferred_combine-frag.bin");
+		std::filesystem::current_path().string() + "/data/shaders/screen-vert.bin",
+		std::filesystem::current_path().string() + "/data/shaders/deferred_combine-frag.bin");
 
 	// Screen quad
 	BufferLayout layout =

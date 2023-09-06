@@ -1,5 +1,7 @@
 #include "render-systems/post-processing/post_processing.hpp"
 
+#include <filesystem>
+
 namespace mrender {
 
 PostProcessing::PostProcessing(GfxContext* context)
@@ -18,8 +20,8 @@ bool PostProcessing::init(GfxContext* context)
 {
     // Shader
     mShader = context->createShader(
-        "C:/Users/marcu/Dev/mengine-cmake/examples/example-01/shaders/build/screen-vert.bin",
-        "C:/Users/marcu/Dev/mengine-cmake/examples/example-01/shaders/build/screen-frag.bin");
+        std::filesystem::current_path().string() + "/data/shaders/screen-vert.bin",
+        std::filesystem::current_path().string() + "/data/shaders/screen-frag.bin");
 
     // Render state
     mState = context->createRenderState("Post Processing", 0

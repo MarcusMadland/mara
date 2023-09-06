@@ -3,6 +3,8 @@
 #include "mrender/mrender.hpp"
 #include "mcore/math.hpp"
 
+#include <filesystem>
+
 RenderingLayer::RenderingLayer(mapp::Window& window, const mrender::RenderSettings& renderSettings)
 {
 	// Render Context
@@ -29,8 +31,8 @@ RenderingLayer::RenderingLayer(mapp::Window& window, const mrender::RenderSettin
 
 		// Renderables (material)
 		mrender::ShaderHandle geometryShader = mGfxContext->createShader(
-			"C:/Users/marcu/Dev/mengine-cmake/examples/example-01/shaders/build/deferred_geo-vert.bin",
-			"C:/Users/marcu/Dev/mengine-cmake/examples/example-01/shaders/build/deferred_geo-frag.bin");
+			std::filesystem::current_path().string() + "/data/shaders/deferred_geo-vert.bin",
+			std::filesystem::current_path().string() + "/data/shaders/deferred_geo-frag.bin");
 		mrender::MaterialHandle whiteMaterial = mGfxContext->createMaterial(geometryShader);
 		static float whiteColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 		static float normalColor[4] = { 0.5f, 0.5f, 1.0f, 1.0f };
