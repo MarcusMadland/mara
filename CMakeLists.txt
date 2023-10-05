@@ -1,40 +1,68 @@
-# Project Info
-cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
-cmake_policy(VERSION 3.18)
+cmake_minimum_required(VERSION 3.10.2) # version supported by android studio
 project(mengine)
-enable_language(C)
-enable_language(CXX)
+cmake_policy(SET CMP0054 NEW)
 
-# CMake Settings
-set(CMAKE_SUPPRESS_REGENERATION true)
-set(DCMAKE_GENERATOR_PLATFORM "x64")
-set(CMAKE_CXX_STANDARD 20)
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER "cmake")
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Makefile generators on apple need this flag to compile mixed objective/c++
+if(APPLE AND NOT XCODE)
+	set(CMAKE_CXX_FLAGS "-ObjC++")
+endif()
+
+if(MSVC AND (MSVC_VERSION GREATER_EQUAL 1914))
+	add_compile_options("/Zc:__cplusplus")
+endif()
+
+include(CMakeDependentOption)
+
+# Options
+option(MRENDER_CONFIG_MULTITHREADED "Build mrender with multithreaded configuration" ON)
+
+# Variables
+set(MRENDER_OPENGL_VERSION "" CACHE STRING "Specify minimum opengl version")
+set(MRENDER_OPENGLES_VERSION "" CACHE STRING "Specify minimum OpenGL ES version")
+set(MRENDER_LIBRARY_TYPE "STATIC" CACHE STRING "Linking type for library")
+set_property(CACHE MRENDER_LIBRARY_TYPE PROPERTY STRINGS "STATIC" "SHARED")
+set(MRENDER_CONFIG_DEFAULT_MAX_ENCODERS "" CACHE STRING "Specify default maximum encoder count (multithreaded only)")
+set(MRENDER_CONFIG_MAX_DRAW_CALLS "" CACHE STRING "Specify maximum draw calls")
+set(MRENDER_CONFIG_MAX_VIEWS "" CACHE STRING "Specify maximum view count (should be a power of two)")
+set(MRENDER_CONFIG_MAX_FRAME_BUFFERS "" CACHE STRING "Specify maximum frame buffers")
+set(MRENDER_CONFIG_MAX_VERTEX_LAYOUTS "" CACHE STRING "Specify maximum vertex layouts")
+set(MRENDER_CONFIG_MAX_VERTEX_BUFFERS "" CACHE STRING "Specify maximum vertex buffer count")
+set(MRENDER_CONFIG_MAX_DYNAMIC_VERTEX_BUFFERS "" CACHE STRING "Specify maximum dynamic vertex buffer count")
+set(MRENDER_CONFIG_MAX_INDEX_BUFFERS "" CACHE STRING "Specify maximum index buffer count")
+set(MRENDER_CONFIG_MAX_DYNAMIC_INDEX_BUFFERS "" CACHE STRING "Specify maximum dynamic index buffer count")
+set(MRENDER_CONFIG_MAX_TEXTURES "" CACHE STRING "Specify maximum texture count")
+set(MRENDER_CONFIG_MAX_TEXTURE_SAMPLERS "" CACHE STRING "Specify maximum texture samplers")
+set(MRENDER_CONFIG_MAX_SHADERS "" CACHE STRING "Specify shader count")
+set(MRENDER_CONFIG_SORT_KEY_NUM_BITS_PROGRAM "" CACHE STRING "Specify maximum program count as 2^(program bits)")
+set(MRENDER_CMAKE_USER_SCRIPT "" CACHE STRING "Path to custom cmake script to include")
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 # Sources
-file(GLOB_RECURSE FILE_SOURCES RELATIVE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/source/**.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/source/**.hpp
+file(
+    GLOB_RECURSE 
+    FILE_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/src/**.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/src/**.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/include/**.h
 )
 
 # Solution Filters
-foreach(source IN LISTS FILE_SOURCES)
-    get_filename_component(source_path "${source}" PATH)
-    string(REPLACE "/" "\\" source_path_msvc "${source_path}")
-    string(REPLACE "source" "" source_path_final "${source_path_msvc}")
-    source_group("${source_path_final}" FILES "${source}")
+foreach(_source IN ITEMS ${FILE_SOURCES})
+	if (IS_ABSOLUTE "${_source}")
+            file(RELATIVE_PATH _source_rel "${CMAKE_CURRENT_SOURCE_DIR}" "${_source}")
+        else()
+            set(_source_rel "${_source}")
+        endif()
+        get_filename_component(_source_path "${_source_rel}" PATH)
+        string(REPLACE "/" "\\" _source_path_msvc "${_source_path}")
+        source_group("${_source_path_msvc}" FILES "${_source}")
 endforeach()
-
-# Functions ===================================================
-function(mengine_add_executable targetProject targetSources)
-	xwin_add_executable(
-	    ${targetProject}
-	    "${targetSources}"
-	)
-endfunction()
-# =============================================================
 
 # Finalize Library
 add_library(
@@ -43,17 +71,9 @@ add_library(
     )
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/source/include)
 
-# Dependencies ================================================
-add_subdirectory(mapp ${CMAKE_BINARY_DIR}/mapp) # mapp
-add_subdirectory(mcore ${CMAKE_BINARY_DIR}/mcore) # mcore
-add_subdirectory(mrender ${CMAKE_BINARY_DIR}/mrender) # mrender
+# mrender
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/mrender)
 target_link_libraries(
     ${PROJECT_NAME}
-    mapp
-    mcore
     mrender
 )
-set_target_properties(mapp PROPERTIES FOLDER "mapp ")
-set_target_properties(mcore PROPERTIES FOLDER "mcore ")
-set_target_properties(mrender PROPERTIES FOLDER "mrender ")
-# =============================================================
