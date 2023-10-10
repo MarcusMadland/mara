@@ -1,9 +1,12 @@
 #pragma once
 
+#include <string>
+
 #include "mrender/bgfx.h"
 #include "mapp/bx.h"
 #include "mrender/entry.h"
 #include <bimg/bimg.h>
+#include "mapp/readerwriter.h"
 #include <mapp/timer.h>
 #include <mapp/math.h>
 #include <mapp/bounds.h>
@@ -24,139 +27,114 @@ namespace mengine {
 		uint16_t m_pciId;
 	};
 
-	///
-	void* load(const char* _filePath, uint32_t* _size = NULL);
-
-	///
-	void unload(void* _ptr);
-
-	///
-	bgfx::ShaderHandle loadShader(const char* _name);
-
-	///
-	bgfx::ProgramHandle loadProgram(const char* _vsName, const char* _fsName);
-
-	///
-	bgfx::TextureHandle loadTexture(const char* _name, uint64_t _flags = BGFX_TEXTURE_NONE | BGFX_SAMPLER_NONE, uint8_t _skip = 0, bgfx::TextureInfo* _info = NULL, bimg::Orientation::Enum* _orientation = NULL);
-
-	///
-	bimg::ImageContainer* imageLoad(const char* _filePath, bgfx::TextureFormat::Enum _dstFormat);
-
-	///
-	void calcTangents(void* _vertices, uint16_t _numVertices, bgfx::VertexLayout _layout, const uint16_t* _indices, uint32_t _numIndices);
-
-	/// Returns true if both internal transient index and vertex buffer have
-	/// enough space.
-	///
-	/// @param[in] _numVertices Number of vertices.
-	/// @param[in] _layout Vertex layout.
-	/// @param[in] _numIndices Number of indices.
-	///
-	inline bool checkAvailTransientBuffers(uint32_t _numVertices, const bgfx::VertexLayout& _layout, uint32_t _numIndices)
+	struct AssetI
 	{
-		return _numVertices == bgfx::getAvailTransientVertexBuffer(_numVertices, _layout)
-			&& (0 == _numIndices || _numIndices == bgfx::getAvailTransientIndexBuffer(_numIndices))
-			;
-	}
+		virtual ~AssetI() {}
 
-	///
-	inline uint32_t encodeNormalRgba8(float _x, float _y = 0.0f, float _z = 0.0f, float _w = 0.0f)
+		virtual bool serialize(const bx::FilePath& _filePath) = 0;
+		virtual bool deserialize(const bx::FilePath& _filePath) = 0;
+	};
+
+	struct ShaderAsset : public AssetI
 	{
-		const float src[] =
+		const bgfx::Memory* m_memory;
+
+		ShaderAsset()
+			: m_memory(NULL)
+		{}
+
+		~ShaderAsset()
+		{}
+
+		bool serialize(const bx::FilePath& _filePath) override
 		{
-			_x * 0.5f + 0.5f,
-			_y * 0.5f + 0.5f,
-			_z * 0.5f + 0.5f,
-			_w * 0.5f + 0.5f,
-		};
-		uint32_t dst;
-		bx::packRgba8(&dst, src);
-		return dst;
-	}
-
-	///
-	struct MeshState
-	{
-		struct Texture
-		{
-			uint32_t            m_flags;
-			bgfx::UniformHandle m_sampler;
-			bgfx::TextureHandle m_texture;
-			uint8_t             m_stage;
+			return false;
 		};
 
-		Texture             m_textures[4];
-		uint64_t            m_state;
-		bgfx::ProgramHandle m_program;
-		uint8_t             m_numTextures;
-		bgfx::ViewId        m_viewId;
+		bool deserialize(const bx::FilePath& _filePath) override
+		{
+			bx::Error err;
+
+			bx::FileReaderI* reader = mrender::getFileReader();
+			if (!reader->open(_filePath, &err))
+			{
+				return false;
+			}
+
+			//
+			const I32 fileSize = bx::getSize(reader);
+			m_memory = bgfx::alloc(fileSize);
+			reader->read(m_memory->data, fileSize, &err);
+			//
+
+			reader->close();
+			return true;
+		};
 	};
 
-	struct Primitive
+	struct GeometryAsset : public AssetI
 	{
-		uint32_t m_startIndex;
-		uint32_t m_numIndices;
-		uint32_t m_startVertex;
-		uint32_t m_numVertices;
+		const bgfx::Memory* m_vertexMemory;
+		const bgfx::Memory* m_indexMemory;
 
-		bx::Sphere m_sphere;
-		bx::Aabb   m_aabb;
-		bx::Obb    m_obb;
+		GeometryAsset()
+			: m_vertexMemory(NULL), m_indexMemory(NULL)
+		{}
+
+		GeometryAsset(const bgfx::Memory* _vertexMemory, const bgfx::Memory* _indexMemory)
+			: m_vertexMemory(_vertexMemory), m_indexMemory(_indexMemory)
+		{}
+
+		~GeometryAsset()
+		{}
+
+		bool serialize(const bx::FilePath& _filePath) override
+		{
+			bx::Error err;
+
+			bx::FileWriterI* writer = mrender::getFileWriter();
+			if (!writer->open(_filePath, &err))
+			{
+				return false;
+			}
+
+			writer->write(&m_vertexMemory->size, sizeof(m_vertexMemory->size), &err);
+			writer->write(&m_indexMemory->size, sizeof(m_indexMemory->size), &err);
+
+			writer->write(m_vertexMemory->data, m_vertexMemory->size, &err);
+			writer->write(m_indexMemory->data, m_indexMemory->size, &err);
+
+			writer->close();
+			return true;
+		};
+
+		bool deserialize(const bx::FilePath& _filePath) override
+		{
+			bx::Error err;
+
+			bx::FileReaderI* reader = mrender::getFileReader();
+			if (!reader->open(_filePath, &err))
+			{
+				return false;
+			}
+
+			//
+			uint32_t vertexMemorySize;
+			reader->read(&vertexMemorySize, sizeof(vertexMemorySize), &err);
+			
+			uint32_t indexMemorySize;
+			reader->read(&indexMemorySize, sizeof(indexMemorySize), &err);
+		
+			m_vertexMemory = bgfx::alloc(vertexMemorySize);
+			reader->read(m_vertexMemory->data, vertexMemorySize, &err);
+
+			m_indexMemory = bgfx::alloc(indexMemorySize);
+			reader->read(m_indexMemory->data, indexMemorySize, &err);
+			//
+
+			reader->close();
+			return true;
+		};
 	};
-
-	typedef std::vector<Primitive> PrimitiveArray;
-
-	struct Group
-	{
-		Group();
-		void reset();
-
-		bgfx::VertexBufferHandle m_vbh;
-		bgfx::IndexBufferHandle m_ibh;
-		uint16_t m_numVertices;
-		uint8_t* m_vertices;
-		uint32_t m_numIndices;
-		uint16_t* m_indices;
-		bx::Sphere m_sphere;
-		bx::Aabb   m_aabb;
-		bx::Obb    m_obb;
-		PrimitiveArray m_prims;
-	};
-	typedef std::vector<Group> GroupArray;
-
-	struct Mesh
-	{
-		void load(bx::ReaderSeekerI* _reader, bool _ramcopy);
-		void unload();
-		void submit(bgfx::ViewId _id, bgfx::ProgramHandle _program, const float* _mtx, uint64_t _state) const;
-		void submit(const MeshState* const* _state, uint8_t _numPasses, const float* _mtx, uint16_t _numMatrices) const;
-
-		bgfx::VertexLayout m_layout;
-		GroupArray m_groups;
-	};
-
-	///
-	Mesh* meshLoad(const char* _filePath, bool _ramcopy = false);
-
-	///
-	void meshUnload(Mesh* _mesh);
-
-	///
-	MeshState* meshStateCreate();
-
-	///
-	void meshStateDestroy(MeshState* _meshState);
-
-	///
-	void meshSubmit(const Mesh* _mesh, bgfx::ViewId _id, bgfx::ProgramHandle _program, const float* _mtx, uint64_t _state = BGFX_STATE_MASK);
-
-	///
-	void meshSubmit(const Mesh* _mesh, const MeshState* const* _state, uint8_t _numPasses, const float* _mtx, uint16_t _numMatrices = 1);
-
-	/// bgfx::RendererType::Enum to name.
-	bx::StringView getName(bgfx::RendererType::Enum _type);
-
-	/// Name to bgfx::RendererType::Enum.
-	bgfx::RendererType::Enum getType(const bx::StringView& _name);
 
 } // namespace mengine

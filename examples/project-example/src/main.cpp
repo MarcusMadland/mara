@@ -18,7 +18,7 @@ static PosColorVertex cube_vertices[] = {
 	{-1.0f, -1.0f, -1.0f, 0xffffff00}, {1.0f, -1.0f, -1.0f, 0xffffffff},
 };
 
-static const uint16_t cube_tri_list[] = {
+static const U16 cube_tri_list[] = {
 	0, 1, 2, 1, 3, 2, 4, 6, 5, 5, 6, 7, 0, 2, 4, 4, 2, 6,
 	1, 5, 3, 5, 7, 3, 0, 4, 1, 4, 5, 1, 2, 3, 6, 6, 3, 7,
 };
@@ -28,8 +28,7 @@ class Game : public mrender::AppI
 public:
 	Game(const char* _name, const char* _description)
 		: mrender::AppI(_name, _description)
-	{
-	}
+	{}
 
 	void init(I32 _argc, const char* const* _argv, U32 _width, U32 _height) override
 	{
@@ -43,14 +42,26 @@ public:
 		bgfx::Init init;
 		init.type = args.m_type;
 		init.vendorId = args.m_pciId;
-		init.type = bgfx::RendererType::OpenGL;
+		init.type = bgfx::RendererType::OpenGL; // @todo temp
 		init.resolution.width = _width;
 		init.resolution.height = _height;
 		init.platformData.nwh = mrender::getNativeWindowHandle(mrender::kDefaultWindowHandle);
 		init.platformData.ndt = mrender::getNativeDisplayHandle();
 		bgfx::init(init);
 
-		bgfx::setDebug(BGFX_DEBUG_TEXT);
+		// Offline
+#if false
+		mengine::GeometryAsset cube = mengine::GeometryAsset(
+			bgfx::makeRef(cube_vertices, sizeof(PosColorVertex) * 8),
+			bgfx::makeRef(cube_tri_list, sizeof(U16) * 36));
+		cube.serialize("meshes/my_cube.bin");
+#endif
+
+		// Other
+		m_timeOffset = bx::getHPCounter();
+
+		// Renderer
+		bgfx::setDebug(BGFX_DEBUG_STATS);
 		bgfx::setViewClear(0
 			, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH
 			, 0x303030FF
@@ -58,28 +69,34 @@ public:
 			, 0
 		);
 
-		m_program = mengine::loadProgram("vs_cubes", "fs_cubes");
+		// Program
+		mengine::ShaderAsset* vertexShader = new mengine::ShaderAsset();
+		mengine::ShaderAsset* fragmentShader = new mengine::ShaderAsset();
+		if (vertexShader->deserialize("shaders/glsl/vs_mesh.bin") &&
+			fragmentShader->deserialize("shaders/glsl/fs_mesh.bin"))
+		{
+			bgfx::ShaderHandle vsh = bgfx::createShader(vertexShader->m_memory);
+			bgfx::ShaderHandle fsh = bgfx::createShader(fragmentShader->m_memory);
+			m_program = bgfx::createProgram(vsh, fsh, true);
+		}
 
-		bgfx::VertexLayout pos_col_vert_layout;
-		pos_col_vert_layout.begin()
-			.add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float)
-			.add(bgfx::Attrib::Color0, 4, bgfx::AttribType::Uint8, true)
-			.end();
-		m_vbh = bgfx::createVertexBuffer(
-			bgfx::makeRef(cube_vertices, sizeof(cube_vertices)),
-			pos_col_vert_layout);
-		m_ibh = bgfx::createIndexBuffer(
-			bgfx::makeRef(cube_tri_list, sizeof(cube_tri_list)));
+		// Mesh
+		mengine::GeometryAsset* geom = new mengine::GeometryAsset();
+		if (geom->deserialize("meshes/my_cube.bin"))
+		{
+			bgfx::VertexLayout layout;
+			layout.begin()
+				.add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float)
+				.add(bgfx::Attrib::Color0, 4, bgfx::AttribType::Uint8, true)
+				.end();
 
-		m_timeOffset = bx::getHPCounter();
+			m_vbh = bgfx::createVertexBuffer(geom->m_vertexMemory, layout);
+			m_ibh = bgfx::createIndexBuffer(geom->m_indexMemory);
+		}
 	}
 
 	int shutdown() override
 	{
-		bgfx::destroy(m_vbh);
-		bgfx::destroy(m_ibh);
-		bgfx::destroy(m_program);
-
 		bgfx::shutdown();
 
 		return 0;
@@ -101,8 +118,8 @@ public:
 			bgfx::dbgTextPrintf(2, 1, 0x0f, "Hello world!");
 
 			// Camera
-			const bx::Vec3 at = { 0.0f, 1.0f,  0.0f };
-			const bx::Vec3 eye = { 0.0f, 1.0f, -5.0f };
+			const bx::Vec3 at = { 0.0f, 0.0f,  0.0f };
+			const bx::Vec3 eye = { 0.0f, 2.0f, -5.0f };
 			{
 				float view[16];
 				bx::mtxLookAt(view, eye, at);
@@ -115,10 +132,13 @@ public:
 			}
 
 			// Mesh
-			F32 model[16];
-			bx::mtxIdentity(model);
-			bgfx::setTransform(model);
-
+			F32 mtx[16];
+			bx::mtxRotateXY(mtx
+				, 0.0f
+				, time * 0.37f
+			);
+			bgfx::setTransform(mtx);
+			
 			bgfx::setVertexBuffer(0, m_vbh);
 			bgfx::setIndexBuffer(m_ibh);
 
@@ -142,9 +162,9 @@ public:
 	U32 m_debug;
 	U32 m_reset;
 
+	bgfx::ProgramHandle m_program;
 	bgfx::VertexBufferHandle m_vbh;
 	bgfx::IndexBufferHandle m_ibh;
-	bgfx::ProgramHandle m_program;
 };
 
 } // namespace
