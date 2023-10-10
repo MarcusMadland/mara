@@ -24,7 +24,7 @@ REM Function to compile a vertex shader
 :compileVertexShader
   echo Compiling vertex shader %1 for glsl ...
   bin\shaderc.exe ^
-  -f ..\resources\shaders\%1\vs_%1.sc -o ..\runtime\shaders\glsl\vs_%1.bin ^
+  -f ..\resources\shaders\%1\vs_%1.sc -o ..\..\game\build\bin\shaders\glsl\vs_%1.bin ^
   --platform windows --profile 130 --type vertex --verbose -i ./ 
 goto :eof
 
@@ -32,7 +32,7 @@ REM Function to compile a fragment shader
 :compileFragmentShader
   echo Compiling fragment shader %1 for glsl ...
   bin\shaderc.exe ^
-  -f ..\resources\shaders\%1\fs_%1.sc -o ..\runtime\shaders\glsl\fs_%1.bin ^
+  -f ..\resources\shaders\%1\fs_%1.sc -o ..\..\game\build\bin\shaders\glsl\fs_%1.bin ^
   --platform windows --profile 130 --type fragment --verbose -i ./ 
 goto :eof
 

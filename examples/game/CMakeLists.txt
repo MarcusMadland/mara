@@ -1,7 +1,7 @@
 # Project Info
 cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
 cmake_policy(VERSION 3.18)
-project(project-example)
+project(game)
 enable_language(C)
 enable_language(CXX)
 

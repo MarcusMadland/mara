@@ -21,6 +21,7 @@ include(CMakeDependentOption)
 
 # Options
 option(MRENDER_CONFIG_MULTITHREADED "Build mrender with multithreaded configuration" ON)
+option(MENGINE_CONFIG_IMGUI "Build mengine with imgui library" ON)
 
 # Variables
 set(MRENDER_OPENGL_VERSION "" CACHE STRING "Specify minimum opengl version")
@@ -50,6 +51,11 @@ file(
     ${CMAKE_CURRENT_SOURCE_DIR}/source/src/**.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/src/**.h
     ${CMAKE_CURRENT_SOURCE_DIR}/source/include/**.h
+
+if (MENGINE_CONFIG_IMGUI)
+    ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/imgui/**.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/imgui/**.h
+endif()
 )
 
 # Solution Filters
@@ -70,6 +76,9 @@ add_library(
     "${FILE_SOURCES}"
     )
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/source/include)
+if (MENGINE_CONFIG_IMGUI)
+   target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty)
+endif()
 
 # mrender
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/mrender)
