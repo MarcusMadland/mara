@@ -49,14 +49,6 @@ public:
 		init.platformData.ndt = mrender::getNativeDisplayHandle();
 		bgfx::init(init);
 
-		// Offline
-#if false
-		mengine::GeometryAsset cube = mengine::GeometryAsset(
-			bgfx::makeRef(cube_vertices, sizeof(PosColorVertex) * 8),
-			bgfx::makeRef(cube_tri_list, sizeof(U16) * 36));
-		cube.serialize("meshes/my_cube.bin");
-#endif
-
 		// Other
 		m_timeOffset = bx::getHPCounter();
 
@@ -82,15 +74,14 @@ public:
 
 		// Mesh
 		mengine::GeometryAsset* geom = new mengine::GeometryAsset();
-		if (geom->deserialize("meshes/my_cube.bin"))
+		if (geom->deserialize("meshes/sword_geometry.bin"))
 		{
 			bgfx::VertexLayout layout;
 			layout.begin()
 				.add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float)
-				.add(bgfx::Attrib::Color0, 4, bgfx::AttribType::Uint8, true)
 				.end();
 
-			m_vbh = bgfx::createVertexBuffer(geom->m_vertexMemory, layout);
+			m_vbh = bgfx::createVertexBuffer(geom->m_vertexPosMemory, layout);
 			m_ibh = bgfx::createIndexBuffer(geom->m_indexMemory);
 		}
 	}
@@ -132,11 +123,17 @@ public:
 			}
 
 			// Mesh
-			F32 mtx[16];
-			bx::mtxRotateXY(mtx
+			F32 rot[16];
+			bx::mtxRotateXY(rot
 				, 0.0f
 				, time * 0.37f
 			);
+
+			F32 scal[16];
+			bx::mtxScale(scal, 0.01f, 0.01f, 0.01f);
+
+			F32 mtx[16];
+			bx::mtxMul(mtx, rot, scal);
 			bgfx::setTransform(mtx);
 			
 			bgfx::setVertexBuffer(0, m_vbh);

@@ -4,7 +4,6 @@
 
 #include "mrender/bgfx.h"
 #include "mapp/bx.h"
-#include "mrender/entry.h"
 #include <bimg/bimg.h>
 #include "mapp/readerwriter.h"
 #include <mapp/timer.h>
@@ -15,6 +14,7 @@
 #include <mapp/allocator.h>
 
 #include <vector>
+#include <mapp/file.h>
 
 namespace mengine {
 
@@ -48,6 +48,7 @@ namespace mengine {
 
 		bool serialize(const bx::FilePath& _filePath) override
 		{
+			// @todo
 			return false;
 		};
 
@@ -55,19 +56,19 @@ namespace mengine {
 		{
 			bx::Error err;
 
-			bx::FileReaderI* reader = mrender::getFileReader();
-			if (!reader->open(_filePath, &err))
+			bx::FileReader reader;
+			if (!bx::open(&reader, _filePath, &err))
 			{
 				return false;
 			}
 
 			//
-			const I32 fileSize = bx::getSize(reader);
+			const I32 fileSize = bx::getSize(&reader);
 			m_memory = bgfx::alloc(fileSize);
-			reader->read(m_memory->data, fileSize, &err);
+			bx::read(&reader, m_memory->data, fileSize, &err);
 			//
 
-			reader->close();
+			bx::close(&reader);
 			return true;
 		};
 	};
@@ -79,62 +80,113 @@ namespace mengine {
 
 		GeometryAsset()
 			: m_vertexMemory(NULL), m_indexMemory(NULL)
-		{}
+		{
+		}
 
-		GeometryAsset(const bgfx::Memory* _vertexMemory, const bgfx::Memory* _indexMemory)
-			: m_vertexMemory(_vertexMemory), m_indexMemory(_indexMemory)
-		{}
-
-		~GeometryAsset()
+		~GeometryAsset() override
 		{}
 
 		bool serialize(const bx::FilePath& _filePath) override
 		{
-			bx::Error err;
-
-			bx::FileWriterI* writer = mrender::getFileWriter();
-			if (!writer->open(_filePath, &err))
+			bx::FileWriter writer;
+			bx::makeAll(_filePath.getPath(), bx::ErrorAssert{});
+			if (!bx::open(&writer, _filePath, bx::ErrorAssert{}))
 			{
 				return false;
 			}
 
-			writer->write(&m_vertexMemory->size, sizeof(m_vertexMemory->size), &err);
-			writer->write(&m_indexMemory->size, sizeof(m_indexMemory->size), &err);
+			// Vertex 
+			bx::write(&writer, &m_vertexMemory->size, sizeof(m_vertexMemory->size), bx::ErrorAssert{});
+			bx::write(&writer, m_vertexMemory->data, (I32)m_vertexMemory->size, bx::ErrorAssert{});
 
-			writer->write(m_vertexMemory->data, m_vertexMemory->size, &err);
-			writer->write(m_indexMemory->data, m_indexMemory->size, &err);
+			// Indices
+			bx::write(&writer, &m_indexMemory->size, sizeof(m_indexMemory->size), bx::ErrorAssert{});
+			bx::write(&writer, m_indexMemory->data, (I32)m_indexMemory->size, bx::ErrorAssert{});
 
-			writer->close();
+			bx::close(&writer);
+			return true;
+		}
+
+		bool deserialize(const bx::FilePath& _filePath) override
+		{
+			bx::FileReader reader;
+			if (!bx::open(&reader, _filePath, bx::ErrorAssert{}))
+			{
+				return false;
+			}
+
+			// Vertex positions
+			U32 vertexMemorySize;
+			bx::read(&reader, &vertexMemorySize, sizeof(vertexMemorySize), bx::ErrorAssert{});
+			m_vertexMemory = bgfx::alloc(vertexMemorySize);
+			bx::read(&reader, m_vertexMemory->data, vertexMemorySize, bx::ErrorAssert{});
+
+			// Indices
+			U32 indexMemorySize;
+			bx::read(&reader, &indexMemorySize, sizeof(indexMemorySize), bx::ErrorAssert{});
+			m_indexMemory = bgfx::alloc(indexMemorySize);
+			bx::read(&reader, m_indexMemory->data, indexMemorySize, bx::ErrorAssert{});
+
+			bx::close(&reader);
+			return true;
+		}
+	};
+
+	struct TextureAsset : public AssetI
+	{
+		const bgfx::Memory* m_memory;
+
+		TextureAsset()
+			: m_memory(NULL)
+		{}
+
+		~TextureAsset() {}
+
+		bool serialize(const bx::FilePath& _filePath) override
+		{
+			bx::FileWriter writer;
+			bx::makeAll(_filePath.getPath(), bx::ErrorAssert{});
+			if (!bx::open(&writer, _filePath, bx::ErrorAssert{}))
+			{
+				return false;
+			}
+
+			bx::write(&writer, m_memory->data, m_memory->size, bx::ErrorAssert{});
+
+			bx::close(&writer);
 			return true;
 		};
 
 		bool deserialize(const bx::FilePath& _filePath) override
 		{
-			bx::Error err;
-
-			bx::FileReaderI* reader = mrender::getFileReader();
-			if (!reader->open(_filePath, &err))
+			bx::FileReader reader;
+			if (!bx::open(&reader, _filePath, bx::ErrorAssert{}))
 			{
 				return false;
 			}
 
 			//
-			uint32_t vertexMemorySize;
-			reader->read(&vertexMemorySize, sizeof(vertexMemorySize), &err);
-			
-			uint32_t indexMemorySize;
-			reader->read(&indexMemorySize, sizeof(indexMemorySize), &err);
-		
-			m_vertexMemory = bgfx::alloc(vertexMemorySize);
-			reader->read(m_vertexMemory->data, vertexMemorySize, &err);
-
-			m_indexMemory = bgfx::alloc(indexMemorySize);
-			reader->read(m_indexMemory->data, indexMemorySize, &err);
+			const I32 fileSize = bx::getSize(&reader);
+			m_memory = bgfx::alloc(fileSize);
+			bx::read(&reader, m_memory->data, fileSize,bx::ErrorAssert{});
 			//
 
-			reader->close();
+			bx::close(&reader);
 			return true;
 		};
+	};
+
+	struct MeshVertex // @todo make this game based? and make tools depend on game instead of engine
+	{
+		F32 positions[3];
+		F32 normals[3];
+		F32 tangents[3];
+		F32 uv[2];
+
+		bool operator==(const MeshVertex& other) const
+		{
+			return memcmp(this, &other, sizeof(mengine::MeshVertex)) == 0;
+		}
 	};
 
 } // namespace mengine
