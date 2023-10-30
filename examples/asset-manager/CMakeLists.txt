@@ -43,35 +43,6 @@ file(GLOB_RECURSE FILE_SOURCES RELATIVE
 add_subdirectory(../../ ${CMAKE_BINARY_DIR}/mengine) # mengine
 # =============================================================
 
-# FBX SDK
-IF(WIN32)
-    set(FBX_ROOT "C:/Program Files/Autodesk/FBX/FBX SDK/2020.0.1")
-
-    set(INCLUDE_DIR
-        ${INCLUDE_DIR}
-        ${FBX_ROOT}/include
-    )
-
-    set(LINK_LIBS
-        ${FBX_ROOT}/lib/vs2017/x64/debug/libfbxsdk.dll
-    )
-
-#ENDIF(WIN32)
-ELSEIF(APPLE)
-    set(FBX_ROOT /Applications/Autodesk/FBX\ SDK/2013.3)
-
-    set(INCLUDE_DIR
-        ${INCLUDE_DIR}
-        ${FBX_ROOT}/include
-    )
-
-    set(LINK_LIBS
-        ${FBX_ROOT}/lib/gcc4/ub/libfbxsdk-2013.3-static.a
-        /System/Library/Frameworks/Carbon.framework
-    )
-ENDIF(WIN32)
-#
-
 # Add engine executable
 add_executable(
     ${PROJECT_NAME}
@@ -82,14 +53,12 @@ add_executable(
 target_link_libraries(
     ${PROJECT_NAME}
     mengine
-    ${LINK_LIBS}
 )
 
 target_include_directories(
     ${PROJECT_NAME} 
     PUBLIC 
     ${CMAKE_CURRENT_SOURCE_DIR}/include/
-    ${INCLUDE_DIR}
 )
 
 # Change output dir to bin
