@@ -1,4 +1,5 @@
 #include "mengine/mengine.h"
+#include "mengine_p.h"
 
 #include <mapp/commandline.h>
 #include <mapp/allocator.h>
@@ -7,65 +8,205 @@
 #include <mapp/readerwriter.h>
 #include <mapp/string.h>
 
-#include <vector>
-#include <string>
-
 namespace mengine {
 
-Args::Args(int _argc, const char* const* _argv)
-	: m_type(bgfx::RendererType::Count)
-	, m_pciId(BGFX_PCI_ID_NONE)
-{
-	bx::CommandLine cmdLine(_argc, (const char**)_argv);
+	bx::AllocatorI* g_allocator = NULL;
 
-	if (cmdLine.hasArg("gl"))
+	static Context* s_ctx = NULL;
+
+	bool Context::init(const Init& _init)
 	{
-		m_type = bgfx::RendererType::OpenGL;
+		return true;
 	}
-	else if (cmdLine.hasArg("vk"))
+
+	void Context::shutdown()
 	{
-		m_type = bgfx::RendererType::Vulkan;
 	}
-	else if (cmdLine.hasArg("noop"))
+
+	Init::Init()
+		: allocator(NULL)
 	{
-		m_type = bgfx::RendererType::Noop;
+
 	}
-	if (cmdLine.hasArg("d3d9"))
+
+	bool init(const Init& _init)
 	{
-		m_type = bgfx::RendererType::Direct3D9;
-	}
-	else if (cmdLine.hasArg("d3d11"))
-	{
-		m_type = bgfx::RendererType::Direct3D11;
-	}
-	else if (cmdLine.hasArg("d3d12"))
-	{
-		m_type = bgfx::RendererType::Direct3D12;
-	}
-	else if (BX_ENABLED(BX_PLATFORM_OSX))
-	{
-		if (cmdLine.hasArg("mtl"))
+		if (NULL != s_ctx)
 		{
-			m_type = bgfx::RendererType::Metal;
+			BX_TRACE("mengine is already initialized.");
+			return false;
 		}
+		Init init = _init;
+
+		if (NULL != init.allocator)
+		{
+			g_allocator = init.allocator;
+		}
+		else
+		{
+			bx::DefaultAllocator allocator;
+			g_allocator = BX_NEW(&allocator, bx::DefaultAllocator);
+		}
+
+		BX_TRACE("Init...")
+
+		// mengine 1.104.7082
+		//      ^ ^^^ ^^^^
+		//      | |   +--- Commit number  (https://github.com/marcusmadland/mengine / git rev-list --count HEAD)
+		//      | +------- API version    (from https://github.com/marcusmadland/mengine/blob/master/scripts/mengine.idl#L4)
+		//      +--------- Major revision (always 1)
+		BX_TRACE("Version 1.%d.%d (commit: " MENGINE_REV_SHA1 ")", MENGINE_API_VERSION, MENGINE_REV_NUMBER)
+
+		s_ctx = BX_ALIGNED_NEW(g_allocator, Context, Context::kAlignment);
+		if (s_ctx->init(init))
+		{
+			BX_TRACE("Init complete.");
+			return true;
+		}
+
+		BX_TRACE("Init failed.");
+		return false;
 	}
 
-	if (cmdLine.hasArg("amd"))
+	bool shutdown()
 	{
-		m_pciId = BGFX_PCI_ID_AMD;
+		return false;
 	}
-	else if (cmdLine.hasArg("nvidia"))
+
+	AssetHandle loadGeometry(const bx::FilePath _filePath)
 	{
-		m_pciId = BGFX_PCI_ID_NVIDIA;
+		if (_filePath.isEmpty())
+		{
+			BX_TRACE("Filepath is empty.");
+			return MENGINE_INVALID_HANDLE;
+		}
+		return s_ctx->loadGeometry(_filePath);
 	}
-	else if (cmdLine.hasArg("intel"))
+
+	bool saveGeometry(GeometryData* _geometryData, const bx::FilePath _filePath)
 	{
-		m_pciId = BGFX_PCI_ID_INTEL;
+		if (_filePath.isEmpty())
+		{
+			BX_TRACE("Filepath is empty.");
+			return false;
+		}
+
+		if (NULL != _geometryData)
+		{
+			return s_ctx->saveGeometry(_geometryData, _filePath);
+		}
+		
+		BX_TRACE("Geometrydata is null.");
+		return false;
 	}
-	else if (cmdLine.hasArg("sw"))
+
+	AssetHandle loadShader(const bx::FilePath _filePath)
 	{
-		m_pciId = BGFX_PCI_ID_SOFTWARE_RASTERIZER;
+		if (_filePath.isEmpty())
+		{
+			BX_TRACE("Filepath is empty.");
+			return MENGINE_INVALID_HANDLE;
+		}
+
+		return s_ctx->loadShader(_filePath);
 	}
-}
+
+	bool saveShader(ShaderData* _shaderData, const bx::FilePath _filePath)
+	{
+		if (_filePath.isEmpty())
+		{
+			BX_TRACE("Filepath is empty.");
+			return false;
+		}
+
+		if (NULL != _shaderData)
+		{
+			return s_ctx->saveShader(_shaderData, _filePath);
+		}
+
+		BX_TRACE("Shaderdata is null.");
+		return false;
+	}
 
 } // namespace mengine
+
+namespace bgfx {
+
+	ShaderHandle createShader(mengine::AssetHandle _handle)
+	{
+		if (!isValid(_handle))
+		{
+			BX_TRACE("Asset handle is invalid.");
+			return BGFX_INVALID_HANDLE;
+		}
+
+		mengine::ShaderData* data = (mengine::ShaderData*)mengine::s_ctx->m_assets[_handle.idx].m_data;
+		if (data)
+		{
+			return bgfx::createShader(data->m_codeData);
+		}
+
+		BX_TRACE("Asset data is invalid.");
+		return BGFX_INVALID_HANDLE;
+	}
+
+	VertexBufferHandle createVertexBuffer(mengine::AssetHandle _handle, uint16_t _flags)
+	{
+		if (!isValid(_handle))
+		{
+			BX_TRACE("Asset handle is invalid.");
+			return BGFX_INVALID_HANDLE;
+		}
+
+		mengine::GeometryData* data = (mengine::GeometryData*)mengine::s_ctx->m_assets[_handle.idx].m_data;
+		if (data)
+		{
+			return bgfx::createVertexBuffer(data->m_vertexData, data->m_layout, _flags);
+		}
+
+		BX_TRACE("Asset data is invalid.");
+		return BGFX_INVALID_HANDLE;
+	}
+
+	IndexBufferHandle createIndexBuffer(mengine::AssetHandle _handle, uint16_t _flags)
+	{
+		if (!isValid(_handle))
+		{
+			BX_TRACE("Asset handle is invalid.");
+			return BGFX_INVALID_HANDLE;
+		}
+
+		mengine::GeometryData* data = (mengine::GeometryData*)mengine::s_ctx->m_assets[_handle.idx].m_data;
+		if (data)
+		{
+			return bgfx::createIndexBuffer(data->m_indexData, _flags);
+		}
+
+		BX_TRACE("Asset data is invalid.");
+		return BGFX_INVALID_HANDLE;
+	}
+
+	TextureHandle createTexture2D(uint16_t _width, uint64_t _flags)
+	{
+		return TextureHandle();
+	}
+
+	TextureHandle createTexture2D(mengine::AssetHandle _handle, uint64_t _flags)
+	{
+		if (!isValid(_handle))
+		{
+			BX_TRACE("Asset handle is invalid.");
+			return BGFX_INVALID_HANDLE;
+		}
+
+		mengine::TextureData* data = (mengine::TextureData*)mengine::s_ctx->m_assets[_handle.idx].m_data;
+		if (data)
+		{
+			return bgfx::createTexture2D(data->m_width, data->m_height, data->m_hasMips, data->m_numLayers, data->m_format, _flags, data->m_pixData);
+		}
+
+		BX_TRACE("Asset data is invalid.");
+		return BGFX_INVALID_HANDLE;
+	}
+
+}

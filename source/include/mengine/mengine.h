@@ -1,192 +1,127 @@
 #pragma once
 
-#include <string>
+#include "defines.h"
 
-#include "mrender/bgfx.h"
-#include "mapp/bx.h"
-#include <bimg/bimg.h>
-#include "mapp/readerwriter.h"
+#include <mrender/bgfx.h>
+#include <mapp/bx.h>
+#include <mapp/readerwriter.h>
 #include <mapp/timer.h>
 #include <mapp/math.h>
 #include <mapp/bounds.h>
 #include <mapp/pixelformat.h>
 #include <mapp/string.h>
 #include <mapp/allocator.h>
-
-#include <vector>
 #include <mapp/file.h>
+#include <mapp/handlealloc.h>
+#include <mapp/hash.h>
+#include <mapp/commandline.h>
+
+#define MENGINE_HANDLE(_name) \
+	struct _name { U16 idx; }; \
+	inline bool isValid(_name _handle) { return mengine::kInvalidHandle != _handle.idx; }
+
+#define MENGINE_INVALID_HANDLE { mengine::kInvalidHandle }
 
 namespace mengine {
 
-	///
-	struct Args
-	{
-		Args(int _argc, const char* const* _argv);
+	static const U16 kInvalidHandle = UINT16_MAX;
 
-		bgfx::RendererType::Enum m_type;
-		uint16_t m_pciId;
+	MENGINE_HANDLE(AssetHandle)
+
+	struct ShaderData
+	{
+		const bgfx::Memory* m_codeData;
 	};
 
-	struct AssetI
+	struct GeometryData
 	{
-		virtual ~AssetI() {}
-
-		virtual bool serialize(const bx::FilePath& _filePath) = 0;
-		virtual bool deserialize(const bx::FilePath& _filePath) = 0;
+		const bgfx::Memory* m_vertexData;
+		const bgfx::Memory* m_indexData;
+		bgfx::VertexLayout m_layout;
 	};
 
-	struct ShaderAsset : public AssetI
+	struct TextureData
 	{
-		const bgfx::Memory* m_memory;
-
-		ShaderAsset()
-			: m_memory(NULL)
-		{}
-
-		~ShaderAsset()
-		{}
-
-		bool serialize(const bx::FilePath& _filePath) override
-		{
-			// @todo
-			return false;
-		};
-
-		bool deserialize(const bx::FilePath& _filePath) override
-		{
-			bx::Error err;
-
-			bx::FileReader reader;
-			if (!bx::open(&reader, _filePath, &err))
-			{
-				return false;
-			}
-
-			//
-			const I32 fileSize = bx::getSize(&reader);
-			m_memory = bgfx::alloc(fileSize);
-			bx::read(&reader, m_memory->data, fileSize, &err);
-			//
-
-			bx::close(&reader);
-			return true;
-		};
+		const bgfx::Memory* m_pixData;
+		U16 m_width;
+		U16 m_height;
+		bool m_hasMips;
+		U16 m_numLayers;
+		bgfx::TextureFormat::Enum m_format;
+		U64 m_flags;
 	};
 
-	struct GeometryAsset : public AssetI
+	struct MaterialData
 	{
-		const bgfx::Memory* m_vertexMemory;
-		const bgfx::Memory* m_indexMemory;
-
-		GeometryAsset()
-			: m_vertexMemory(NULL), m_indexMemory(NULL)
-		{
-		}
-
-		~GeometryAsset() override
-		{}
-
-		bool serialize(const bx::FilePath& _filePath) override
-		{
-			bx::FileWriter writer;
-			bx::makeAll(_filePath.getPath(), bx::ErrorAssert{});
-			if (!bx::open(&writer, _filePath, bx::ErrorAssert{}))
-			{
-				return false;
-			}
-
-			// Vertex 
-			bx::write(&writer, &m_vertexMemory->size, sizeof(m_vertexMemory->size), bx::ErrorAssert{});
-			bx::write(&writer, m_vertexMemory->data, (I32)m_vertexMemory->size, bx::ErrorAssert{});
-
-			// Indices
-			bx::write(&writer, &m_indexMemory->size, sizeof(m_indexMemory->size), bx::ErrorAssert{});
-			bx::write(&writer, m_indexMemory->data, (I32)m_indexMemory->size, bx::ErrorAssert{});
-
-			bx::close(&writer);
-			return true;
-		}
-
-		bool deserialize(const bx::FilePath& _filePath) override
-		{
-			bx::FileReader reader;
-			if (!bx::open(&reader, _filePath, bx::ErrorAssert{}))
-			{
-				return false;
-			}
-
-			// Vertex positions
-			U32 vertexMemorySize;
-			bx::read(&reader, &vertexMemorySize, sizeof(vertexMemorySize), bx::ErrorAssert{});
-			m_vertexMemory = bgfx::alloc(vertexMemorySize);
-			bx::read(&reader, m_vertexMemory->data, vertexMemorySize, bx::ErrorAssert{});
-
-			// Indices
-			U32 indexMemorySize;
-			bx::read(&reader, &indexMemorySize, sizeof(indexMemorySize), bx::ErrorAssert{});
-			m_indexMemory = bgfx::alloc(indexMemorySize);
-			bx::read(&reader, m_indexMemory->data, indexMemorySize, bx::ErrorAssert{});
-
-			bx::close(&reader);
-			return true;
-		}
+		U32* m_textures;
+		U32 m_numTextures;
+		// @todo uniform data
 	};
 
-	struct TextureAsset : public AssetI
+	struct MeshData
 	{
-		const bgfx::Memory* m_memory;
-
-		TextureAsset()
-			: m_memory(NULL)
-		{}
-
-		~TextureAsset() {}
-
-		bool serialize(const bx::FilePath& _filePath) override
-		{
-			bx::FileWriter writer;
-			bx::makeAll(_filePath.getPath(), bx::ErrorAssert{});
-			if (!bx::open(&writer, _filePath, bx::ErrorAssert{}))
-			{
-				return false;
-			}
-
-			bx::write(&writer, m_memory->data, m_memory->size, bx::ErrorAssert{});
-
-			bx::close(&writer);
-			return true;
-		};
-
-		bool deserialize(const bx::FilePath& _filePath) override
-		{
-			bx::FileReader reader;
-			if (!bx::open(&reader, _filePath, bx::ErrorAssert{}))
-			{
-				return false;
-			}
-
-			//
-			const I32 fileSize = bx::getSize(&reader);
-			m_memory = bgfx::alloc(fileSize);
-			bx::read(&reader, m_memory->data, fileSize,bx::ErrorAssert{});
-			//
-
-			bx::close(&reader);
-			return true;
-		};
+		U32 m_geometries;
+		U32 m_material;
+		float m_transform[16];
 	};
 
-	struct MeshVertex // @todo make this game based? and make tools depend on game instead of engine
+	struct PrefabData
 	{
-		F32 positions[3];
-		F32 normals[3];
-		F32 tangents[3];
-		F32 uv[2];
-
-		bool operator==(const MeshVertex& other) const
-		{
-			return memcmp(this, &other, sizeof(mengine::MeshVertex)) == 0;
-		}
+		U32* m_meshes;
+		U32 m_numMeshes;
 	};
+
+	struct Init
+	{
+		Init();
+
+		/// Custom allocator. When a custom allocator is not
+		/// specified, mengine uses the default allocator. mengine assumes
+		/// custom allocator is thread safe.
+		bx::AllocatorI* allocator;
+	};
+
+	struct Stats
+	{
+		U16 numAssets; //!< Number of loaded assets.
+	};
+
+	//
+	bool init(const Init& _init = {});
+
+	// 
+	bool shutdown();
+	
+	//
+	AssetHandle loadGeometry(const bx::FilePath _filePath);
+
+	//
+	bool saveGeometry(GeometryData* _geometryData, const bx::FilePath _filePath);
+
+	//
+	AssetHandle loadShader(const bx::FilePath _filePath);
+
+	//
+	bool saveShader(ShaderData* _shaderData, const bx::FilePath _filePath);
 
 } // namespace mengine
+
+namespace bgfx {
+
+	ShaderHandle createShader(mengine::AssetHandle _handle);
+
+	VertexBufferHandle createVertexBuffer(
+		mengine::AssetHandle _handle
+		, uint16_t _flags = BGFX_BUFFER_NONE
+	);
+
+	IndexBufferHandle createIndexBuffer(
+		mengine::AssetHandle _handle
+		, uint16_t _flags = BGFX_BUFFER_NONE
+	);
+
+	TextureHandle createTexture2D(
+		mengine::AssetHandle _handle
+		, uint64_t _flags = BGFX_TEXTURE_NONE | BGFX_SAMPLER_NONE
+	);
+}
