@@ -310,37 +310,47 @@ namespace mengine {
 
 		MENGINE_API_FUNC(void addComponent(EntityHandle _entity, U32 _type, ComponentHandle _component))
 		{
-			//bool ok = m_ecsHashMap[_type].insert(_entity.idx, _component.idx);
-			bool ok = m_ecsHashMap[_type].insert(m_ecsHashMap[_type].getNumElements(), _component.idx);
+			bool ok = m_ecsHashMap[_type].insert(_entity.idx, _component.idx);
 			BX_ASSERT(ok, "Entities cannot have duplicated components!", _entity.idx);
+
+			EntityRef& sr = m_entities[_entity.idx];
+			sr.m_mask |= _type;
+		}
+
+		bool hasComponent(EntityHandle _handle, U32 _type)
+		{
+			const U16 idx = m_ecsHashMap[_type].find(_handle.idx);
+			return idx != kInvalidHandle;
+		}
+
+		MENGINE_API_FUNC(void* getComponentData(EntityHandle _handle, U32 _type))
+		{
+			const U16 idx = m_ecsHashMap[_type].find(_handle.idx);
+			if (idx != kInvalidHandle)
+			{
+				return m_components[idx].m_data->data;
+			}
+			return NULL;
 		}
 
 		MENGINE_API_FUNC(void forEachComponent(U32 _types, SystemFn _systemFn))
 		{
-			for (U32 i = 0; i < 32; i++)
+			for (U32 i = 0; i < MENGINE_CONFIG_MAX_COMPONENT_TYPES; ++i)
 			{
-				U32 componentType = 1 << i;
-				if (_types & componentType) // is one of _types
+				const auto& typeHashMap = m_ecsHashMap[i];
+
+				for (U16 j = 0; j < typeHashMap.getNumElements(); j++) 
 				{
-					for (U32 j = 0; j < m_ecsHashMap[componentType].getNumElements(); j++)
+					EntityHandle handle = { j }; // @todo is this correct?
+
+					EntityRef& sr = m_entities[j];
+					U32 componentMask = sr.m_mask; 
+					if ((componentMask & _types) == _types)
 					{
-						Query qr;
-						qr.m_componentType = componentType;
-						qr.m_componentHandle = { m_ecsHashMap[componentType].find(j) };
-						_systemFn(&qr);
+						_systemFn(handle);
 					}
 				}
 			}
-		}
-
-		MENGINE_API_FUNC(void* getQueryData(Query* _qr, U32 _type))
-		{
-			if (_qr->m_componentType == _type)
-			{
-				return m_components[_qr->m_componentHandle.idx].m_data->data;
-			}
-
-			return NULL;
 		}
 
 		void entityIncRef(EntityHandle _handle)
@@ -363,7 +373,7 @@ namespace mengine {
 			}
 		}
 
-		MENGINE_API_FUNC(EntityHandle createEntity(U32 _types))
+		MENGINE_API_FUNC(EntityHandle createEntity())
 		{
 			EntityHandle handle = { m_entityHandle.alloc() };
 
@@ -371,8 +381,6 @@ namespace mengine {
 			{
 				EntityRef& sr = m_entities[handle.idx];
 				sr.m_refCount = 1;
-
-				sr.m_mask = _types;
 
 				return handle;
 			}
@@ -990,7 +998,7 @@ namespace mengine {
 		void release(const bgfx::Memory* _mem);
 
 		// index = type, key = entity, value = component handle
-		bx::HandleHashMapT<MENGINE_CONFIG_MAX_COMPONENTS_PER_TYPE> m_ecsHashMap[MENGINE_CONFIG_MAX_COMPONENT_TYPE];
+		bx::HandleHashMapT<MENGINE_CONFIG_MAX_COMPONENTS_PER_TYPE> m_ecsHashMap[MENGINE_CONFIG_MAX_COMPONENT_TYPES];
 
 		bx::HandleAllocT<MENGINE_CONFIG_MAX_COMPONENTS> m_componentHandle;
 		ComponentRef m_components[MENGINE_CONFIG_MAX_COMPONENTS];

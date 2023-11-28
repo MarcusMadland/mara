@@ -46,12 +46,7 @@ namespace mengine {
 	};
 
 	//
-	struct Query
-	{
-		U32 m_componentType;
-		ComponentHandle m_componentHandle;
-	};
-	typedef void (*SystemFn)(Query* _qr);
+	typedef void (*SystemFn)(EntityHandle _handle);
 
 	struct Init
 	{
@@ -111,13 +106,13 @@ namespace mengine {
 	void addComponent(EntityHandle _entity, U32 _type, ComponentHandle _component);
 
 	//
+	void* getComponentData(EntityHandle _entity, U32 _type);
+
+	//
 	void forEachComponent(U32 _types, SystemFn _systemFn);
 
 	//
-	void* getQueryData(Query* _qr, U32 _type);
-
-	//
-	EntityHandle createEntity(U32 _types);
+	EntityHandle createEntity();
 
 	//
 	void destroy(EntityHandle _handle);

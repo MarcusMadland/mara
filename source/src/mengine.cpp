@@ -148,19 +148,19 @@ namespace mengine {
 		s_ctx->addComponent(_entity, _type, _component);
 	}
 
+	void* getComponentData(EntityHandle _entity, U32 _type)
+	{
+		return s_ctx->getComponentData(_entity, _type);
+	}
+
 	void forEachComponent(U32 _types, SystemFn _systemFn)
 	{
 		s_ctx->forEachComponent(_types, _systemFn);
 	}
 
-	void* getQueryData(Query* _qr, U32 _type)
+	EntityHandle createEntity()
 	{
-		return s_ctx->getQueryData(_qr, _type);
-	}
-
-	EntityHandle createEntity(U32 _types)
-	{
-		return s_ctx->createEntity(_types);
+		return s_ctx->createEntity();
 	}
 
 	void destroy(EntityHandle _handle)
