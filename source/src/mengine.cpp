@@ -16,15 +16,61 @@ namespace mengine {
 
 	bool Context::init(const Init& _init)
 	{
-		return true;
+		bgfx::Init bgfxInit;
+		bgfxInit.type = _init.graphicsApi;
+		bgfxInit.vendorId = _init.vendorId;
+		bgfxInit.resolution = _init.resolution;
+		bgfxInit.platformData.nwh = mrender::getNativeWindowHandle(mrender::kDefaultWindowHandle);
+		bgfxInit.platformData.ndt = mrender::getNativeDisplayHandle();
+		bgfxInit.allocator = mrender::getAllocator();
+		if (bgfx::init(bgfxInit))
+		{
+			bgfx::setViewRect(0, 0, 0, U16(_init.resolution.width), U16(_init.resolution.height));
+			bgfx::touch(0);
+
+			return true;
+		}
+
+		return false;
 	}
 
 	void Context::shutdown()
 	{
+		bgfx::shutdown();
+	}
+
+	bool Context::update()
+	{
+		m_frameNum = bgfx::frame();
+
+		for (uint16_t ii = 0, num = m_freeGeometryAssets.getNumQueued(); ii < num; ++ii)
+		{
+			m_geometryAssetHandle.free(m_freeGeometryAssets.get(ii).idx);
+		}
+
+		for (uint16_t ii = 0, num = m_freeShaderAssets.getNumQueued(); ii < num; ++ii)
+		{
+			m_shaderAssetHandle.free(m_freeShaderAssets.get(ii).idx);
+		}
+
+		m_freeGeometryAssets.reset();
+		m_freeShaderAssets.reset();
+
+		return true;
+	}
+
+	void Context::release(const bgfx::Memory* _mem)
+	{
+		BX_ASSERT(NULL != _mem, "_mem can't be NULL");
+
+		bgfx::Memory* mem = const_cast<bgfx::Memory*>(_mem);
+		bx::free(mrender::getAllocator(), mem);
 	}
 
 	Init::Init()
 		: allocator(NULL)
+		, graphicsApi(bgfx::RendererType::Count)
+		, vendorId(BGFX_PCI_ID_NONE)
 	{
 
 	}
@@ -68,145 +114,171 @@ namespace mengine {
 		return false;
 	}
 
-	bool shutdown()
+	void shutdown()
 	{
+		if (NULL != s_ctx)
+		{
+			s_ctx->shutdown();
+		}
+	}
+
+	bool update()
+	{
+		if (NULL != s_ctx)
+		{
+			return s_ctx->update();
+		}
+
+		BX_TRACE("Calling update before initializing.");
 		return false;
 	}
 
-	AssetHandle loadGeometry(const bx::FilePath _filePath)
+	ComponentHandle createComponent(void* _data, U32 _size)
 	{
-		if (_filePath.isEmpty())
-		{
-			BX_TRACE("Filepath is empty.");
-			return MENGINE_INVALID_HANDLE;
-		}
-		return s_ctx->loadGeometry(_filePath);
+		return s_ctx->createComponent(_data, _size);
 	}
 
-	bool saveGeometry(GeometryData* _geometryData, const bx::FilePath _filePath)
+	void destroy(ComponentHandle _handle)
 	{
-		if (_filePath.isEmpty())
-		{
-			BX_TRACE("Filepath is empty.");
-			return false;
-		}
-
-		if (NULL != _geometryData)
-		{
-			return s_ctx->saveGeometry(_geometryData, _filePath);
-		}
-		
-		BX_TRACE("Geometrydata is null.");
-		return false;
+		s_ctx->destroyComponent(_handle);
 	}
 
-	AssetHandle loadShader(const bx::FilePath _filePath)
+	void addComponent(EntityHandle _entity, U32 _type, ComponentHandle _component)
 	{
-		if (_filePath.isEmpty())
-		{
-			BX_TRACE("Filepath is empty.");
-			return MENGINE_INVALID_HANDLE;
-		}
-
-		return s_ctx->loadShader(_filePath);
+		s_ctx->addComponent(_entity, _type, _component);
 	}
 
-	bool saveShader(ShaderData* _shaderData, const bx::FilePath _filePath)
+	void forEachComponent(U32 _types, SystemFn _systemFn)
 	{
-		if (_filePath.isEmpty())
+		s_ctx->forEachComponent(_types, _systemFn);
+	}
+
+	void* getQueryData(Query* _qr, U32 _type)
+	{
+		return s_ctx->getQueryData(_qr, _type);
+	}
+
+	EntityHandle createEntity(U32 _types)
+	{
+		return s_ctx->createEntity(_types);
+	}
+
+	void destroy(EntityHandle _handle)
+	{
+		s_ctx->destroyEntity(_handle);
+	}
+
+	bool packAssets(const bx::FilePath& _filePath)
+	{
+		return s_ctx->packAssets(_filePath);
+	}
+
+	bool loadAssetPack(const bx::FilePath& _filePath)
+	{
+		return s_ctx->loadAssetPack(_filePath);
+	}
+
+	GeometryAssetHandle createGeometry(const void* _vertices, U32 _verticesSize, const void* _indices, U32 _indicesSize, bgfx::VertexLayout _layout, const bx::FilePath _virtualPath)
+	{
+		if (NULL != _vertices && NULL != _indices)
 		{
-			BX_TRACE("Filepath is empty.");
-			return false;
+			return s_ctx->createGeometry(_vertices, _verticesSize, _indices, _indicesSize, _layout, _virtualPath);
 		}
 
-		if (NULL != _shaderData)
+		BX_TRACE("Data is null.");
+		return MENGINE_INVALID_HANDLE;
+	}
+
+	GeometryAssetHandle loadGeometry(const bx::FilePath _filePath)
+	{
+		if (!_filePath.isEmpty())
 		{
-			return s_ctx->saveShader(_shaderData, _filePath);
+			return s_ctx->loadGeometry(_filePath);
 		}
 
-		BX_TRACE("Shaderdata is null.");
-		return false;
+		BX_TRACE("Filepath is empty.");
+		return MENGINE_INVALID_HANDLE;
+	}
+
+	void destroy(GeometryAssetHandle _handle)
+	{
+		s_ctx->destroyGeometry(_handle);
+	}
+
+	ShaderAssetHandle createShader(const bgfx::Memory* _mem, const bx::FilePath _virtualPath)
+	{
+		if (NULL != _mem)
+		{
+			return s_ctx->createShader(_mem, _virtualPath);
+		}
+
+		BX_TRACE("Data is null.");
+		return MENGINE_INVALID_HANDLE;
+	}
+
+	ShaderAssetHandle loadShader(const bx::FilePath _filePath)
+	{
+		if (!_filePath.isEmpty())
+		{
+			return s_ctx->loadShader(_filePath);
+		}
+
+		BX_TRACE("Filepath is empty.");
+		return MENGINE_INVALID_HANDLE;
+	}
+
+	void destroy(ShaderAssetHandle _handle)
+	{
+		s_ctx->destroyShader(_handle);
+	}
+
+	const bgfx::Memory* compileShader(const char* _shaderCode, ShaderType::Enum _type)
+	{
+		if (NULL != _shaderCode)
+		{
+			return s_ctx->compileShader(_shaderCode, _type);
+		}
+
+		BX_TRACE("Data is null.");
+		return NULL;
+	}
+
+	const Stats* getStats()
+	{
+		return s_ctx->getStats();
+	}
+
+	bx::AllocatorI* getAllocator()
+	{
+		return g_allocator;
 	}
 
 } // namespace mengine
 
 namespace bgfx {
 
-	ShaderHandle createShader(mengine::AssetHandle _handle)
+	ProgramHandle createProgram(mengine::ShaderAssetHandle _vsah, mengine::ShaderAssetHandle _fsah)
 	{
-		if (!isValid(_handle))
+		if (!isValid(_vsah) || !isValid(_fsah))
 		{
 			BX_TRACE("Asset handle is invalid.");
 			return BGFX_INVALID_HANDLE;
 		}
 
-		mengine::ShaderData* data = (mengine::ShaderData*)mengine::s_ctx->m_assets[_handle.idx].m_data;
-		if (data)
-		{
-			return bgfx::createShader(data->m_codeData);
-		}
-
-		BX_TRACE("Asset data is invalid.");
-		return BGFX_INVALID_HANDLE;
+		mengine::ShaderRef& vsr = mengine::s_ctx->m_shaderAssets[_vsah.idx];
+		mengine::ShaderRef& fsr = mengine::s_ctx->m_shaderAssets[_fsah.idx];
+		return bgfx::createProgram(vsr.m_sh, fsr.m_sh);
 	}
 
-	VertexBufferHandle createVertexBuffer(mengine::AssetHandle _handle, uint16_t _flags)
+	void setGeometry(mengine::GeometryAssetHandle _handle)
 	{
 		if (!isValid(_handle))
 		{
 			BX_TRACE("Asset handle is invalid.");
-			return BGFX_INVALID_HANDLE;
 		}
 
-		mengine::GeometryData* data = (mengine::GeometryData*)mengine::s_ctx->m_assets[_handle.idx].m_data;
-		if (data)
-		{
-			return bgfx::createVertexBuffer(data->m_vertexData, data->m_layout, _flags);
-		}
-
-		BX_TRACE("Asset data is invalid.");
-		return BGFX_INVALID_HANDLE;
+		mengine::GeometryRef& sr = mengine::s_ctx->m_geometryAssets[_handle.idx];
+		bgfx::setVertexBuffer(0, sr.m_vbh);
+		bgfx::setIndexBuffer(sr.m_ibh);
 	}
-
-	IndexBufferHandle createIndexBuffer(mengine::AssetHandle _handle, uint16_t _flags)
-	{
-		if (!isValid(_handle))
-		{
-			BX_TRACE("Asset handle is invalid.");
-			return BGFX_INVALID_HANDLE;
-		}
-
-		mengine::GeometryData* data = (mengine::GeometryData*)mengine::s_ctx->m_assets[_handle.idx].m_data;
-		if (data)
-		{
-			return bgfx::createIndexBuffer(data->m_indexData, _flags);
-		}
-
-		BX_TRACE("Asset data is invalid.");
-		return BGFX_INVALID_HANDLE;
-	}
-
-	TextureHandle createTexture2D(uint16_t _width, uint64_t _flags)
-	{
-		return TextureHandle();
-	}
-
-	TextureHandle createTexture2D(mengine::AssetHandle _handle, uint64_t _flags)
-	{
-		if (!isValid(_handle))
-		{
-			BX_TRACE("Asset handle is invalid.");
-			return BGFX_INVALID_HANDLE;
-		}
-
-		mengine::TextureData* data = (mengine::TextureData*)mengine::s_ctx->m_assets[_handle.idx].m_data;
-		if (data)
-		{
-			return bgfx::createTexture2D(data->m_width, data->m_height, data->m_hasMips, data->m_numLayers, data->m_format, _flags, data->m_pixData);
-		}
-
-		BX_TRACE("Asset data is invalid.");
-		return BGFX_INVALID_HANDLE;
-	}
-
 }

@@ -3,6 +3,7 @@
 #include "defines.h"
 
 #include <mrender/bgfx.h>
+#include <mrender/entry.h>
 #include <mapp/bx.h>
 #include <mapp/readerwriter.h>
 #include <mapp/timer.h>
@@ -22,58 +23,58 @@
 
 #define MENGINE_INVALID_HANDLE { mengine::kInvalidHandle }
 
+#define MENGINE_MAKE_COMPONENT_TYPE(name) static const U32 name = U32(__COUNTER__);
+
 namespace mengine {
 
 	static const U16 kInvalidHandle = UINT16_MAX;
 
-	MENGINE_HANDLE(AssetHandle)
+	MENGINE_HANDLE(EntityHandle)
+	MENGINE_HANDLE(ComponentHandle)
 
-	struct ShaderData
+	MENGINE_HANDLE(GeometryAssetHandle)
+	MENGINE_HANDLE(ShaderAssetHandle)
+
+	struct ShaderType
 	{
-		const bgfx::Memory* m_codeData;
+		enum Enum
+		{
+			Vertex,
+			Fragment,
+			Compute,
+		};
 	};
 
-	struct GeometryData
+	//
+	struct Query
 	{
-		const bgfx::Memory* m_vertexData;
-		const bgfx::Memory* m_indexData;
-		bgfx::VertexLayout m_layout;
+		U32 m_componentType;
+		ComponentHandle m_componentHandle;
 	};
-
-	struct TextureData
-	{
-		const bgfx::Memory* m_pixData;
-		U16 m_width;
-		U16 m_height;
-		bool m_hasMips;
-		U16 m_numLayers;
-		bgfx::TextureFormat::Enum m_format;
-		U64 m_flags;
-	};
-
-	struct MaterialData
-	{
-		U32* m_textures;
-		U32 m_numTextures;
-		// @todo uniform data
-	};
-
-	struct MeshData
-	{
-		U32 m_geometries;
-		U32 m_material;
-		float m_transform[16];
-	};
-
-	struct PrefabData
-	{
-		U32* m_meshes;
-		U32 m_numMeshes;
-	};
+	typedef void (*SystemFn)(Query* _qr);
 
 	struct Init
 	{
 		Init();
+
+		/// Select rendering backend. When set to RendererType::Count
+		/// a default rendering backend will be selected appropriate to the platform.
+		/// See: `bgfx::RendererType`
+		bgfx::RendererType::Enum graphicsApi;
+
+		/// Vendor PCI ID. If set to `BGFX_PCI_ID_NONE`, discrete and integrated
+		/// GPUs will be prioritised.
+		///   - `BGFX_PCI_ID_NONE` - Auto-select adapter.
+		///   - `BGFX_PCI_ID_SOFTWARE_RASTERIZER` - Software rasterizer.
+		///   - `BGFX_PCI_ID_AMD` - AMD adapter.
+		///   - `BGFX_PCI_ID_APPLE` - Apple adapter.
+		///   - `BGFX_PCI_ID_INTEL` - Intel adapter.
+		///   - `BGFX_PCI_ID_NVIDIA` - NVIDIA adapter.
+		///   - `BGFX_PCI_ID_MICROSOFT` - Microsoft adapter.
+		uint16_t vendorId;
+
+		/// Backbuffer resolution and reset parameters. See: `bgfx::Resolution`.
+		bgfx::Resolution resolution;
 
 		/// Custom allocator. When a custom allocator is not
 		/// specified, mengine uses the default allocator. mengine assumes
@@ -83,45 +84,82 @@ namespace mengine {
 
 	struct Stats
 	{
-		U16 numAssets; //!< Number of loaded assets.
+		U16 numEntities;       //!< Number of loaded entities.
+		U16 numComponents;	   //!< Number of loaded components.
+		U16 numGeometryAssets; //!< Number of loaded geometry assets.
+		U16 numShaderAssets;   //!< Number of loaded shader assets.
 	};
+
+	
 
 	//
 	bool init(const Init& _init = {});
 
 	// 
-	bool shutdown();
-	
-	//
-	AssetHandle loadGeometry(const bx::FilePath _filePath);
+	void shutdown();
 
 	//
-	bool saveGeometry(GeometryData* _geometryData, const bx::FilePath _filePath);
+	bool update();
 
 	//
-	AssetHandle loadShader(const bx::FilePath _filePath);
+	ComponentHandle createComponent(void* _data, U32 _size);
 
 	//
-	bool saveShader(ShaderData* _shaderData, const bx::FilePath _filePath);
+	void destroy(ComponentHandle _handle);
+
+	//
+	void addComponent(EntityHandle _entity, U32 _type, ComponentHandle _component);
+
+	//
+	void forEachComponent(U32 _types, SystemFn _systemFn);
+
+	//
+	void* getQueryData(Query* _qr, U32 _type);
+
+	//
+	EntityHandle createEntity(U32 _types);
+
+	//
+	void destroy(EntityHandle _handle);
+
+	//
+	bool packAssets(const bx::FilePath& _filePath);
+
+	//
+	bool loadAssetPack(const bx::FilePath& _filePath);
+
+	//
+	GeometryAssetHandle createGeometry(const void* _vertices, U32 _verticesSize, const void* _indices, U32 _indicesSize, bgfx::VertexLayout _layout, const bx::FilePath _virtualPath);
+
+	//
+	GeometryAssetHandle loadGeometry(const bx::FilePath _filePath);
+
+	//
+	void destroy(GeometryAssetHandle _handle);
+
+	//
+	ShaderAssetHandle createShader(const bgfx::Memory* _mem, const bx::FilePath _virtualPath);
+
+	//
+	ShaderAssetHandle loadShader(const bx::FilePath _filePath);
+
+	//
+	void destroy(ShaderAssetHandle _handle);
+
+	//
+	const bgfx::Memory* compileShader(const char* _shaderCode, ShaderType::Enum _type);
+
+	//
+	const Stats* getStats();
+
+	//
+	bx::AllocatorI* getAllocator();
 
 } // namespace mengine
 
 namespace bgfx {
 
-	ShaderHandle createShader(mengine::AssetHandle _handle);
+	ProgramHandle createProgram(mengine::ShaderAssetHandle _vsah, mengine::ShaderAssetHandle _fsah);
 
-	VertexBufferHandle createVertexBuffer(
-		mengine::AssetHandle _handle
-		, uint16_t _flags = BGFX_BUFFER_NONE
-	);
-
-	IndexBufferHandle createIndexBuffer(
-		mengine::AssetHandle _handle
-		, uint16_t _flags = BGFX_BUFFER_NONE
-	);
-
-	TextureHandle createTexture2D(
-		mengine::AssetHandle _handle
-		, uint64_t _flags = BGFX_TEXTURE_NONE | BGFX_SAMPLER_NONE
-	);
+	void setGeometry(mengine::GeometryAssetHandle _handle);
 }
