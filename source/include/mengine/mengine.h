@@ -23,7 +23,7 @@
 
 #define MENGINE_INVALID_HANDLE { mengine::kInvalidHandle }
 
-#define MENGINE_MAKE_COMPONENT_TYPE(name) static const U32 name = U32(__COUNTER__);
+#define MENGINE_DEFINE_COMPONENT(name) static const U32 name = (1u << __COUNTER__);
 
 namespace mengine {
 
@@ -31,7 +31,6 @@ namespace mengine {
 
 	MENGINE_HANDLE(EntityHandle)
 	MENGINE_HANDLE(ComponentHandle)
-
 	MENGINE_HANDLE(GeometryAssetHandle)
 	MENGINE_HANDLE(ShaderAssetHandle)
 
@@ -48,6 +47,14 @@ namespace mengine {
 	//
 	typedef void (*SystemFn)(EntityHandle _handle);
 
+	//
+	struct EntityQuery
+	{
+		U32 m_count;
+		EntityHandle m_entities[MENGINE_CONFIG_MAX_ENTITIES_TO_QUERY];
+	};
+
+	//
 	struct Init
 	{
 		Init();
@@ -79,13 +86,11 @@ namespace mengine {
 
 	struct Stats
 	{
-		U16 numEntities;       //!< Number of loaded entities.
-		U16 numComponents;	   //!< Number of loaded components.
-		U16 numGeometryAssets; //!< Number of loaded geometry assets.
-		U16 numShaderAssets;   //!< Number of loaded shader assets.
+		U16 numEntities;		//!< Number of loaded entities.
+		U16 numComponents;		//!< Number of loaded components.
+		U16 numGeometryAssets;	//!< Number of loaded geometry assets.
+		U16 numShaderAssets;	//!< Number of loaded shader assets.
 	};
-
-	
 
 	//
 	bool init(const Init& _init = {});
@@ -94,7 +99,7 @@ namespace mengine {
 	void shutdown();
 
 	//
-	bool update();
+	bool update(U32 _debug, U32 _reset);
 
 	//
 	ComponentHandle createComponent(void* _data, U32 _size);
@@ -109,7 +114,7 @@ namespace mengine {
 	void* getComponentData(EntityHandle _entity, U32 _type);
 
 	//
-	void forEachComponent(U32 _types, SystemFn _systemFn);
+	EntityQuery* queryEntities(U32 _types);
 
 	//
 	EntityHandle createEntity();
@@ -143,6 +148,9 @@ namespace mengine {
 
 	//
 	const bgfx::Memory* compileShader(const char* _shaderCode, ShaderType::Enum _type);
+
+	//
+	const mrender::MouseState* getMouseState();
 
 	//
 	const Stats* getStats();

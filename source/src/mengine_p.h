@@ -34,6 +34,10 @@ namespace mengine {
 
 	struct EntityRef
 	{
+		EntityRef()
+			: m_mask(0)
+		{} // @todo I dont like this, init this elsewhere
+
 		U32 m_mask;
 		U16 m_refCount;
 	};
@@ -245,8 +249,7 @@ namespace mengine {
 		static constexpr U32 kAlignment = 64;
 
 		Context()
-			: m_frameNum(0)
-			, m_stats(mengine::Stats())
+			: m_stats(mengine::Stats())
 		{}
 
 		~Context()
@@ -254,7 +257,7 @@ namespace mengine {
 
 		bool init(const Init& _init);
 		void shutdown();
-		bool update();
+		bool update(U32 _debug, U32 _reset);
 
 		void componentIncRef(ComponentHandle _handle)
 		{
@@ -313,6 +316,9 @@ namespace mengine {
 			bool ok = m_ecsHashMap[_type].insert(_entity.idx, _component.idx);
 			BX_ASSERT(ok, "Entities cannot have duplicated components!", _entity.idx);
 
+			// @todo remove
+			m_testHashMap[_type].insert(m_testHashMap[_type].getNumElements(), _entity.idx);
+
 			EntityRef& sr = m_entities[_entity.idx];
 			sr.m_mask |= _type;
 		}
@@ -328,11 +334,20 @@ namespace mengine {
 			const U16 idx = m_ecsHashMap[_type].find(_handle.idx);
 			if (idx != kInvalidHandle)
 			{
-				return m_components[idx].m_data->data;
+				void* data = m_components[idx].m_data->data;
+				if (NULL != data)
+				{
+					return data;
+				}
+
+				BX_ASSERT(true, "Component data is NULL but entity contains component type")
+				return NULL;
 			}
+
+			BX_ASSERT(true, "Component handle is invalid")
 			return NULL;
 		}
-
+		/*
 		MENGINE_API_FUNC(void forEachComponent(U32 _types, SystemFn _systemFn))
 		{
 			for (U32 i = 0; i < MENGINE_CONFIG_MAX_COMPONENT_TYPES; ++i)
@@ -341,16 +356,48 @@ namespace mengine {
 
 				for (U16 j = 0; j < typeHashMap.getNumElements(); j++) 
 				{
-					EntityHandle handle = { j }; // @todo is this correct?
+					EntityHandle handle = { m_testHashMap[i].find(j)}; // is this even correct, I dont think so?
+					if (!isValid(handle))
+					{
+						continue;
+					}
 
-					EntityRef& sr = m_entities[j];
-					U32 componentMask = sr.m_mask; 
-					if ((componentMask & _types) == _types)
+					EntityRef& sr = m_entities[handle.idx];
+					if ((sr.m_mask & _types) == _types)
 					{
 						_systemFn(handle);
 					}
 				}
 			}
+		}*/
+
+		MENGINE_API_FUNC(EntityQuery* queryEntities(U32 _types))
+		{
+			EntityQuery* query = (EntityQuery*)bx::alloc(getAllocator(), sizeof(EntityQuery));
+			query->m_count = 0;
+
+			for (U32 i = 0; i < 32; ++i)
+			{
+				for (U16 j = 0; j < m_ecsHashMap[i].getNumElements(); j++)
+				{
+					EntityHandle handle = { m_testHashMap[i].find(j) };
+					if (!isValid(handle))
+					{
+						continue;
+					}
+
+					EntityRef& sr = m_entities[handle.idx];
+					if ((sr.m_mask & _types) == _types)
+					{
+						query->m_count++;
+						query->m_entities[query->m_count] = handle;
+
+						query->m_entities[query->m_count - 1] = handle;
+					}
+				}
+			}
+
+			return query;
 		}
 
 		void entityIncRef(EntityHandle _handle)
@@ -982,6 +1029,11 @@ namespace mengine {
 			return mem;
 		}
 
+		MENGINE_API_FUNC(const mrender::MouseState* getMouseState())
+		{
+			return &m_mouseState;
+		}
+
 		MENGINE_API_FUNC(const Stats* getStats())
 		{
 			Stats& stats = m_stats;
@@ -991,14 +1043,16 @@ namespace mengine {
 			stats.numGeometryAssets = m_geometryAssetHandle.getNumHandles();
 			stats.numShaderAssets = m_shaderAssetHandle.getNumHandles();
 
-
 			return &stats;
 		}
 
 		void release(const bgfx::Memory* _mem);
 
-		// index = type, key = entity, value = component handle
-		bx::HandleHashMapT<MENGINE_CONFIG_MAX_COMPONENTS_PER_TYPE> m_ecsHashMap[MENGINE_CONFIG_MAX_COMPONENT_TYPES];
+		mrender::MouseState m_mouseState;
+
+		// index = type, key = entity handle, value = component handle
+		bx::HandleHashMapT<MENGINE_CONFIG_MAX_COMPONENTS_PER_TYPE> m_ecsHashMap[32];
+		bx::HandleHashMapT<MENGINE_CONFIG_MAX_COMPONENTS_PER_TYPE> m_testHashMap[32];
 
 		bx::HandleAllocT<MENGINE_CONFIG_MAX_COMPONENTS> m_componentHandle;
 		ComponentRef m_components[MENGINE_CONFIG_MAX_COMPONENTS];
@@ -1075,7 +1129,6 @@ namespace mengine {
 		FreeHandle<GeometryAssetHandle, MENGINE_CONFIG_MAX_GEOMETRY_ASSETS>  m_freeGeometryAssets;
 		FreeHandle<ShaderAssetHandle, MENGINE_CONFIG_MAX_SHADER_ASSETS> m_freeShaderAssets;
 
-		U32 m_frameNum;
 		Stats m_stats;
 	};
 

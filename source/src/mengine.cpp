@@ -26,6 +26,7 @@ namespace mengine {
 		if (bgfx::init(bgfxInit))
 		{
 			bgfx::setViewRect(0, 0, 0, U16(_init.resolution.width), U16(_init.resolution.height));
+			bgfx::setViewClear(0, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, 0x000000FF, 1.0f, 0);
 			bgfx::touch(0);
 
 			return true;
@@ -39,24 +40,32 @@ namespace mengine {
 		bgfx::shutdown();
 	}
 
-	bool Context::update()
+	bool Context::update(U32 _debug, U32 _reset)
 	{
-		m_frameNum = bgfx::frame();
+		bgfx::setDebug(_debug);
 
-		for (uint16_t ii = 0, num = m_freeGeometryAssets.getNumQueued(); ii < num; ++ii)
+		U32 width, height;
+		if (!mrender::processEvents(width, height, _debug, _reset, &m_mouseState))
 		{
-			m_geometryAssetHandle.free(m_freeGeometryAssets.get(ii).idx);
+			bgfx::setViewRect(0, 0, 0, U16(width), U16(height));
+
+			for (uint16_t ii = 0, num = m_freeGeometryAssets.getNumQueued(); ii < num; ++ii)
+			{
+				m_geometryAssetHandle.free(m_freeGeometryAssets.get(ii).idx);
+			}
+
+			for (uint16_t ii = 0, num = m_freeShaderAssets.getNumQueued(); ii < num; ++ii)
+			{
+				m_shaderAssetHandle.free(m_freeShaderAssets.get(ii).idx);
+			}
+
+			m_freeGeometryAssets.reset();
+			m_freeShaderAssets.reset();
+
+			return true;
 		}
 
-		for (uint16_t ii = 0, num = m_freeShaderAssets.getNumQueued(); ii < num; ++ii)
-		{
-			m_shaderAssetHandle.free(m_freeShaderAssets.get(ii).idx);
-		}
-
-		m_freeGeometryAssets.reset();
-		m_freeShaderAssets.reset();
-
-		return true;
+		return false;
 	}
 
 	void Context::release(const bgfx::Memory* _mem)
@@ -122,11 +131,11 @@ namespace mengine {
 		}
 	}
 
-	bool update()
+	bool update(U32 _debug, U32 _reset)
 	{
 		if (NULL != s_ctx)
 		{
-			return s_ctx->update();
+			return s_ctx->update(_debug, _reset);
 		}
 
 		BX_TRACE("Calling update before initializing.");
@@ -153,9 +162,9 @@ namespace mengine {
 		return s_ctx->getComponentData(_entity, _type);
 	}
 
-	void forEachComponent(U32 _types, SystemFn _systemFn)
+	EntityQuery* queryEntities(U32 _types)
 	{
-		s_ctx->forEachComponent(_types, _systemFn);
+		return s_ctx->queryEntities(_types);
 	}
 
 	EntityHandle createEntity()
@@ -241,6 +250,11 @@ namespace mengine {
 
 		BX_TRACE("Data is null.");
 		return NULL;
+	}
+
+	const mrender::MouseState* getMouseState()
+	{
+		return s_ctx->getMouseState();
 	}
 
 	const Stats* getStats()

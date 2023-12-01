@@ -3,6 +3,7 @@
  * License: https://github.com/bkaradzic/bgfx/blob/master/LICENSE
  */
 
+#include <mengine/mengine.h>
 #include <mrender/bgfx.h>
 #include <mrender/embedded_shader.h>
 #include <mapp/allocator.h>
@@ -505,7 +506,8 @@ static void memFree(void* _ptr, void* _userData)
 	bx::free(s_ctx.m_allocator, _ptr);
 }
 
-namespace mengine {
+namespace mengine 
+{
 	void imguiCreate(float _fontSize, bx::AllocatorI* _allocator)
 	{
 		s_ctx.create(_fontSize, _allocator);
@@ -516,9 +518,20 @@ namespace mengine {
 		s_ctx.destroy();
 	}
 
-	void imguiBeginFrame(int32_t _mx, int32_t _my, uint8_t _button, int32_t _scroll, uint16_t _width, uint16_t _height, int _inputChar, bgfx::ViewId _viewId)
+	void imguiBeginFrame(int _inputChar, bgfx::ViewId _viewId)
 	{
-		s_ctx.beginFrame(_mx, _my, _button, _scroll, _width, _height, _inputChar, _viewId);
+		const bgfx::Stats* stats = bgfx::getStats();
+		const mrender::MouseState* mouseState = mengine::getMouseState();
+
+		s_ctx.beginFrame(mouseState->m_mx
+			, mouseState->m_my
+			, (mouseState->m_buttons[mrender::MouseButton::Left] ? IMGUI_MBUT_LEFT : 0)
+			| (mouseState->m_buttons[mrender::MouseButton::Right] ? IMGUI_MBUT_RIGHT : 0)
+			| (mouseState->m_buttons[mrender::MouseButton::Middle] ? IMGUI_MBUT_MIDDLE : 0)
+			, mouseState->m_mz,
+			stats->width,
+			stats->height,
+			_inputChar, _viewId);
 	}
 
 	void imguiEndFrame()
