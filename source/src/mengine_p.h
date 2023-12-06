@@ -120,12 +120,12 @@ namespace mengine
 
 		void read(bx::ReaderSeekerI* _reader, bx::Error* _err) override
 		{
-			uint32_t vertexDataSize;
+			U32 vertexDataSize;
 			bx::read(_reader, &vertexDataSize, sizeof(vertexDataSize), _err);
 			m_vertexData = bgfx::alloc(vertexDataSize);
 			bx::read(_reader, m_vertexData->data, vertexDataSize, _err);
 
-			uint32_t indexDataSize;
+			U32 indexDataSize;
 			bx::read(_reader, &indexDataSize, sizeof(indexDataSize), _err);
 			m_indexData = bgfx::alloc(indexDataSize);
 			bx::read(_reader, m_indexData->data, indexDataSize, _err);
@@ -618,7 +618,7 @@ namespace mengine
 		void geometryAssetDecRef(GeometryAssetHandle _handle)
 		{
 			GeometryRef& sr = m_geometryAssets[_handle.idx];
-			int32_t refs = --sr.m_refCount;
+			U16 refs = --sr.m_refCount;
 
 			if (0 == refs)
 			{
@@ -732,7 +732,7 @@ namespace mengine
 		void shaderAssetDecRef(ShaderAssetHandle _handle)
 		{
 			ShaderRef& sr = m_shaderAssets[_handle.idx];
-			int32_t refs = --sr.m_refCount;
+			U16 refs = --sr.m_refCount;
 			if (0 == refs)
 			{
 				bool ok = m_freeShaderAssets.queue(_handle); BX_UNUSED(ok);
@@ -925,13 +925,13 @@ namespace mengine
 					bx::StringView name = bx::strWord(bx::strLTrimSpace(parse));
 					parse = bx::strLTrimSpace(bx::StringView(name.getTerm(), parse.getTerm()));
 
-					uint8_t num = 1;
+					U8 num = 1;
 					bx::StringView array = bx::strSubstr(parse, 0, 1);
 					if (0 == bx::strCmp(array, "[", 1))
 					{
 						parse = bx::strLTrimSpace(bx::StringView(parse.getPtr() + 1, parse.getTerm()));
 
-						uint32_t tmp;
+						U32 tmp;
 						bx::fromString(&tmp, parse);
 						num = uint8_t(tmp);
 					}
@@ -947,7 +947,7 @@ namespace mengine
 
 					Uniform un;
 
-					for (uint32_t ii = 0; ii < bgfx::UniformType::Count * 2; ++ii)
+					for (U32 ii = 0; ii < bgfx::UniformType::Count * 2; ++ii)
 					{
 						if (NULL != uniformTypeName[ii]
 							&& 0 == bx::strCmp(uniformType, uniformTypeName[ii]))
@@ -1075,7 +1075,7 @@ namespace mengine
 		bx::HandleHashMapT<MENGINE_CONFIG_MAX_SHADER_ASSETS> m_shaderAssetHashMap;
 		ShaderRef m_shaderAssets[MENGINE_CONFIG_MAX_SHADER_ASSETS];
 
-		template<typename Ty, uint32_t Max>
+		template<typename Ty, U32 Max>
 		struct FreeHandle
 		{
 			FreeHandle()
@@ -1085,7 +1085,7 @@ namespace mengine
 
 			bool isQueued(Ty _handle)
 			{
-				for (uint32_t ii = 0, num = m_num; ii < num; ++ii)
+				for (U32 ii = 0, num = m_num; ii < num; ++ii)
 				{
 					if (m_queue[ii].idx == _handle.idx)
 					{
@@ -1117,18 +1117,18 @@ namespace mengine
 				m_num = 0;
 			}
 
-			Ty get(uint16_t _idx) const
+			Ty get(U16 _idx) const
 			{
 				return m_queue[_idx];
 			}
 
-			uint16_t getNumQueued() const
+			U16 getNumQueued() const
 			{
 				return m_num;
 			}
 
 			Ty m_queue[Max];
-			uint16_t m_num;
+			U16 m_num;
 		};
 
 		FreeHandle<EntityHandle, MENGINE_CONFIG_MAX_ENTITIES>  m_freeEntities;

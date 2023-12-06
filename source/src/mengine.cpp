@@ -47,22 +47,22 @@ namespace mengine {
 		{
 			bgfx::setViewRect(0, 0, 0, U16(width), U16(height));
 
-			for (uint16_t ii = 0, num = m_freeEntities.getNumQueued(); ii < num; ++ii)
+			for (U16 ii = 0, num = m_freeEntities.getNumQueued(); ii < num; ++ii)
 			{
 				m_entityHandle.free(m_freeEntities.get(ii).idx);
 			}
 
-			for (uint16_t ii = 0, num = m_freeComponents.getNumQueued(); ii < num; ++ii)
+			for (U16 ii = 0, num = m_freeComponents.getNumQueued(); ii < num; ++ii)
 			{
 				m_componentHandle.free(m_freeComponents.get(ii).idx);
 			}
 
-			for (uint16_t ii = 0, num = m_freeGeometryAssets.getNumQueued(); ii < num; ++ii)
+			for (U16 ii = 0, num = m_freeGeometryAssets.getNumQueued(); ii < num; ++ii)
 			{
 				m_geometryAssetHandle.free(m_freeGeometryAssets.get(ii).idx);
 			}
 
-			for (uint16_t ii = 0, num = m_freeShaderAssets.getNumQueued(); ii < num; ++ii)
+			for (U16 ii = 0, num = m_freeShaderAssets.getNumQueued(); ii < num; ++ii)
 			{
 				m_shaderAssetHandle.free(m_freeShaderAssets.get(ii).idx);
 			}

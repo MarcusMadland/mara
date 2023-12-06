@@ -97,7 +97,7 @@ namespace mengine
 		///   - `BGFX_PCI_ID_INTEL` - Intel adapter.
 		///   - `BGFX_PCI_ID_NVIDIA` - NVIDIA adapter.
 		///   - `BGFX_PCI_ID_MICROSOFT` - Microsoft adapter.
-		uint16_t vendorId;
+		U16 vendorId;
 
 		/// Backbuffer resolution and reset parameters. See: `bgfx::Resolution`.
 		bgfx::Resolution resolution;
@@ -207,10 +207,17 @@ namespace mengine
 	//
 	void destroy(ShaderAssetHandle _handle);
 
-	//
+	/// Roughly compiles shader to bgfx format.
+	/// 
+	/// @param[in] _shaderCode Shader code.
+	/// @param[in] _type Shader type. See: `ShaderType::Enum`.
+	/// 
+	/// @returns Shader memory used by `mengine::createShader`
+	///
 	const bgfx::Memory* compileShader(const char* _shaderCode, ShaderType::Enum _type);
 
-	//
+	/// Returns mouse state for input.
+	///
 	const mrender::MouseState* getMouseState();
 
 	/// Returns performance counters.
