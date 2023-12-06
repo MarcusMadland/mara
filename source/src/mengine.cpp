@@ -10,8 +10,6 @@
 
 namespace mengine {
 
-	bx::AllocatorI* g_allocator = NULL;
-
 	static Context* s_ctx = NULL;
 
 	bool Context::init(const Init& _init)
@@ -49,6 +47,16 @@ namespace mengine {
 		{
 			bgfx::setViewRect(0, 0, 0, U16(width), U16(height));
 
+			for (uint16_t ii = 0, num = m_freeEntities.getNumQueued(); ii < num; ++ii)
+			{
+				m_entityHandle.free(m_freeEntities.get(ii).idx);
+			}
+
+			for (uint16_t ii = 0, num = m_freeComponents.getNumQueued(); ii < num; ++ii)
+			{
+				m_componentHandle.free(m_freeComponents.get(ii).idx);
+			}
+
 			for (uint16_t ii = 0, num = m_freeGeometryAssets.getNumQueued(); ii < num; ++ii)
 			{
 				m_geometryAssetHandle.free(m_freeGeometryAssets.get(ii).idx);
@@ -59,6 +67,8 @@ namespace mengine {
 				m_shaderAssetHandle.free(m_freeShaderAssets.get(ii).idx);
 			}
 
+			m_freeEntities.reset();
+			m_freeComponents.reset();
 			m_freeGeometryAssets.reset();
 			m_freeShaderAssets.reset();
 
@@ -68,17 +78,8 @@ namespace mengine {
 		return false;
 	}
 
-	void Context::release(const bgfx::Memory* _mem)
-	{
-		BX_ASSERT(NULL != _mem, "_mem can't be NULL");
-
-		bgfx::Memory* mem = const_cast<bgfx::Memory*>(_mem);
-		bx::free(mrender::getAllocator(), mem);
-	}
-
 	Init::Init()
-		: allocator(NULL)
-		, graphicsApi(bgfx::RendererType::Count)
+		: graphicsApi(bgfx::RendererType::Count)
 		, vendorId(BGFX_PCI_ID_NONE)
 	{
 
@@ -93,16 +94,6 @@ namespace mengine {
 		}
 		Init init = _init;
 
-		if (NULL != init.allocator)
-		{
-			g_allocator = init.allocator;
-		}
-		else
-		{
-			bx::DefaultAllocator allocator;
-			g_allocator = BX_NEW(&allocator, bx::DefaultAllocator);
-		}
-
 		BX_TRACE("Init...")
 
 		// mengine 1.104.7082
@@ -112,7 +103,7 @@ namespace mengine {
 		//      +--------- Major revision (always 1)
 		BX_TRACE("Version 1.%d.%d (commit: " MENGINE_REV_SHA1 ")", MENGINE_API_VERSION, MENGINE_REV_NUMBER)
 
-		s_ctx = BX_ALIGNED_NEW(g_allocator, Context, Context::kAlignment);
+		s_ctx = BX_NEW(mrender::getAllocator(), Context);
 		if (s_ctx->init(init))
 		{
 			BX_TRACE("Init complete.");
@@ -142,9 +133,9 @@ namespace mengine {
 		return false;
 	}
 
-	ComponentHandle createComponent(void* _data, U32 _size)
+	ComponentHandle createComponent(ComponentI* _data)
 	{
-		return s_ctx->createComponent(_data, _size);
+		return s_ctx->createComponent(_data);
 	}
 
 	void destroy(ComponentHandle _handle)
@@ -185,6 +176,11 @@ namespace mengine {
 	bool loadAssetPack(const bx::FilePath& _filePath)
 	{
 		return s_ctx->loadAssetPack(_filePath);
+	}
+
+	bool unloadAssetPack(const bx::FilePath& _filePath)
+	{
+		return s_ctx->unloadAssetPack(_filePath);
 	}
 
 	GeometryAssetHandle createGeometry(const void* _vertices, U32 _verticesSize, const void* _indices, U32 _indicesSize, bgfx::VertexLayout _layout, const bx::FilePath _virtualPath)
@@ -260,11 +256,6 @@ namespace mengine {
 	const Stats* getStats()
 	{
 		return s_ctx->getStats();
-	}
-
-	bx::AllocatorI* getAllocator()
-	{
-		return g_allocator;
 	}
 
 } // namespace mengine

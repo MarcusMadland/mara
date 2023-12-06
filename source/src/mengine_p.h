@@ -1,4 +1,10 @@
-#pragma once
+/*
+ * Copyright 2023 Marcus Madland. All rights reserved.
+ * License: https://github.com/MarcusMadland/mengine/blob/main/LICENSE
+ */
+
+#ifndef MENGINE_P_H_HEADER_GUARD
+#define MENGINE_P_H_HEADER_GUARD
 
 #include <mapp/platform.h>
 
@@ -9,8 +15,27 @@
 #define MENGINE_CONFIG_DEBUG BX_CONFIG_DEBUG
 
 #include "mengine/mengine.h"
+#include "config.h"
 
-#include <vector> // @todo I don't like this, remove std dependencies 
+ // Check handle, cannot be bgfx::kInvalidHandle and must be valid.
+#define MENGINE_CHECK_HANDLE(_desc, _handleAlloc, _handle) \
+	BX_ASSERT(isValid(_handle)                          \
+		&& _handleAlloc.isValid(_handle.idx)            \
+		, "Invalid handle. %s handle: %d (max %d)"      \
+		, _desc                                         \
+		, _handle.idx                                   \
+		, _handleAlloc.getMaxHandles()                  \
+		)
+
+// Check handle, it's ok to be bgfx::kInvalidHandle or must be valid.
+#define MENGINE_CHECK_HANDLE_INVALID_OK(_desc, _handleAlloc, _handle) \
+	BX_ASSERT(!isValid(_handle)                                    \
+		|| _handleAlloc.isValid(_handle.idx)                       \
+		, "Invalid handle. %s handle: %d (max %d)"                 \
+		, _desc                                                    \
+		, _handle.idx                                              \
+		, _handleAlloc.getMaxHandles()                             \
+		)
 
 #if MENGINE_CONFIG_MULTITHREADED
 #	define MENGINE_MUTEX_SCOPE(_mutex) bx::MutexScope BX_CONCATENATE(mutexScope, __LINE__)(_mutex)
@@ -18,25 +43,38 @@
 #	define MENGINE_MUTEX_SCOPE(_mutex) BX_NOOP()
 #endif // MENGINE_CONFIG_MULTITHREADED
 
-#define MENGINE_ASSET_TYPE_NONE        UINT64_C(0x0000000000000000) 
-#define MENGINE_ASSET_TYPE_GEOMETRY    UINT64_C(0x0000000000000001) 
-#define MENGINE_ASSET_TYPE_SHADER      UINT64_C(0x0000000000000002) 
+#include <mapp/bx.h>
+#include <mapp/timer.h>
+#include <mapp/math.h>
+#include <mapp/bounds.h>
+#include <mapp/pixelformat.h>
+#include <mapp/string.h>
+#include <mapp/allocator.h>
+#include <mapp/file.h>
+#include <mapp/handlealloc.h>
+#include <mapp/hash.h>
+#include <mapp/commandline.h>
 
 #define MENGINE_ASSET_PACK_VERSION 1
 #define MENGINE_CHUNK_MAGIC_MAP BX_MAKEFOURCC('M', 'A', 'P', MENGINE_ASSET_PACK_VERSION)
+
+#define MENGINE_ASSET_TYPE_NONE        UINT64_C(0x0000000000000000) 
+#define MENGINE_ASSET_TYPE_GEOMETRY    UINT64_C(0x0000000000000001) 
+#define MENGINE_ASSET_TYPE_SHADER      UINT64_C(0x0000000000000002) 
 
 #define BGFX_SHADER_BIN_VERSION 11
 #define BGFX_CHUNK_MAGIC_CSH BX_MAKEFOURCC('C', 'S', 'H', BGFX_SHADER_BIN_VERSION)
 #define BGFX_CHUNK_MAGIC_FSH BX_MAKEFOURCC('F', 'S', 'H', BGFX_SHADER_BIN_VERSION)
 #define BGFX_CHUNK_MAGIC_VSH BX_MAKEFOURCC('V', 'S', 'H', BGFX_SHADER_BIN_VERSION)
 
-namespace mengine {
-
+namespace mengine 
+{
 	struct EntityRef
 	{
-		EntityRef()
+		EntityRef() // @todo I don't like to use constructors. Fix this
 			: m_mask(0)
-		{} // @todo I dont like this, init this elsewhere
+			, m_refCount(0)
+		{}
 
 		U32 m_mask;
 		U16 m_refCount;
@@ -44,16 +82,13 @@ namespace mengine {
 
 	struct ComponentRef
 	{
-		const bgfx::Memory* m_data;
+		ComponentRef()
+			: m_data(NULL)
+			, m_refCount(0)
+		{}
+
+		ComponentI* m_data;
 		U16 m_refCount;
-	};
-
-	struct SerializerI
-	{
-		virtual U32 getSize() = 0;
-
-		virtual U32 write(bx::WriterI* _writer, bx::Error* _err) = 0;
-		virtual void read(bx::ReaderSeekerI* _reader, bx::Error* _err) = 0;
 	};
 
 	struct GeometryRef : SerializerI
@@ -71,15 +106,15 @@ namespace mengine {
 			return sizeof(U32) + m_vertexData->size + sizeof(U32) + m_indexData->size + sizeof(U32) + (I32)sizeof(m_layout);
 		};
 
-		U32 write(bx::WriterI* _writer, bx::Error* _err) override
+		void write(bx::WriterI* _writer, bx::Error* _err) override
 		{
 			U32 layoutSize = sizeof(m_layout);
 
-			return bx::write(_writer, &m_vertexData->size, sizeof(U32), _err) + 
-			bx::write(_writer, m_vertexData->data, (I32)m_vertexData->size, _err) +
-			bx::write(_writer, &m_indexData->size, sizeof(U32), _err) +
-			bx::write(_writer, m_indexData->data, (I32)m_indexData->size, _err) +
-			bx::write(_writer, &layoutSize, sizeof(U32), _err) +
+			bx::write(_writer, &m_vertexData->size, sizeof(U32), _err);
+			bx::write(_writer, m_vertexData->data, (I32)m_vertexData->size, _err);
+			bx::write(_writer, &m_indexData->size, sizeof(U32), _err);
+			bx::write(_writer, m_indexData->data, (I32)m_indexData->size, _err);
+			bx::write(_writer, &layoutSize, sizeof(U32), _err);
 			bx::write(_writer, &m_layout, (I32)layoutSize, _err);
 		};
 
@@ -123,10 +158,10 @@ namespace mengine {
 			return m_codeData->size;
 		};
 
-		U32 write(bx::WriterI* _writer, bx::Error* _err) override
+		void write(bx::WriterI* _writer, bx::Error* _err) override
 		{ 
-			return bx::write(_writer, &m_codeData->size, sizeof(U32), _err) +
-				bx::write(_writer, m_codeData->data, m_codeData->size, _err);
+			bx::write(_writer, &m_codeData->size, sizeof(U32), _err);
+			bx::write(_writer, m_codeData->data, m_codeData->size, _err);
 		};
 
 		void read(bx::ReaderSeekerI* _reader, bx::Error* _err) override
@@ -142,74 +177,6 @@ namespace mengine {
 		const bgfx::Memory* m_codeData;
 
 		U16 m_refCount;
-	};
-
-	/*
-	struct TextureSerializer : SerializeI
-	{
-		bool serialize(const bx::FilePath& _filePath) override { return false; };
-		bool deserialize(const bx::FilePath& _filePath) override { return false; };
-
-		const bgfx::Memory* m_pixData;
-		U16 m_width;
-		U16 m_height;
-		bool m_hasMips;
-		U16 m_numLayers;
-		bgfx::TextureFormat::Enum m_format;
-		U64 m_flags;
-	};
-
-	struct MaterialSerializer : SerializeI
-	{
-		bool serialize(const bx::FilePath& _filePath) override { return false; };
-		bool deserialize(const bx::FilePath& _filePath) override { return false; };
-
-		U32 m_shader;
-		U32* m_textures;
-		U32 m_numTextures;
-		// @todo uniform data
-	};
-
-	struct MeshSerializer : SerializeI
-	{
-		bool serialize(const bx::FilePath& _filePath) override { return false; };
-		bool deserialize(const bx::FilePath& _filePath) override { return false; };
-
-		U32 m_geometries;
-		U32 m_material;
-		float m_transform[16];
-	};
-
-	struct PrefabSerializer : SerializeI
-	{
-		bool serialize(const bx::FilePath& _filePath) override { return false; };
-		bool deserialize(const bx::FilePath& _filePath) override { return false; };
-
-		U32* m_meshes;
-		U32 m_numMeshes;
-	};*/
-
-	struct Uniform
-	{
-		Uniform()
-			: name("")
-			, type(bgfx::UniformType::Count)
-			, num(0)
-			, regIndex(0)
-			, regCount(0)
-			, texComponent(0)
-			, texDimension(0)
-			, texFormat(0)
-		{}
-
-		const char* name;
-		bgfx::UniformType::Enum type;
-		U8 num;
-		U16 regIndex;
-		U16 regCount;
-		U8 texComponent;
-		U8 texDimension;
-		U16 texFormat;
 	};
 
 	struct AssetPackHeader
@@ -246,14 +213,14 @@ namespace mengine {
 
 	struct Context
 	{
-		static constexpr U32 kAlignment = 64;
-
 		Context()
 			: m_stats(mengine::Stats())
-		{}
+		{
+		}
 
 		~Context()
-		{}
+		{
+		}
 
 		bool init(const Init& _init);
 		void shutdown();
@@ -275,12 +242,13 @@ namespace mengine {
 				bool ok = m_freeComponents.queue(_handle); BX_UNUSED(ok);
 				BX_ASSERT(ok, "Component handle %d is already destroyed!", _handle.idx);
 
-				release(sr.m_data);
+				// @todo We are using delete because we are using virtual destructors. Can we do this manually?
+				delete sr.m_data; 
 				sr.m_data = NULL;
 			}
 		}
 
-		MENGINE_API_FUNC(ComponentHandle createComponent(void* _data, U32 _size))
+		MENGINE_API_FUNC(ComponentHandle createComponent(ComponentI* _data))
 		{
 			ComponentHandle handle = { m_componentHandle.alloc() };
 
@@ -289,7 +257,7 @@ namespace mengine {
 				ComponentRef& sr = m_components[handle.idx];
 				sr.m_refCount = 1;
 
-				sr.m_data = bgfx::makeRef(_data, _size);
+				sr.m_data = _data;
 				
 				return handle;
 			}
@@ -313,11 +281,10 @@ namespace mengine {
 
 		MENGINE_API_FUNC(void addComponent(EntityHandle _entity, U32 _type, ComponentHandle _component))
 		{
-			bool ok = m_ecsHashMap[_type].insert(_entity.idx, _component.idx);
+			bool ok = m_componentHashMap[_type].insert(_entity.idx, _component.idx);
 			BX_ASSERT(ok, "Entities cannot have duplicated components!", _entity.idx);
 
-			// @todo remove
-			m_testHashMap[_type].insert(m_testHashMap[_type].getNumElements(), _entity.idx);
+			m_entityHashMap[_type].insert(m_entityHashMap[_type].getNumElements(), _entity.idx);
 
 			EntityRef& sr = m_entities[_entity.idx];
 			sr.m_mask |= _type;
@@ -325,16 +292,16 @@ namespace mengine {
 
 		bool hasComponent(EntityHandle _handle, U32 _type)
 		{
-			const U16 idx = m_ecsHashMap[_type].find(_handle.idx);
+			const U16 idx = m_componentHashMap[_type].find(_handle.idx);
 			return idx != kInvalidHandle;
 		}
 
 		MENGINE_API_FUNC(void* getComponentData(EntityHandle _handle, U32 _type))
 		{
-			const U16 idx = m_ecsHashMap[_type].find(_handle.idx);
+			const U16 idx = m_componentHashMap[_type].find(_handle.idx);
 			if (idx != kInvalidHandle)
 			{
-				void* data = m_components[idx].m_data->data;
+				void* data = m_components[idx].m_data;
 				if (NULL != data)
 				{
 					return data;
@@ -347,40 +314,17 @@ namespace mengine {
 			BX_ASSERT(true, "Component handle is invalid")
 			return NULL;
 		}
-		/*
-		MENGINE_API_FUNC(void forEachComponent(U32 _types, SystemFn _systemFn))
-		{
-			for (U32 i = 0; i < MENGINE_CONFIG_MAX_COMPONENT_TYPES; ++i)
-			{
-				const auto& typeHashMap = m_ecsHashMap[i];
-
-				for (U16 j = 0; j < typeHashMap.getNumElements(); j++) 
-				{
-					EntityHandle handle = { m_testHashMap[i].find(j)}; // is this even correct, I dont think so?
-					if (!isValid(handle))
-					{
-						continue;
-					}
-
-					EntityRef& sr = m_entities[handle.idx];
-					if ((sr.m_mask & _types) == _types)
-					{
-						_systemFn(handle);
-					}
-				}
-			}
-		}*/
 
 		MENGINE_API_FUNC(EntityQuery* queryEntities(U32 _types))
 		{
-			EntityQuery* query = (EntityQuery*)bx::alloc(getAllocator(), sizeof(EntityQuery));
+			EntityQuery* query = (EntityQuery*)bx::alloc(mrender::getAllocator(), sizeof(EntityQuery));
 			query->m_count = 0;
 
 			for (U32 i = 0; i < 32; ++i)
 			{
-				for (U16 j = 0; j < m_ecsHashMap[i].getNumElements(); j++)
+				for (U16 j = 0; j < m_componentHashMap[i].getNumElements(); j++) // @todo We are looping over the same entity multiple times
 				{
-					EntityHandle handle = { m_testHashMap[i].find(j) };
+					EntityHandle handle = { m_entityHashMap[i].find(j) };
 					if (!isValid(handle))
 					{
 						continue;
@@ -389,10 +333,8 @@ namespace mengine {
 					EntityRef& sr = m_entities[handle.idx];
 					if ((sr.m_mask & _types) == _types)
 					{
-						query->m_count++;
 						query->m_entities[query->m_count] = handle;
-
-						query->m_entities[query->m_count - 1] = handle;
+						query->m_count++;
 					}
 				}
 			}
@@ -440,10 +382,29 @@ namespace mengine {
 		{
 			MENGINE_MUTEX_SCOPE(m_resourceApiLock);
 
-			if (!isValid(_handle) && !m_entityHandle.isValid(_handle.idx))
+			if (!isValid(_handle))
 			{
 				BX_WARN(false, "Passing invalid entity handle to mengine::destroyEntity.");
 				return;
+			}
+
+			EntityRef& sr = m_entities[_handle.idx]; // @todo make destroying components optional maybe
+			
+			// Loop over all bit mask components
+			for (U32 i = 0; i < 32; i++)
+			{
+				// If entity got that component find it in the component hash map and get the component reference id
+				if (sr.m_mask & (1 << i))
+				{
+					const U16 idx = m_componentHashMap[1 << i].find(_handle.idx);
+					if (kInvalidHandle != idx)
+					{
+						// Destroy component
+						destroyComponent({ idx });
+						m_componentHashMap[1 << i].removeByKey(_handle.idx);
+						m_entityHashMap[1 << i].removeByHandle(i);
+					}
+				}
 			}
 
 			entityDecRef(_handle);
@@ -602,6 +563,52 @@ namespace mengine {
 			return true;
 		}
 
+		MENGINE_API_FUNC(bool unloadAssetPack(const bx::FilePath& _filePath))
+		{
+			bx::ErrorAssert err;
+			bx::FileReader reader;
+			if (!bx::open(&reader, _filePath, &err))
+			{
+				BX_TRACE("Failed to open assetpack at path %s.", _filePath.getCPtr());
+				return false;
+			}
+
+			// Header
+			AssetPackHeader header;
+			bx::read(&reader, &header, sizeof(AssetPackHeader), &err);
+
+			// Entries
+			AssetPackEntry entries[3];
+			bx::read(&reader, &entries, sizeof(AssetPackEntry) * header.numEntries, &err);
+
+			//
+			U32 currGeometry = 0;
+			U32 currShader = 0;
+			for (U32 i = 0; i < header.numEntries; i++)
+			{
+				if (entries[i].type == MENGINE_ASSET_TYPE_GEOMETRY)
+				{
+					U16 idx = m_geometryAssetHashMap.find(entries[i].hash);
+					if (kInvalidHandle != idx)
+					{
+						destroyGeometry({ idx });
+					}
+				}
+
+				if (entries[i].type == MENGINE_ASSET_TYPE_SHADER)
+				{
+					U16 idx = m_shaderAssetHashMap.find(entries[i].hash);
+					if (kInvalidHandle != idx)
+					{
+						destroyShader({ idx });
+					}
+				}
+			}
+
+			bx::close(&reader);
+			return true;
+		}
+
 		void geometryAssetIncRef(GeometryAssetHandle _handle)
 		{
 			GeometryRef& sr = m_geometryAssets[_handle.idx];
@@ -618,14 +625,6 @@ namespace mengine {
 				bool ok = m_freeGeometryAssets.queue(_handle); BX_UNUSED(ok);
 				BX_ASSERT(ok, "Geometry Asset handle %d is already destroyed!", _handle.idx);
 
-				if (false) // @todo Find a way to see if buffers owns the data or not
-				{
-					release(sr.m_vertexData);
-					sr.m_vertexData = NULL;
-
-					release(sr.m_indexData);
-					sr.m_indexData = NULL;
-				}
 				bgfx::destroy(sr.m_vbh);
 				bgfx::destroy(sr.m_ibh);
 
@@ -739,11 +738,6 @@ namespace mengine {
 				bool ok = m_freeShaderAssets.queue(_handle); BX_UNUSED(ok);
 				BX_ASSERT(ok, "Shader Asset handle %d is already destroyed!", _handle.idx);
 
-				if (false) // @todo Find a way to see if buffers owns the data or not
-				{
-					release(sr.m_codeData);
-					sr.m_codeData = NULL;
-				}
 				bgfx::destroy(sr.m_sh);
 
 				m_shaderAssetHashMap.removeByHandle(_handle.idx);
@@ -843,7 +837,7 @@ namespace mengine {
 			const bgfx::Memory* mem = bgfx::alloc(size);
 			bx::StaticMemoryBlockWriter writer(mem->data, mem->size);
 
-			std::vector<Uniform> uniforms;
+			//std::vector<Uniform> uniforms;
 			/*
 			bx::StringView parse(_shaderCode);
 			while (!parse.isEmpty())
@@ -1043,21 +1037,34 @@ namespace mengine {
 			stats.numGeometryAssets = m_geometryAssetHandle.getNumHandles();
 			stats.numShaderAssets = m_shaderAssetHandle.getNumHandles();
 
+			for (U16 i = 0; i < stats.numEntities; i++)
+			{
+				stats.entitiesRef[i] = m_entities[i].m_refCount;
+			}
+			for (U16 i = 0; i < stats.numComponents; i++)
+			{
+				stats.componentsRef[i] = m_components[i].m_refCount;
+			}
+			for (U16 i = 0; i < stats.numGeometryAssets; i++)
+			{
+				stats.geometryRef[i] = m_geometryAssets[i].m_refCount;
+			}
+			for (U16 i = 0; i < stats.numShaderAssets; i++)
+			{
+				stats.shaderRef[i] = m_shaderAssets[i].m_refCount;
+			}
+
 			return &stats;
 		}
 
-		void release(const bgfx::Memory* _mem);
-
-		mrender::MouseState m_mouseState;
-
-		// index = type, key = entity handle, value = component handle
-		bx::HandleHashMapT<MENGINE_CONFIG_MAX_COMPONENTS_PER_TYPE> m_ecsHashMap[32];
-		bx::HandleHashMapT<MENGINE_CONFIG_MAX_COMPONENTS_PER_TYPE> m_testHashMap[32];
+		Stats m_stats;
 
 		bx::HandleAllocT<MENGINE_CONFIG_MAX_COMPONENTS> m_componentHandle;
+		bx::HandleHashMapT<MENGINE_CONFIG_MAX_COMPONENTS_PER_TYPE> m_componentHashMap[32];
 		ComponentRef m_components[MENGINE_CONFIG_MAX_COMPONENTS];
 
 		bx::HandleAllocT<MENGINE_CONFIG_MAX_ENTITIES> m_entityHandle;
+		bx::HandleHashMapT<MENGINE_CONFIG_MAX_COMPONENTS_PER_TYPE> m_entityHashMap[32];
 		EntityRef m_entities[MENGINE_CONFIG_MAX_ENTITIES];
 
 		bx::HandleAllocT<MENGINE_CONFIG_MAX_GEOMETRY_ASSETS> m_geometryAssetHandle;
@@ -1129,7 +1136,9 @@ namespace mengine {
 		FreeHandle<GeometryAssetHandle, MENGINE_CONFIG_MAX_GEOMETRY_ASSETS>  m_freeGeometryAssets;
 		FreeHandle<ShaderAssetHandle, MENGINE_CONFIG_MAX_SHADER_ASSETS> m_freeShaderAssets;
 
-		Stats m_stats;
+		mrender::MouseState m_mouseState;
 	};
 
 } // namespace mengine
+
+#endif // MENGINE_P_H_HEADER_GUARD
