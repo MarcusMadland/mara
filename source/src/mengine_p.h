@@ -179,19 +179,6 @@ namespace mengine
 		U16 m_refCount;
 	};
 
-	struct AssetPackHeader
-	{
-		AssetPackHeader()
-			: magic(0)
-			, hash(0)
-			, numEntries(0)
-		{}
-
-		U32 magic;
-		U32 hash;
-		U32 numEntries;
-	};
-
 	struct AssetPackEntry
 	{
 		AssetPackEntry()
@@ -203,6 +190,19 @@ namespace mengine
 		U64 type;
 		U32 hash;
 		I64 offset;
+	};
+
+	struct AssetPackHeader
+	{
+		AssetPackHeader()
+			: magic(0)
+			, hash(0)
+			, numEntries(0)
+		{}
+
+		U32 magic;
+		U32 hash;
+		U32 numEntries;
 	};
 
 #if MENGINE_CONFIG_DEBUG
@@ -317,6 +317,8 @@ namespace mengine
 
 		MENGINE_API_FUNC(EntityQuery* queryEntities(U32 _types))
 		{
+			// @todo What if- instead of allocating an entity query here, we have a global entity query we change instead. 
+			// Then we can allocate and deallocate that ourself without leaving that respnsibility to the user.
 			EntityQuery* query = (EntityQuery*)bx::alloc(mrender::getAllocator(), sizeof(EntityQuery));
 			query->m_count = 0;
 
@@ -410,6 +412,8 @@ namespace mengine
 			entityDecRef(_handle);
 		}
 
+		// @todo Asset packing needs refactoring, currently loads entire pack into memory.
+		// Implement load on demand. Also dont like the use of 'new' use alloc instead.
 		MENGINE_API_FUNC(bool packAssets(const bx::FilePath& _filePath))
 		{
 			bx::makeAll(_filePath.getPath());
@@ -433,7 +437,7 @@ namespace mengine
 			I64 offset = sizeof(AssetPackHeader) + sizeof(AssetPackEntry) * header.numEntries;
 			U16 currGeometry = 0;
 			U16 currShader = 0;
-			AssetPackEntry entries[3];
+			AssetPackEntry* entries = new AssetPackEntry[header.numEntries];
 			for (U32 i = 0; i < header.numEntries; i++)
 			{
 				entries[i].offset = offset;
@@ -484,6 +488,7 @@ namespace mengine
 				}
 			}
 
+			delete[] entries;
 			bx::close(&writer);
 			return true;
 		}
@@ -503,8 +508,8 @@ namespace mengine
 			bx::read(&reader, &header, sizeof(AssetPackHeader), &err);
 
 			// Entries
-			AssetPackEntry entries[3];
-			bx::read(&reader, &entries, sizeof(AssetPackEntry) * header.numEntries, &err);
+			AssetPackEntry* entries = new AssetPackEntry[header.numEntries];
+			bx::read(&reader, entries, sizeof(AssetPackEntry) * header.numEntries, &err);
 
 			//
 			U32 currGeometry = 0;
@@ -559,6 +564,7 @@ namespace mengine
 				}
 			}
 
+			delete[] entries;
 			bx::close(&reader);
 			return true;
 		}
@@ -578,8 +584,8 @@ namespace mengine
 			bx::read(&reader, &header, sizeof(AssetPackHeader), &err);
 
 			// Entries
-			AssetPackEntry entries[3];
-			bx::read(&reader, &entries, sizeof(AssetPackEntry) * header.numEntries, &err);
+			AssetPackEntry* entries = new AssetPackEntry[header.numEntries];
+			bx::read(&reader, entries, sizeof(AssetPackEntry) * header.numEntries, &err);
 
 			//
 			U32 currGeometry = 0;
@@ -605,9 +611,11 @@ namespace mengine
 				}
 			}
 
+			delete[] entries;
 			bx::close(&reader);
 			return true;
 		}
+		// 
 
 		void geometryAssetIncRef(GeometryAssetHandle _handle)
 		{
@@ -636,7 +644,7 @@ namespace mengine
 
 		MENGINE_API_FUNC(GeometryAssetHandle createGeometry(const void* _vertices, U32 _verticesSize, const void* _indices, U32 _indicesSize, bgfx::VertexLayout _layout, const bx::FilePath& _virtualPath))
 		{
-			U32 hash = bx::hash<bx::HashMurmur2A>(_virtualPath.getCPtr());;
+			U32 hash = bx::hash<bx::HashMurmur2A>(_virtualPath.getCPtr());
 
 			U16 idx = m_geometryAssetHashMap.find(hash);
 			if (kInvalidHandle != idx)
