@@ -43,6 +43,10 @@ namespace mengine
 	MENGINE_HANDLE(ComponentHandle)
 	MENGINE_HANDLE(GeometryAssetHandle)
 	MENGINE_HANDLE(ShaderAssetHandle)
+	MENGINE_HANDLE(TextureAssetHandle)
+	MENGINE_HANDLE(MaterialAssetHandle)
+	MENGINE_HANDLE(MeshAssetHandle)
+
 
 	/// Component interface to implement destructor for it's data.
 	///
@@ -112,11 +116,13 @@ namespace mengine
 		U16 componentsRef[100]; //!< Number of references of components.
 		U16 geometryRef[100];	//!< Number of references of geometry assets.
 		U16 shaderRef[100];		//!< Number of references of shader assets.
+		U16 textureRef[100];		//!< Number of references of shader assets.
 
 		U16 numEntities;		//!< Number of loaded entities.
 		U16 numComponents;		//!< Number of loaded components.
 		U16 numGeometryAssets;	//!< Number of loaded geometry assets.
 		U16 numShaderAssets;	//!< Number of loaded shader assets.
+		U16 numTextureAssets;	//!< Number of loaded shader assets.
 	};
 
 	/// Initialize the mengine.
@@ -216,6 +222,16 @@ namespace mengine
 	///
 	const bgfx::Memory* compileShader(const char* _shaderCode, ShaderType::Enum _type);
 
+	//
+	TextureAssetHandle createTexture(void* _data, U32 _size, U16 _width, U16 _height, bool _hasMips,
+		bgfx::TextureFormat::Enum _format, U64 _flags, const bx::FilePath& _virtualPath);
+
+	//
+	TextureAssetHandle loadTexture(const bx::FilePath _filePath);
+
+	//
+	void destroy(TextureAssetHandle _handle);
+
 	/// Returns mouse state for input.
 	///
 	const mrender::MouseState* getMouseState();
@@ -231,6 +247,8 @@ namespace bgfx {
 	ProgramHandle createProgram(mengine::ShaderAssetHandle _vsah, mengine::ShaderAssetHandle _fsah);
 
 	void setGeometry(mengine::GeometryAssetHandle _handle);
+
+	void setTexture(U16 _stage, mengine::TextureAssetHandle _texture, UniformHandle _uniform);
 }
 
 #endif // MENGINE_H_HEADER_GUARD

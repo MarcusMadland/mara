@@ -58,10 +58,6 @@
 #define MENGINE_ASSET_PACK_VERSION 1
 #define MENGINE_CHUNK_MAGIC_MAP BX_MAKEFOURCC('M', 'A', 'P', MENGINE_ASSET_PACK_VERSION)
 
-#define MENGINE_ASSET_TYPE_NONE        UINT64_C(0x0000000000000000) 
-#define MENGINE_ASSET_TYPE_GEOMETRY    UINT64_C(0x0000000000000001) 
-#define MENGINE_ASSET_TYPE_SHADER      UINT64_C(0x0000000000000002) 
-
 #define BGFX_SHADER_BIN_VERSION 11
 #define BGFX_CHUNK_MAGIC_CSH BX_MAKEFOURCC('C', 'S', 'H', BGFX_SHADER_BIN_VERSION)
 #define BGFX_CHUNK_MAGIC_FSH BX_MAKEFOURCC('F', 'S', 'H', BGFX_SHADER_BIN_VERSION)
@@ -69,9 +65,22 @@
 
 namespace mengine 
 {
+	struct AssetType
+	{
+		enum Enum
+		{
+			None,
+			Geometry,
+			Shader,
+			Texture,
+			Material,
+			Mesh,
+		};
+	};
+
 	struct EntityRef
 	{
-		EntityRef() // @todo I don't like to use constructors. Fix this
+		EntityRef() // @todo I don't like to use constructors like this, the code depends on it. Fix this
 			: m_mask(0)
 			, m_refCount(0)
 		{}
@@ -179,15 +188,71 @@ namespace mengine
 		U16 m_refCount;
 	};
 
+	struct TextureRef : SerializerI
+	{
+		TextureRef()
+			: width(0)
+			, height(0)
+			, hasMips(false)
+			, format(bgfx::TextureFormat::Count)
+			, flags(BGFX_TEXTURE_NONE)
+			, mem(NULL)
+			, m_refCount(0)
+		{}
+
+		U32 getSize() override
+		{
+			return sizeof(width) + sizeof(height) + sizeof(hasMips) + sizeof(format) + sizeof(flags)
+				+ sizeof(mem->size) + mem->size;
+		};
+
+		void write(bx::WriterI* _writer, bx::Error* _err) override
+		{
+			bx::write(_writer, &width, sizeof(width), _err);
+			bx::write(_writer, &height, sizeof(height), _err);
+			bx::write(_writer, &hasMips, sizeof(hasMips), _err);
+			bx::write(_writer, &format, sizeof(format), _err);
+			bx::write(_writer, &flags, sizeof(flags), _err);
+
+			bx::write(_writer, &mem->size, sizeof(mem->size), _err);
+			bx::write(_writer, mem->data, mem->size, _err);
+		};
+
+		void read(bx::ReaderSeekerI* _reader, bx::Error* _err) override
+		{
+			bx::read(_reader, &width, sizeof(width), _err);
+			bx::read(_reader, &height, sizeof(height), _err);
+			bx::read(_reader, &hasMips, sizeof(hasMips), _err);
+			bx::read(_reader, &format, sizeof(format), _err);
+			bx::read(_reader, &flags, sizeof(flags), _err);
+
+			U32 size;
+			bx::read(_reader, &size, sizeof(size), _err);
+			mem = bgfx::alloc(size);
+			bx::read(_reader, mem->data, size, _err);
+		};
+
+		bgfx::TextureHandle m_th;
+
+		U16 width;
+		U16 height;
+		bool hasMips;
+		bgfx::TextureFormat::Enum format;
+		U64 flags;
+		const bgfx::Memory* mem;
+
+		U16 m_refCount;
+	};
+
 	struct AssetPackEntry
 	{
 		AssetPackEntry()
-			: type(MENGINE_ASSET_TYPE_NONE)
+			: type(AssetType::Enum::None)
 			, hash(0)
 			, offset(0)
 		{}
 
-		U64 type;
+		AssetType::Enum type;
 		U32 hash;
 		I64 offset;
 	};
@@ -430,13 +495,14 @@ namespace mengine
 			AssetPackHeader header;
 			header.hash = bx::hash<bx::HashMurmur2A>(_filePath.getCPtr());
 			header.magic = MENGINE_CHUNK_MAGIC_MAP;
-			header.numEntries = m_geometryAssetHashMap.getNumElements() + m_shaderAssetHashMap.getNumElements();
+			header.numEntries = m_geometryAssetHashMap.getNumElements() + m_shaderAssetHashMap.getNumElements() + m_textureAssetHashMap.getNumElements();
 			bx::write(&writer, &header, sizeof(AssetPackHeader), &err);
 
 			// Write asset pack entries
 			I64 offset = sizeof(AssetPackHeader) + sizeof(AssetPackEntry) * header.numEntries;
 			U16 currGeometry = 0;
 			U16 currShader = 0;
+			U16 currTexture = 0;
 			AssetPackEntry* entries = new AssetPackEntry[header.numEntries];
 			for (U32 i = 0; i < header.numEntries; i++)
 			{
@@ -444,7 +510,7 @@ namespace mengine
 
 				if (currGeometry < m_geometryAssetHashMap.getNumElements())
 				{
-					entries[i].type = MENGINE_ASSET_TYPE_GEOMETRY;
+					entries[i].type = AssetType::Geometry;
 					entries[i].hash = m_geometryAssetHashMap.findByHandle(currGeometry);
 
 					offset += m_geometryAssets[currGeometry].getSize();
@@ -455,7 +521,7 @@ namespace mengine
 
 				if (currShader < m_shaderAssetHashMap.getNumElements())
 				{
-					entries[i].type = MENGINE_ASSET_TYPE_SHADER;
+					entries[i].type = AssetType::Shader;
 					entries[i].hash = m_shaderAssetHashMap.findByHandle(currShader);
 
 					offset += m_shaderAssets[currShader].getSize();
@@ -463,12 +529,24 @@ namespace mengine
 					currShader++;
 					continue;
 				}
+
+				if (currTexture < m_textureAssetHashMap.getNumElements())
+				{
+					entries[i].type = AssetType::Texture;
+					entries[i].hash = m_textureAssetHashMap.findByHandle(currTexture);
+
+					offset += m_textureAssets[currTexture].getSize();
+
+					currTexture++;
+					continue;
+				}
 			}
-			bx::write(&writer, &entries, sizeof(AssetPackEntry) * header.numEntries, &err);
+			bx::write(&writer, entries, sizeof(AssetPackEntry) * header.numEntries, &err);
 
 			// Write binary blob
 			currGeometry = 0;
 			currShader = 0;
+			currTexture = 0;
 			for (U32 i = 0; i < header.numEntries; i++)
 			{
 				if (currGeometry < m_geometryAssetHashMap.getNumElements())
@@ -484,6 +562,14 @@ namespace mengine
 					m_shaderAssets[currShader].write(&writer, &err);
 
 					currShader++;
+					continue;
+				}
+
+				if (currTexture < m_textureAssetHashMap.getNumElements())
+				{
+					m_textureAssets[currTexture].write(&writer, &err);
+
+					currTexture++;
 					continue;
 				}
 			}
@@ -516,51 +602,77 @@ namespace mengine
 			U32 currShader = 0;
 			for (U32 i = 0; i < header.numEntries; i++)
 			{
-				if (entries[i].type == MENGINE_ASSET_TYPE_GEOMETRY)
+				switch (entries[i].type)
 				{
-					U16 idx = m_geometryAssetHashMap.find(entries[i].hash);
-					if (kInvalidHandle != idx)
+					case AssetType::Geometry:
 					{
-						continue;
-					}
-					GeometryAssetHandle handle = { m_geometryAssetHandle.alloc() };
+						U16 idx = m_geometryAssetHashMap.find(entries[i].hash);
+						if (kInvalidHandle != idx)
+						{
+							break;
+						}
+						GeometryAssetHandle handle = { m_geometryAssetHandle.alloc() };
 
-					if (isValid(handle))
+						if (isValid(handle))
+						{
+							bool ok = m_geometryAssetHashMap.insert(entries[i].hash, handle.idx);
+							BX_ASSERT(ok, "Geometry asset already exists!"); BX_UNUSED(ok);
+
+							GeometryRef& sr = m_geometryAssets[handle.idx];
+							sr.read(&reader, &err);
+							sr.m_vbh = bgfx::createVertexBuffer(sr.m_vertexData, sr.m_layout);
+							sr.m_ibh = bgfx::createIndexBuffer(sr.m_indexData);
+
+							geometryAssetIncRef(handle);
+						}
+						break;
+					}
+					
+					case AssetType::Shader:
 					{
-						bool ok = m_geometryAssetHashMap.insert(entries[i].hash, handle.idx);
-						BX_ASSERT(ok, "Geometry asset already exists!"); BX_UNUSED(ok);
+						U16 idx = m_shaderAssetHashMap.find(entries[i].hash);
+						if (kInvalidHandle != idx)
+						{
+							break;
+						}
+						ShaderAssetHandle handle = { m_shaderAssetHandle.alloc() };
 
-						GeometryRef& sr = m_geometryAssets[handle.idx];
-						sr.read(&reader, &err);
-						sr.m_vbh = bgfx::createVertexBuffer(sr.m_vertexData, sr.m_layout);
-						sr.m_ibh = bgfx::createIndexBuffer(sr.m_indexData);
+						if (isValid(handle))
+						{
+							bool ok = m_shaderAssetHashMap.insert(entries[i].hash, handle.idx);
+							BX_ASSERT(ok, "Shader asset already exists!"); BX_UNUSED(ok);
 
-						geometryAssetIncRef(handle);
+							ShaderRef& sr = m_shaderAssets[handle.idx];
+							sr.read(&reader, &err);
+							sr.m_sh = bgfx::createShader(sr.m_codeData);
+
+							shaderAssetIncRef(handle);
+						}
+						break;
 					}
-					continue;
-				}
 
-				if (entries[i].type == MENGINE_ASSET_TYPE_SHADER)
-				{
-					U16 idx = m_shaderAssetHashMap.find(entries[i].hash);
-					if (kInvalidHandle != idx)
+					case AssetType::Texture:
 					{
-						continue;
+						U16 idx = m_textureAssetHashMap.find(entries[i].hash);
+						if (kInvalidHandle != idx)
+						{
+							break;
+						}
+						TextureAssetHandle handle = { m_textureAssetHandle.alloc() };
+
+						if (isValid(handle))
+						{
+							bool ok = m_textureAssetHashMap.insert(entries[i].hash, handle.idx);
+							BX_ASSERT(ok, "Texture asset already exists!"); BX_UNUSED(ok);
+
+							TextureRef& sr = m_textureAssets[handle.idx];
+							sr.read(&reader, &err);
+							sr.m_th = bgfx::createTexture2D(sr.width, sr.height, sr.hasMips, 1, sr.format, sr.flags, sr.mem);
+
+							textureAssetIncRef(handle);
+						}
+						break;
 					}
-					ShaderAssetHandle handle = { m_shaderAssetHandle.alloc() };
-
-					if (isValid(handle))
-					{
-						bool ok = m_shaderAssetHashMap.insert(entries[i].hash, handle.idx);
-						BX_ASSERT(ok, "Shader asset already exists!"); BX_UNUSED(ok);
-
-						ShaderRef& sr = m_shaderAssets[handle.idx];
-						sr.read(&reader, &err);
-						sr.m_sh = bgfx::createShader(sr.m_codeData);
-
-						shaderAssetIncRef(handle);
-					}
-					continue;
 				}
 			}
 
@@ -592,21 +704,34 @@ namespace mengine
 			U32 currShader = 0;
 			for (U32 i = 0; i < header.numEntries; i++)
 			{
-				if (entries[i].type == MENGINE_ASSET_TYPE_GEOMETRY)
+				switch (entries[i].type)
 				{
-					U16 idx = m_geometryAssetHashMap.find(entries[i].hash);
-					if (kInvalidHandle != idx)
+					case AssetType::Geometry:
 					{
-						destroyGeometry({ idx });
+						U16 idx = m_geometryAssetHashMap.find(entries[i].hash);
+						if (kInvalidHandle != idx)
+						{
+							destroyGeometry({ idx });
+						}
+						break;
 					}
-				}
-
-				if (entries[i].type == MENGINE_ASSET_TYPE_SHADER)
-				{
-					U16 idx = m_shaderAssetHashMap.find(entries[i].hash);
-					if (kInvalidHandle != idx)
+					case AssetType::Shader:
 					{
-						destroyShader({ idx });
+						U16 idx = m_shaderAssetHashMap.find(entries[i].hash);
+						if (kInvalidHandle != idx)
+						{
+							destroyShader({ idx });
+						}
+						break;
+					}
+					case AssetType::Texture:
+					{
+						U16 idx = m_textureAssetHashMap.find(entries[i].hash);
+						if (kInvalidHandle != idx)
+						{
+							destroyTexture({ idx });
+						}
+						break;
 					}
 				}
 			}
@@ -772,7 +897,7 @@ namespace mengine
 
 				ShaderRef& sr = m_shaderAssets[handle.idx];
 				sr.m_refCount = 1;
-				sr.m_codeData = bgfx::makeRef(_mem->data, _mem->size);
+				sr.m_codeData = bgfx::makeRef(_mem->data, _mem->size); // @todo ??? why not m_codeData = _mem?
 				
 				sr.m_sh = bgfx::createShader(sr.m_codeData);
 
@@ -1031,6 +1156,117 @@ namespace mengine
 			return mem;
 		}
 
+		void textureAssetIncRef(TextureAssetHandle _handle)
+		{
+			TextureRef& sr = m_textureAssets[_handle.idx];
+			++sr.m_refCount;
+		}
+
+		void textureAssetDecRef(TextureAssetHandle _handle)
+		{
+			TextureRef& sr = m_textureAssets[_handle.idx];
+			U16 refs = --sr.m_refCount;
+			if (0 == refs)
+			{
+				bool ok = m_freeTextureAssets.queue(_handle); BX_UNUSED(ok);
+				BX_ASSERT(ok, "Texture Asset handle %d is already destroyed!", _handle.idx);
+
+				bgfx::destroy(sr.m_th);
+
+				m_textureAssetHashMap.removeByHandle(_handle.idx);
+			}
+		}
+
+		MENGINE_API_FUNC(TextureAssetHandle createTexture(void* _data, U32 _size, U16 _width, U16 _height, bool _hasMips, 
+			bgfx::TextureFormat::Enum _format, U64 _flags, const bx::FilePath& _virtualPath))
+		{
+			U32 hash = bx::hash<bx::HashMurmur2A>(_virtualPath.getCPtr());
+
+			U16 idx = m_textureAssetHashMap.find(hash);
+			if (kInvalidHandle != idx)
+			{
+				TextureAssetHandle handle = { idx };
+				textureAssetIncRef(handle);
+				return handle;
+			}
+
+			TextureAssetHandle handle = { m_textureAssetHandle.alloc() };
+			if (isValid(handle))
+			{
+				bool ok = m_textureAssetHashMap.insert(hash, handle.idx);
+				BX_ASSERT(ok, "Texture asset already exists!"); BX_UNUSED(ok);
+
+				TextureRef& sr = m_textureAssets[handle.idx];
+				sr.m_refCount = 1;
+				sr.width = _width;
+				sr.height = _height;
+				sr.hasMips = _hasMips;
+				sr.format = _format;
+				sr.flags = _flags;
+				sr.mem = bgfx::makeRef(_data, _size);
+				sr.m_th = bgfx::createTexture2D(sr.width, sr.height, sr.hasMips, 1, sr.format, sr.flags, sr.mem);
+
+				return handle;
+			}
+
+			BX_TRACE("Failed to create asset handle.");
+			return MENGINE_INVALID_HANDLE;
+		}
+
+		MENGINE_API_FUNC(TextureAssetHandle loadTexture(const bx::FilePath& _filePath))
+		{
+			U32 hash = bx::hash<bx::HashMurmur2A>(_filePath.getCPtr());
+
+			U16 idx = m_textureAssetHashMap.find(hash);
+			if (kInvalidHandle != idx)
+			{
+				TextureAssetHandle handle = { idx };
+				textureAssetIncRef(handle);
+				return handle;
+			}
+
+			bx::Error err;
+			bx::FileReader reader;
+			if (!bx::open(&reader, _filePath, &err))
+			{
+				BX_TRACE("Failed to open asset at path %s.", _filePath.getCPtr());
+				return MENGINE_INVALID_HANDLE;
+			}
+
+			TextureAssetHandle handle = { m_textureAssetHandle.alloc() };
+			if (isValid(handle))
+			{
+				bool ok = m_textureAssetHashMap.insert(hash, handle.idx);
+				BX_ASSERT(ok, "Texture asset already exists!"); BX_UNUSED(ok);
+
+				TextureRef& sr = m_textureAssets[handle.idx];
+				sr.read(&reader, &err);
+				sr.m_th = bgfx::createTexture2D(sr.width, sr.height, sr.hasMips, 1, sr.format, sr.flags, sr.mem);
+
+				textureAssetIncRef(handle);
+
+				bx::close(&reader);
+				return handle;
+			}
+
+			bx::close(&reader);
+			BX_TRACE("Failed to load asset handle.");
+			return MENGINE_INVALID_HANDLE;
+		}
+
+		MENGINE_API_FUNC(void destroyTexture(TextureAssetHandle _handle))
+		{
+			MENGINE_MUTEX_SCOPE(m_resourceApiLock);
+
+			if (!isValid(_handle) && !m_textureAssetHandle.isValid(_handle.idx))
+			{
+				BX_WARN(false, "Passing invalid texture asset handle to mengine::destroyTexture.");
+				return;
+			}
+
+			textureAssetDecRef(_handle);
+		}
+
 		MENGINE_API_FUNC(const mrender::MouseState* getMouseState())
 		{
 			return &m_mouseState;
@@ -1044,6 +1280,7 @@ namespace mengine
 			stats.numComponents = m_componentHandle.getNumHandles();
 			stats.numGeometryAssets = m_geometryAssetHandle.getNumHandles();
 			stats.numShaderAssets = m_shaderAssetHandle.getNumHandles();
+			stats.numTextureAssets = m_textureAssetHandle.getNumHandles();
 
 			for (U16 i = 0; i < stats.numEntities; i++)
 			{
@@ -1060,6 +1297,10 @@ namespace mengine
 			for (U16 i = 0; i < stats.numShaderAssets; i++)
 			{
 				stats.shaderRef[i] = m_shaderAssets[i].m_refCount;
+			}
+			for (U16 i = 0; i < stats.numTextureAssets; i++)
+			{
+				stats.textureRef[i] = m_textureAssets[i].m_refCount;
 			}
 
 			return &stats;
@@ -1082,6 +1323,10 @@ namespace mengine
 		bx::HandleAllocT<MENGINE_CONFIG_MAX_SHADER_ASSETS> m_shaderAssetHandle;
 		bx::HandleHashMapT<MENGINE_CONFIG_MAX_SHADER_ASSETS> m_shaderAssetHashMap;
 		ShaderRef m_shaderAssets[MENGINE_CONFIG_MAX_SHADER_ASSETS];
+
+		bx::HandleAllocT<MENGINE_CONFIG_MAX_TEXTURE_ASSETS> m_textureAssetHandle;
+		bx::HandleHashMapT<MENGINE_CONFIG_MAX_TEXTURE_ASSETS> m_textureAssetHashMap;
+		TextureRef m_textureAssets[MENGINE_CONFIG_MAX_TEXTURE_ASSETS];
 
 		template<typename Ty, U32 Max>
 		struct FreeHandle
@@ -1143,6 +1388,9 @@ namespace mengine
 		FreeHandle<ComponentHandle, MENGINE_CONFIG_MAX_COMPONENTS> m_freeComponents;
 		FreeHandle<GeometryAssetHandle, MENGINE_CONFIG_MAX_GEOMETRY_ASSETS>  m_freeGeometryAssets;
 		FreeHandle<ShaderAssetHandle, MENGINE_CONFIG_MAX_SHADER_ASSETS> m_freeShaderAssets;
+		FreeHandle<TextureAssetHandle, MENGINE_CONFIG_MAX_TEXTURE_ASSETS> m_freeTextureAssets;
+		FreeHandle<TextureAssetHandle, MENGINE_CONFIG_MAX_TEXTURE_ASSETS> m_freeMaterialAssets;
+		FreeHandle<TextureAssetHandle, MENGINE_CONFIG_MAX_TEXTURE_ASSETS> m_freeMeshAssets;
 
 		mrender::MouseState m_mouseState;
 	};

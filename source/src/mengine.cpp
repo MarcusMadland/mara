@@ -67,10 +67,16 @@ namespace mengine {
 				m_shaderAssetHandle.free(m_freeShaderAssets.get(ii).idx);
 			}
 
+			for (U16 ii = 0, num = m_freeTextureAssets.getNumQueued(); ii < num; ++ii)
+			{
+				m_textureAssetHandle.free(m_freeTextureAssets.get(ii).idx);
+			}
+
 			m_freeEntities.reset();
 			m_freeComponents.reset();
 			m_freeGeometryAssets.reset();
 			m_freeShaderAssets.reset();
+			m_freeTextureAssets.reset();
 
 			return true;
 		}
@@ -248,6 +254,33 @@ namespace mengine {
 		return NULL;
 	}
 
+	TextureAssetHandle createTexture(void* _data, U32 _size, U16 _width, U16 _height, bool _hasMips, bgfx::TextureFormat::Enum _format, U64 _flags, const bx::FilePath& _virtualPath)
+	{
+		if (NULL != _data)
+		{
+			return s_ctx->createTexture(_data, _size, _width, _height, _hasMips, _format, _flags, _virtualPath);
+		}
+
+		BX_TRACE("Data is null.");
+		return MENGINE_INVALID_HANDLE;
+	}
+
+	TextureAssetHandle loadTexture(const bx::FilePath _filePath)
+	{
+		if (!_filePath.isEmpty())
+		{
+			return s_ctx->loadTexture(_filePath);
+		}
+
+		BX_TRACE("Filepath is empty.");
+		return MENGINE_INVALID_HANDLE;
+	}
+
+	void destroy(TextureAssetHandle _handle)
+	{
+		s_ctx->destroyTexture(_handle);
+	}
+
 	const mrender::MouseState* getMouseState()
 	{
 		return s_ctx->getMouseState();
@@ -286,4 +319,16 @@ namespace bgfx {
 		bgfx::setVertexBuffer(0, sr.m_vbh);
 		bgfx::setIndexBuffer(sr.m_ibh);
 	}
+
+	void setTexture(U16 _stage, mengine::TextureAssetHandle _texture, UniformHandle _uniform)
+	{
+		if (!isValid(_texture))
+		{
+			BX_TRACE("Asset handle is invalid.");
+		}
+
+		mengine::TextureRef& sr = mengine::s_ctx->m_textureAssets[_texture.idx];
+		bgfx::setTexture(_stage, _uniform, sr.m_th);
+	}
 }
+
