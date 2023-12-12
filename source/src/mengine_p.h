@@ -191,7 +191,8 @@ namespace mengine
 	struct TextureRef : SerializerI
 	{
 		TextureRef()
-			: width(0)
+			: m_th(BGFX_INVALID_HANDLE)
+			, width(0)
 			, height(0)
 			, hasMips(false)
 			, format(bgfx::TextureFormat::Count)
@@ -240,6 +241,40 @@ namespace mengine
 		bgfx::TextureFormat::Enum format;
 		U64 flags;
 		const bgfx::Memory* mem;
+
+		U16 m_refCount;
+	};
+
+	struct MaterialRef : SerializerI
+	{
+		MaterialRef()
+			: m_ph(BGFX_INVALID_HANDLE)
+			, m_vertHash(0)
+			, m_fragHash(0)
+			, m_refCount(0)
+		{}
+
+		U32 getSize() override
+		{
+			return sizeof(m_vertHash) + sizeof(m_fragHash);
+		};
+
+		void write(bx::WriterI* _writer, bx::Error* _err) override
+		{
+			bx::write(_writer, &m_vertHash, sizeof(m_vertHash), _err);
+			bx::write(_writer, &m_fragHash, sizeof(m_fragHash), _err);
+		};
+
+		void read(bx::ReaderSeekerI* _reader, bx::Error* _err) override
+		{
+			bx::read(_reader, &m_vertHash, sizeof(m_vertHash), _err);
+			bx::read(_reader, &m_fragHash, sizeof(m_fragHash), _err);
+		};
+
+		bgfx::ProgramHandle m_ph;
+
+		U32 m_vertHash;
+		U32 m_fragHash;
 
 		U16 m_refCount;
 	};
@@ -495,7 +530,11 @@ namespace mengine
 			AssetPackHeader header;
 			header.hash = bx::hash<bx::HashMurmur2A>(_filePath.getCPtr());
 			header.magic = MENGINE_CHUNK_MAGIC_MAP;
-			header.numEntries = m_geometryAssetHashMap.getNumElements() + m_shaderAssetHashMap.getNumElements() + m_textureAssetHashMap.getNumElements();
+			header.numEntries = 
+				m_geometryAssetHashMap.getNumElements() + 
+				m_shaderAssetHashMap.getNumElements() +
+				m_textureAssetHashMap.getNumElements() + 
+				m_materialAssetHashMap.getNumElements();
 			bx::write(&writer, &header, sizeof(AssetPackHeader), &err);
 
 			// Write asset pack entries
@@ -503,6 +542,7 @@ namespace mengine
 			U16 currGeometry = 0;
 			U16 currShader = 0;
 			U16 currTexture = 0;
+			U16 currMaterial = 0;
 			AssetPackEntry* entries = new AssetPackEntry[header.numEntries];
 			for (U32 i = 0; i < header.numEntries; i++)
 			{
@@ -540,6 +580,17 @@ namespace mengine
 					currTexture++;
 					continue;
 				}
+
+				if (currMaterial < m_materialAssetHashMap.getNumElements())
+				{
+					entries[i].type = AssetType::Material;
+					entries[i].hash = m_materialAssetHashMap.findByHandle(currMaterial);
+
+					offset += m_materialAssets[currMaterial].getSize();
+
+					currMaterial++;
+					continue;
+				}
 			}
 			bx::write(&writer, entries, sizeof(AssetPackEntry) * header.numEntries, &err);
 
@@ -547,6 +598,7 @@ namespace mengine
 			currGeometry = 0;
 			currShader = 0;
 			currTexture = 0;
+			currMaterial = 0;
 			for (U32 i = 0; i < header.numEntries; i++)
 			{
 				if (currGeometry < m_geometryAssetHashMap.getNumElements())
@@ -570,6 +622,14 @@ namespace mengine
 					m_textureAssets[currTexture].write(&writer, &err);
 
 					currTexture++;
+					continue;
+				}
+
+				if (currMaterial < m_materialAssetHashMap.getNumElements())
+				{
+					m_materialAssets[currMaterial].write(&writer, &err);
+
+					currMaterial++;
 					continue;
 				}
 			}
@@ -598,8 +658,6 @@ namespace mengine
 			bx::read(&reader, entries, sizeof(AssetPackEntry) * header.numEntries, &err);
 
 			//
-			U32 currGeometry = 0;
-			U32 currShader = 0;
 			for (U32 i = 0; i < header.numEntries; i++)
 			{
 				switch (entries[i].type)
@@ -673,6 +731,34 @@ namespace mengine
 						}
 						break;
 					}
+
+					case AssetType::Material:
+					{
+						U16 idx = m_materialAssetHashMap.find(entries[i].hash);
+						if (kInvalidHandle != idx)
+						{
+							break;
+						}
+						MaterialAssetHandle handle = { m_materialAssetHandle.alloc() };
+
+						if (isValid(handle))
+						{
+							bool ok = m_materialAssetHashMap.insert(entries[i].hash, handle.idx);
+							BX_ASSERT(ok, "Material asset already exists!"); BX_UNUSED(ok);
+
+							MaterialRef& sr = m_materialAssets[handle.idx];
+							sr.read(&reader, &err);
+
+							ShaderAssetHandle vert = { m_shaderAssetHashMap.find(sr.m_vertHash) };
+							ShaderAssetHandle frag = { m_shaderAssetHashMap.find(sr.m_fragHash) };
+							shaderAssetIncRef(vert);
+							shaderAssetIncRef(frag);
+							sr.m_ph = bgfx::createProgram(vert, frag);
+
+							materialAssetIncRef(handle);
+						}
+						break;
+					}
 				}
 			}
 
@@ -700,8 +786,6 @@ namespace mengine
 			bx::read(&reader, entries, sizeof(AssetPackEntry) * header.numEntries, &err);
 
 			//
-			U32 currGeometry = 0;
-			U32 currShader = 0;
 			for (U32 i = 0; i < header.numEntries; i++)
 			{
 				switch (entries[i].type)
@@ -730,6 +814,15 @@ namespace mengine
 						if (kInvalidHandle != idx)
 						{
 							destroyTexture({ idx });
+						}
+						break;
+					}
+					case AssetType::Material:
+					{
+						U16 idx = m_materialAssetHashMap.find(entries[i].hash);
+						if (kInvalidHandle != idx)
+						{
+							destroyMaterial({ idx });
 						}
 						break;
 					}
@@ -1267,6 +1360,140 @@ namespace mengine
 			textureAssetDecRef(_handle);
 		}
 
+		void materialAssetIncRef(MaterialAssetHandle _handle)
+		{
+			MaterialRef& sr = m_materialAssets[_handle.idx];
+			++sr.m_refCount;
+
+			shaderAssetIncRef({ m_shaderAssetHashMap.find(sr.m_vertHash) });
+			shaderAssetIncRef({ m_shaderAssetHashMap.find(sr.m_fragHash) });
+		}
+
+		void materialAssetDecRef(MaterialAssetHandle _handle)
+		{
+			MaterialRef& sr = m_materialAssets[_handle.idx];
+			U16 refs = --sr.m_refCount;
+
+			shaderAssetDecRef({ m_shaderAssetHashMap.find(sr.m_vertHash) });
+			shaderAssetDecRef({ m_shaderAssetHashMap.find(sr.m_fragHash) });
+
+			if (0 == refs)
+			{
+				bool ok = m_freeMaterialAssets.queue(_handle); BX_UNUSED(ok);
+				BX_ASSERT(ok, "Material Asset handle %d is already destroyed!", _handle.idx);
+
+				bgfx::destroy(sr.m_ph);
+
+				destroyShader({ m_shaderAssetHashMap.find(sr.m_vertHash) });
+				destroyShader({ m_shaderAssetHashMap.find(sr.m_fragHash) });
+
+				m_materialAssetHashMap.removeByHandle(_handle.idx);
+			}
+		}
+		// @todo use shader virtual paths instead of assethandles?
+		MENGINE_API_FUNC(MaterialAssetHandle createMaterial(ShaderAssetHandle _vert, ShaderAssetHandle _frag, const bx::FilePath& _virtualPath))
+		{
+			U32 hash = bx::hash<bx::HashMurmur2A>(_virtualPath.getCPtr());
+
+			U16 idx = m_materialAssetHashMap.find(hash);
+			if (kInvalidHandle != idx)
+			{
+				MaterialAssetHandle handle = { idx };
+				materialAssetIncRef(handle);
+				return handle;
+			}
+
+			MaterialAssetHandle handle = { m_materialAssetHandle.alloc() };
+			if (isValid(handle))
+			{
+				bool ok = m_materialAssetHashMap.insert(hash, handle.idx);
+				BX_ASSERT(ok, "Material asset already exists!"); BX_UNUSED(ok);
+
+				MaterialRef& sr = m_materialAssets[handle.idx];
+				sr.m_refCount = 1;
+
+				// Create
+				sr.m_vertHash = m_shaderAssetHashMap.findByHandle(_vert.idx); // @todo findbyhandle is slow and doesnt scale. 
+				sr.m_fragHash = m_shaderAssetHashMap.findByHandle(_frag.idx); // Alternative soloution using paths as refs for user and just call loadShader()
+
+				sr.m_ph = bgfx::createProgram(_vert, _frag);
+
+				return handle;
+			}
+
+			BX_TRACE("Failed to create asset handle.");
+			return MENGINE_INVALID_HANDLE;
+		}
+
+		MENGINE_API_FUNC(MaterialAssetHandle loadMaterial(const bx::FilePath& _filePath))
+		{
+			U32 hash = bx::hash<bx::HashMurmur2A>(_filePath.getCPtr());
+
+			U16 idx = m_materialAssetHashMap.find(hash);
+			if (kInvalidHandle != idx)
+			{
+				MaterialAssetHandle handle = { idx };
+				materialAssetIncRef(handle);
+				return handle;
+			}
+
+			bx::Error err;
+			bx::FileReader reader;
+			if (!bx::open(&reader, _filePath, &err))
+			{
+				BX_TRACE("Failed to open asset at path %s.", _filePath.getCPtr());
+				return MENGINE_INVALID_HANDLE;
+			}
+
+			MaterialAssetHandle handle = { m_materialAssetHandle.alloc() };
+			if (isValid(handle))
+			{
+				bool ok = m_materialAssetHashMap.insert(hash, handle.idx);
+				BX_ASSERT(ok, "Material asset already exists!"); BX_UNUSED(ok);
+
+				MaterialRef& sr = m_materialAssets[handle.idx];
+				sr.read(&reader, &err);
+
+				// Load
+				ShaderAssetHandle vert = { m_shaderAssetHashMap.find(sr.m_vertHash) };
+				ShaderAssetHandle frag = { m_shaderAssetHashMap.find(sr.m_fragHash) };
+
+				sr.m_ph = bgfx::createProgram(vert, frag);
+
+				materialAssetIncRef(handle);
+
+				bx::close(&reader);
+				return handle;
+			}
+
+			bx::close(&reader);
+			BX_TRACE("Failed to load asset handle.");
+			return MENGINE_INVALID_HANDLE;
+		}
+
+		MENGINE_API_FUNC(void destroyMaterial(MaterialAssetHandle _handle))
+		{
+			MENGINE_MUTEX_SCOPE(m_resourceApiLock);
+
+			if (!isValid(_handle) && !m_materialAssetHandle.isValid(_handle.idx))
+			{
+				BX_WARN(false, "Passing invalid material asset handle to mengine::destroyMaterial.");
+				return;
+			}
+
+			materialAssetDecRef(_handle);
+		}
+
+		MENGINE_API_FUNC(void addMaterialTextures(MaterialAssetHandle _material, const char* _uniform, TextureAssetHandle _texture))
+		{
+			
+		}
+
+		MENGINE_API_FUNC(void addMaterialUniform(MaterialAssetHandle _material, const char* _uniform, void* _data, U32 _size))
+		{
+
+		}
+
 		MENGINE_API_FUNC(const mrender::MouseState* getMouseState())
 		{
 			return &m_mouseState;
@@ -1281,6 +1508,7 @@ namespace mengine
 			stats.numGeometryAssets = m_geometryAssetHandle.getNumHandles();
 			stats.numShaderAssets = m_shaderAssetHandle.getNumHandles();
 			stats.numTextureAssets = m_textureAssetHandle.getNumHandles();
+			stats.numMaterialAssets = m_materialAssetHandle.getNumHandles();
 
 			for (U16 i = 0; i < stats.numEntities; i++)
 			{
@@ -1301,6 +1529,10 @@ namespace mengine
 			for (U16 i = 0; i < stats.numTextureAssets; i++)
 			{
 				stats.textureRef[i] = m_textureAssets[i].m_refCount;
+			}
+			for (U16 i = 0; i < stats.numMaterialAssets; i++)
+			{
+				stats.materialRef[i] = m_materialAssets[i].m_refCount;
 			}
 
 			return &stats;
@@ -1327,6 +1559,10 @@ namespace mengine
 		bx::HandleAllocT<MENGINE_CONFIG_MAX_TEXTURE_ASSETS> m_textureAssetHandle;
 		bx::HandleHashMapT<MENGINE_CONFIG_MAX_TEXTURE_ASSETS> m_textureAssetHashMap;
 		TextureRef m_textureAssets[MENGINE_CONFIG_MAX_TEXTURE_ASSETS];
+
+		bx::HandleAllocT<MENGINE_CONFIG_MAX_MATERIAL_ASSETS> m_materialAssetHandle;
+		bx::HandleHashMapT<MENGINE_CONFIG_MAX_MATERIAL_ASSETS> m_materialAssetHashMap;
+		MaterialRef m_materialAssets[MENGINE_CONFIG_MAX_MATERIAL_ASSETS];
 
 		template<typename Ty, U32 Max>
 		struct FreeHandle
@@ -1389,8 +1625,8 @@ namespace mengine
 		FreeHandle<GeometryAssetHandle, MENGINE_CONFIG_MAX_GEOMETRY_ASSETS>  m_freeGeometryAssets;
 		FreeHandle<ShaderAssetHandle, MENGINE_CONFIG_MAX_SHADER_ASSETS> m_freeShaderAssets;
 		FreeHandle<TextureAssetHandle, MENGINE_CONFIG_MAX_TEXTURE_ASSETS> m_freeTextureAssets;
-		FreeHandle<TextureAssetHandle, MENGINE_CONFIG_MAX_TEXTURE_ASSETS> m_freeMaterialAssets;
-		FreeHandle<TextureAssetHandle, MENGINE_CONFIG_MAX_TEXTURE_ASSETS> m_freeMeshAssets;
+		FreeHandle<MaterialAssetHandle, MENGINE_CONFIG_MAX_TEXTURE_ASSETS> m_freeMaterialAssets;
+		FreeHandle<MeshAssetHandle, MENGINE_CONFIG_MAX_TEXTURE_ASSETS> m_freeMeshAssets;
 
 		mrender::MouseState m_mouseState;
 	};

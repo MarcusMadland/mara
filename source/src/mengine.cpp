@@ -72,11 +72,17 @@ namespace mengine {
 				m_textureAssetHandle.free(m_freeTextureAssets.get(ii).idx);
 			}
 
+			for (U16 ii = 0, num = m_freeMaterialAssets.getNumQueued(); ii < num; ++ii)
+			{
+				m_materialAssetHandle.free(m_freeMaterialAssets.get(ii).idx);
+			}
+
 			m_freeEntities.reset();
 			m_freeComponents.reset();
 			m_freeGeometryAssets.reset();
 			m_freeShaderAssets.reset();
 			m_freeTextureAssets.reset();
+			m_freeMaterialAssets.reset();
 
 			return true;
 		}
@@ -281,6 +287,21 @@ namespace mengine {
 		s_ctx->destroyTexture(_handle);
 	}
 
+	MaterialAssetHandle createMaterial(ShaderAssetHandle _vert, ShaderAssetHandle _frag, const bx::FilePath& _virtualPath)
+	{
+		return s_ctx->createMaterial(_vert, _frag, _virtualPath);
+	}
+
+	MaterialAssetHandle loadMaterial(const bx::FilePath& _filePath)
+	{
+		return s_ctx->loadMaterial(_filePath);
+	}
+
+	void destroy(MaterialAssetHandle _handle)
+	{
+		return s_ctx->destroyMaterial(_handle);
+	}
+
 	const mrender::MouseState* getMouseState()
 	{
 		return s_ctx->getMouseState();
@@ -330,5 +351,12 @@ namespace bgfx {
 		mengine::TextureRef& sr = mengine::s_ctx->m_textureAssets[_texture.idx];
 		bgfx::setTexture(_stage, _uniform, sr.m_th);
 	}
+
+	void submit(ViewId _view, mengine::MaterialAssetHandle _material)
+	{
+		mengine::MaterialRef& sr = mengine::s_ctx->m_materialAssets[_material.idx];
+		bgfx::submit(_view, sr.m_ph);
+	}
 }
+
 

@@ -46,7 +46,7 @@ namespace mengine
 	MENGINE_HANDLE(TextureAssetHandle)
 	MENGINE_HANDLE(MaterialAssetHandle)
 	MENGINE_HANDLE(MeshAssetHandle)
-
+	MENGINE_HANDLE(PrefabAssetHandle)
 
 	/// Component interface to implement destructor for it's data.
 	///
@@ -111,18 +111,20 @@ namespace mengine
 	///
 	struct Stats
 	{
-		// @todo Remove asset ref stats, or make better
+		// @todo Remove asset ref stats, or make it lots better.
 		U16 entitiesRef[100];	//!< Number of references of entities.
 		U16 componentsRef[100]; //!< Number of references of components.
 		U16 geometryRef[100];	//!< Number of references of geometry assets.
 		U16 shaderRef[100];		//!< Number of references of shader assets.
-		U16 textureRef[100];		//!< Number of references of shader assets.
+		U16 textureRef[100];	//!< Number of references of texture assets.
+		U16 materialRef[100];	//!< Number of references of material assets.
 
 		U16 numEntities;		//!< Number of loaded entities.
 		U16 numComponents;		//!< Number of loaded components.
 		U16 numGeometryAssets;	//!< Number of loaded geometry assets.
 		U16 numShaderAssets;	//!< Number of loaded shader assets.
-		U16 numTextureAssets;	//!< Number of loaded shader assets.
+		U16 numTextureAssets;	//!< Number of loaded texture assets.
+		U16 numMaterialAssets;  //!< Number of loaded material assets.
 	};
 
 	/// Initialize the mengine.
@@ -232,6 +234,15 @@ namespace mengine
 	//
 	void destroy(TextureAssetHandle _handle);
 
+	//
+	MaterialAssetHandle createMaterial(ShaderAssetHandle _vert, ShaderAssetHandle _frag, const bx::FilePath& _virtualPath);
+
+	//
+	MaterialAssetHandle loadMaterial(const bx::FilePath& _filePath);
+
+	//
+	void destroy(MaterialAssetHandle _handle);
+
 	/// Returns mouse state for input.
 	///
 	const mrender::MouseState* getMouseState();
@@ -249,6 +260,8 @@ namespace bgfx {
 	void setGeometry(mengine::GeometryAssetHandle _handle);
 
 	void setTexture(U16 _stage, mengine::TextureAssetHandle _texture, UniformHandle _uniform);
+
+	void submit(ViewId _view, mengine::MaterialAssetHandle _material);
 }
 
 #endif // MENGINE_H_HEADER_GUARD
