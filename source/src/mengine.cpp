@@ -249,7 +249,7 @@ namespace mengine {
 		s_ctx->destroyShader(_handle);
 	}
 
-	const bgfx::Memory* compileShader(const char* _shaderCode, ShaderType::Enum _type)
+	const bgfx::Memory* compileShader(const char* _shaderCode, bgfx::ShaderType::Enum _type)
 	{
 		if (NULL != _shaderCode)
 		{

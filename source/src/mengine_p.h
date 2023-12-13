@@ -1055,7 +1055,7 @@ namespace mengine
 			shaderAssetDecRef(_handle);
 		}
 
-		MENGINE_API_FUNC(const bgfx::Memory* compileShader(const char* _shaderCode, ShaderType::Enum _type))
+		MENGINE_API_FUNC(const bgfx::Memory* compileShader(const char* _shaderCode, bgfx::ShaderType::Enum _type))
 		{
 			bx::ErrorAssert err;
 
@@ -1215,11 +1215,11 @@ namespace mengine
 			*/
 
 			// Magic
-			if (ShaderType::Fragment == _type)
+			if (bgfx::ShaderType::Fragment == _type)
 			{
 				bx::write(&writer, BGFX_CHUNK_MAGIC_FSH, &err);
 			}
-			else if (ShaderType::Vertex == _type)
+			else if (bgfx::ShaderType::Vertex == _type)
 			{
 				bx::write(&writer, BGFX_CHUNK_MAGIC_VSH, &err);
 			}

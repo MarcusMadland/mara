@@ -25,18 +25,6 @@
 /// MENGINE
 namespace mengine 
 {
-	/// Shader type enum.
-	///
-	struct ShaderType
-	{
-		enum Enum
-		{
-			Vertex,
-			Fragment,
-			Compute,
-		};
-	};
-
 	static const U16 kInvalidHandle = UINT16_MAX;
 
 	MENGINE_HANDLE(EntityHandle)
@@ -222,7 +210,7 @@ namespace mengine
 	/// 
 	/// @returns Shader memory used by `mengine::createShader`
 	///
-	const bgfx::Memory* compileShader(const char* _shaderCode, ShaderType::Enum _type);
+	const bgfx::Memory* compileShader(const char* _shaderCode, bgfx::ShaderType::Enum _type);
 
 	//
 	TextureAssetHandle createTexture(void* _data, U32 _size, U16 _width, U16 _height, bool _hasMips,
