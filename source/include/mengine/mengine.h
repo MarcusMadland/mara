@@ -48,11 +48,8 @@ namespace mengine
 	{
 	}
 
-	/// Serializer interface to implement reading and writing data
-	/// to disk. Used my the asset packs internally but can be used
-	/// to create custom asset types.
 	///
-	struct BX_NO_VTABLE SerializerI
+	struct BX_NO_VTABLE AssetI
 	{
 		virtual U32 getSize() = 0;
 
@@ -203,15 +200,6 @@ namespace mengine
 	//
 	void destroy(ShaderAssetHandle _handle);
 
-	/// Roughly compiles shader to bgfx format.
-	/// 
-	/// @param[in] _shaderCode Shader code.
-	/// @param[in] _type Shader type. See: `ShaderType::Enum`.
-	/// 
-	/// @returns Shader memory used by `mengine::createShader`
-	///
-	const bgfx::Memory* compileShader(const char* _shaderCode, bgfx::ShaderType::Enum _type);
-
 	//
 	TextureAssetHandle createTexture(void* _data, U32 _size, U16 _width, U16 _height, bool _hasMips,
 		bgfx::TextureFormat::Enum _format, U64 _flags, const bx::FilePath& _virtualPath);
@@ -231,6 +219,9 @@ namespace mengine
 	//
 	void destroy(MaterialAssetHandle _handle);
 
+	//
+	void setMaterialUniform(MaterialAssetHandle _handle, bgfx::UniformType::Enum _type, const char* _name, void* _value, U16 _num = 1);
+
 	/// Returns mouse state for input.
 	///
 	const mrender::MouseState* getMouseState();
@@ -248,6 +239,8 @@ namespace bgfx {
 	void setGeometry(mengine::GeometryAssetHandle _handle);
 
 	void setTexture(U16 _stage, mengine::TextureAssetHandle _texture, UniformHandle _uniform);
+
+	void setUniforms(mengine::MaterialAssetHandle _material);
 
 	void submit(ViewId _view, mengine::MaterialAssetHandle _material);
 }

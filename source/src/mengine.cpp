@@ -249,17 +249,6 @@ namespace mengine {
 		s_ctx->destroyShader(_handle);
 	}
 
-	const bgfx::Memory* compileShader(const char* _shaderCode, bgfx::ShaderType::Enum _type)
-	{
-		if (NULL != _shaderCode)
-		{
-			return s_ctx->compileShader(_shaderCode, _type);
-		}
-
-		BX_TRACE("Data is null.");
-		return NULL;
-	}
-
 	TextureAssetHandle createTexture(void* _data, U32 _size, U16 _width, U16 _height, bool _hasMips, bgfx::TextureFormat::Enum _format, U64 _flags, const bx::FilePath& _virtualPath)
 	{
 		if (NULL != _data)
@@ -299,7 +288,12 @@ namespace mengine {
 
 	void destroy(MaterialAssetHandle _handle)
 	{
-		return s_ctx->destroyMaterial(_handle);
+		s_ctx->destroyMaterial(_handle);
+	}
+
+	void setMaterialUniform(MaterialAssetHandle _handle, bgfx::UniformType::Enum _type, const char* _name, void* _value, U16 _num)
+	{
+		s_ctx->setMaterialUniform(_handle, _type, _name, _value, _num);
 	}
 
 	const mrender::MouseState* getMouseState()
@@ -350,6 +344,11 @@ namespace bgfx {
 
 		mengine::TextureRef& sr = mengine::s_ctx->m_textureAssets[_texture.idx];
 		bgfx::setTexture(_stage, _uniform, sr.m_th);
+	}
+
+	void setUniforms(mengine::MaterialAssetHandle _material)
+	{
+		mengine::MaterialRef& sr = mengine::s_ctx->m_materialAssets[_material.idx];
 	}
 
 	void submit(ViewId _view, mengine::MaterialAssetHandle _material)

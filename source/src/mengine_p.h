@@ -78,6 +78,22 @@ namespace mengine
 		};
 	};
 
+	// @todo Assets. Think more about it
+	// Should inherit from AssetI, and stored in engine as a list of AssetI pointers. 
+	// Should store offline data only and contain logic for reading and writing. 
+	// Create compile functions for each assset, ShaderHandle compileShader(AssetHandle _handle)
+	struct GeometryAsset
+	{};
+
+	struct ShaderAsset
+	{};
+
+	struct TextureAsset
+	{};
+
+	struct MaterialAsset
+	{};
+
 	struct EntityRef
 	{
 		EntityRef() // @todo I don't like to use constructors like this, the code depends on it. Fix this
@@ -100,7 +116,7 @@ namespace mengine
 		U16 m_refCount;
 	};
 
-	struct GeometryRef : SerializerI
+	struct GeometryRef : AssetI
 	{
 		GeometryRef()
 			: m_vbh(MENGINE_INVALID_HANDLE)
@@ -154,7 +170,7 @@ namespace mengine
 		U16 m_refCount;
 	};
 
-	struct ShaderRef : SerializerI
+	struct ShaderRef : AssetI
 	{
 		ShaderRef()
 			: m_sh(MENGINE_INVALID_HANDLE)
@@ -188,7 +204,7 @@ namespace mengine
 		U16 m_refCount;
 	};
 
-	struct TextureRef : SerializerI
+	struct TextureRef : AssetI
 	{
 		TextureRef()
 			: m_th(BGFX_INVALID_HANDLE)
@@ -245,7 +261,7 @@ namespace mengine
 		U16 m_refCount;
 	};
 
-	struct MaterialRef : SerializerI
+	struct MaterialRef : AssetI
 	{
 		MaterialRef()
 			: m_ph(BGFX_INVALID_HANDLE)
@@ -516,6 +532,7 @@ namespace mengine
 		// Implement load on demand. Also dont like the use of 'new' use alloc instead.
 		MENGINE_API_FUNC(bool packAssets(const bx::FilePath& _filePath))
 		{
+			bx::removeAll(_filePath);
 			bx::makeAll(_filePath.getPath());
 
 			bx::ErrorAssert err;
@@ -664,99 +681,65 @@ namespace mengine
 				{
 					case AssetType::Geometry:
 					{
-						U16 idx = m_geometryAssetHashMap.find(entries[i].hash);
-						if (kInvalidHandle != idx)
-						{
-							break;
-						}
-						GeometryAssetHandle handle = { m_geometryAssetHandle.alloc() };
+						GeometryAssetHandle handle;
+						geometryAssetFindOrCreate(entries[i].hash, handle);
 
-						if (isValid(handle))
-						{
-							bool ok = m_geometryAssetHashMap.insert(entries[i].hash, handle.idx);
-							BX_ASSERT(ok, "Geometry asset already exists!"); BX_UNUSED(ok);
+						bool ok = m_geometryAssetHashMap.insert(entries[i].hash, handle.idx);
+						BX_ASSERT(ok, "Geometry asset already exists!"); BX_UNUSED(ok);
 
-							GeometryRef& sr = m_geometryAssets[handle.idx];
-							sr.read(&reader, &err);
-							sr.m_vbh = bgfx::createVertexBuffer(sr.m_vertexData, sr.m_layout);
-							sr.m_ibh = bgfx::createIndexBuffer(sr.m_indexData);
+						GeometryRef& sr = m_geometryAssets[handle.idx];
+						sr.read(&reader, &err);
+						geometryAssetDataRuntime(handle);
 
-							geometryAssetIncRef(handle);
-						}
+						geometryAssetIncRef(handle);
 						break;
 					}
 					
 					case AssetType::Shader:
 					{
-						U16 idx = m_shaderAssetHashMap.find(entries[i].hash);
-						if (kInvalidHandle != idx)
-						{
-							break;
-						}
-						ShaderAssetHandle handle = { m_shaderAssetHandle.alloc() };
+						ShaderAssetHandle handle;
+						shaderAssetFindOrCreate(entries[i].hash, handle);
 
-						if (isValid(handle))
-						{
-							bool ok = m_shaderAssetHashMap.insert(entries[i].hash, handle.idx);
-							BX_ASSERT(ok, "Shader asset already exists!"); BX_UNUSED(ok);
+						bool ok = m_shaderAssetHashMap.insert(entries[i].hash, handle.idx);
+						BX_ASSERT(ok, "Shader asset already exists!"); BX_UNUSED(ok);
 
-							ShaderRef& sr = m_shaderAssets[handle.idx];
-							sr.read(&reader, &err);
-							sr.m_sh = bgfx::createShader(sr.m_codeData);
+						ShaderRef& sr = m_shaderAssets[handle.idx];
+						sr.read(&reader, &err);
+						shaderAssetDataRuntime(handle);
 
-							shaderAssetIncRef(handle);
-						}
+						shaderAssetIncRef(handle);
 						break;
 					}
 
 					case AssetType::Texture:
 					{
-						U16 idx = m_textureAssetHashMap.find(entries[i].hash);
-						if (kInvalidHandle != idx)
-						{
-							break;
-						}
-						TextureAssetHandle handle = { m_textureAssetHandle.alloc() };
+						TextureAssetHandle handle;
+						textureAssetFindOrCreate(entries[i].hash, handle);
+						
+						bool ok = m_textureAssetHashMap.insert(entries[i].hash, handle.idx);
+						BX_ASSERT(ok, "Texture asset already exists!"); BX_UNUSED(ok);
 
-						if (isValid(handle))
-						{
-							bool ok = m_textureAssetHashMap.insert(entries[i].hash, handle.idx);
-							BX_ASSERT(ok, "Texture asset already exists!"); BX_UNUSED(ok);
+						TextureRef& sr = m_textureAssets[handle.idx];
+						sr.read(&reader, &err);
+						textureAssetDataRuntime(handle);
 
-							TextureRef& sr = m_textureAssets[handle.idx];
-							sr.read(&reader, &err);
-							sr.m_th = bgfx::createTexture2D(sr.width, sr.height, sr.hasMips, 1, sr.format, sr.flags, sr.mem);
-
-							textureAssetIncRef(handle);
-						}
+						textureAssetIncRef(handle);
 						break;
 					}
 
 					case AssetType::Material:
 					{
-						U16 idx = m_materialAssetHashMap.find(entries[i].hash);
-						if (kInvalidHandle != idx)
-						{
-							break;
-						}
-						MaterialAssetHandle handle = { m_materialAssetHandle.alloc() };
+						MaterialAssetHandle handle;
+						materialAssetFindOrCreate(entries[i].hash, handle);
 
-						if (isValid(handle))
-						{
-							bool ok = m_materialAssetHashMap.insert(entries[i].hash, handle.idx);
-							BX_ASSERT(ok, "Material asset already exists!"); BX_UNUSED(ok);
+						bool ok = m_materialAssetHashMap.insert(entries[i].hash, handle.idx);
+						BX_ASSERT(ok, "Material asset already exists!"); BX_UNUSED(ok);
 
-							MaterialRef& sr = m_materialAssets[handle.idx];
-							sr.read(&reader, &err);
+						MaterialRef& sr = m_materialAssets[handle.idx];
+						sr.read(&reader, &err);
+						materialAssetDataRuntime(handle);
 
-							ShaderAssetHandle vert = { m_shaderAssetHashMap.find(sr.m_vertHash) };
-							ShaderAssetHandle frag = { m_shaderAssetHashMap.find(sr.m_fragHash) };
-							shaderAssetIncRef(vert);
-							shaderAssetIncRef(frag);
-							sr.m_ph = bgfx::createProgram(vert, frag);
-
-							materialAssetIncRef(handle);
-						}
+						materialAssetIncRef(handle);
 						break;
 					}
 				}
@@ -860,80 +843,69 @@ namespace mengine
 			}
 		}
 
-		MENGINE_API_FUNC(GeometryAssetHandle createGeometry(const void* _vertices, U32 _verticesSize, const void* _indices, U32 _indicesSize, bgfx::VertexLayout _layout, const bx::FilePath& _virtualPath))
+		bool geometryAssetFindOrCreate(U32 _hash, GeometryAssetHandle& _handle)
 		{
-			U32 hash = bx::hash<bx::HashMurmur2A>(_virtualPath.getCPtr());
-
-			U16 idx = m_geometryAssetHashMap.find(hash);
+			U16 idx = m_geometryAssetHashMap.find(_hash);
 			if (kInvalidHandle != idx)
 			{
 				GeometryAssetHandle handle = { idx };
 				geometryAssetIncRef(handle);
-				return handle;
+				_handle = handle;
+				return true;
 			}
-			GeometryAssetHandle handle = { m_geometryAssetHandle.alloc() };
-
-			if (isValid(handle))
+			else
 			{
-				bool ok = m_geometryAssetHashMap.insert(hash, handle.idx);
-				BX_ASSERT(ok, "Geometry asset already exists!"); BX_UNUSED(ok);
+				_handle = { m_geometryAssetHandle.alloc() };
+				return false;
+			}
+		}
 
-				GeometryRef& sr = m_geometryAssets[handle.idx];
-				sr.m_refCount = 1;
-				sr.m_vertexData = bgfx::makeRef(_vertices, _verticesSize, mrender::getAllocator());
-				sr.m_indexData = bgfx::makeRef(_indices, _indicesSize, mrender::getAllocator());
-				sr.m_layout = _layout;
+		void geometryAssetData(GeometryAssetHandle _handle, const void* _vertices, U32 _verticesSize, const void* _indices, U32 _indicesSize, bgfx::VertexLayout _layout)
+		{
+			GeometryRef& sr = m_geometryAssets[_handle.idx];
+			sr.m_vertexData = bgfx::makeRef(_vertices, _verticesSize, mrender::getAllocator());
+			sr.m_indexData = bgfx::makeRef(_indices, _indicesSize, mrender::getAllocator());
+			sr.m_layout = _layout;
+		}
 
-				sr.m_vbh = bgfx::createVertexBuffer(sr.m_vertexData, sr.m_layout);
-				sr.m_ibh = bgfx::createIndexBuffer(sr.m_indexData);
+		void geometryAssetDataRuntime(GeometryAssetHandle _handle)
+		{
+			GeometryRef& sr = m_geometryAssets[_handle.idx];
+			sr.m_vbh = bgfx::createVertexBuffer(sr.m_vertexData, sr.m_layout);
+			sr.m_ibh = bgfx::createIndexBuffer(sr.m_indexData);
+		}
 
+		MENGINE_API_FUNC(GeometryAssetHandle createGeometry(const void* _vertices, U32 _verticesSize, const void* _indices, U32 _indicesSize, bgfx::VertexLayout _layout, const bx::FilePath& _virtualPath))
+		{
+			U32 hash = bx::hash<bx::HashMurmur2A>(_virtualPath.getCPtr());
+
+			GeometryAssetHandle handle;
+			if (geometryAssetFindOrCreate(hash, handle))
+			{
 				return handle;
 			}
 
-			BX_TRACE("Failed to create asset handle.");
-			return MENGINE_INVALID_HANDLE;
+			bool ok = m_geometryAssetHashMap.insert(hash, handle.idx);
+			BX_ASSERT(ok, "Geometry asset already exists!"); BX_UNUSED(ok);
+
+			GeometryRef& sr = m_geometryAssets[handle.idx];
+			sr.m_refCount = 1;
+				
+			geometryAssetData(handle, _vertices, _verticesSize, _indices, _indicesSize, _layout);
+			geometryAssetDataRuntime(handle);
+
+			return handle;
 		}
 
 		MENGINE_API_FUNC(GeometryAssetHandle loadGeometry(const bx::FilePath& _filePath))
 		{
 			U32 hash = bx::hash<bx::HashMurmur2A>(_filePath.getCPtr());
 
-			U16 idx = m_geometryAssetHashMap.find(hash);
-			if (kInvalidHandle != idx)
-			{
-				GeometryAssetHandle handle = { idx };
-				geometryAssetIncRef(handle);
-				return handle;
-			}
-			GeometryAssetHandle handle = { m_geometryAssetHandle.alloc() };
-
-			bx::Error err;
-			bx::FileReader reader;
-			if (!bx::open(&reader, _filePath, &err))
-			{
-				BX_TRACE("Failed to open asset at path %s.", _filePath.getCPtr());
-				return MENGINE_INVALID_HANDLE;
-			}
+			GeometryAssetHandle handle;
+			bool found = geometryAssetFindOrCreate(hash, handle);
+			BX_ASSERT(found, "Not found, we created a geometry handle.") // @todo Asset streaming if this is found == false.
 			
-			if (isValid(handle))
-			{
-				bool ok = m_geometryAssetHashMap.insert(hash, handle.idx);
-				BX_ASSERT(ok, "Geometry asset already exists!"); BX_UNUSED(ok);
-
-				GeometryRef& sr = m_geometryAssets[handle.idx];
-				sr.read(&reader, &err);
-				sr.m_vbh = bgfx::createVertexBuffer(sr.m_vertexData, sr.m_layout);
-				sr.m_ibh = bgfx::createIndexBuffer(sr.m_indexData);
-
-				geometryAssetIncRef(handle);
-
-				bx::close(&reader);
-				return handle;
-			}
-
-			bx::close(&reader);
-			BX_TRACE("Failed to load asset handle.");
-			return MENGINE_INVALID_HANDLE;
+			return handle;
 		}
 
 		MENGINE_API_FUNC(void destroyGeometry(GeometryAssetHandle _handle))
@@ -959,6 +931,7 @@ namespace mengine
 		{
 			ShaderRef& sr = m_shaderAssets[_handle.idx];
 			U16 refs = --sr.m_refCount;
+
 			if (0 == refs)
 			{
 				bool ok = m_freeShaderAssets.queue(_handle); BX_UNUSED(ok);
@@ -970,76 +943,66 @@ namespace mengine
 			}
 		}
 
-		MENGINE_API_FUNC(ShaderAssetHandle createShader(const bgfx::Memory* _mem, const bx::FilePath& _virtualPath))
+		bool shaderAssetFindOrCreate(U32 _hash, ShaderAssetHandle& _handle)
 		{
-			U32 hash = bx::hash<bx::HashMurmur2A>(_virtualPath.getCPtr());
-
-			U16 idx = m_shaderAssetHashMap.find(hash);
+			U16 idx = m_shaderAssetHashMap.find(_hash);
 			if (kInvalidHandle != idx)
 			{
 				ShaderAssetHandle handle = { idx };
 				shaderAssetIncRef(handle);
-				return handle;
+				_handle = handle;
+				return true;
 			}
-
-			ShaderAssetHandle handle = { m_shaderAssetHandle.alloc() };
-			if (isValid(handle))
+			else
 			{
-				bool ok = m_shaderAssetHashMap.insert(hash, handle.idx);
-				BX_ASSERT(ok, "Shader asset already exists!"); BX_UNUSED(ok);
+				_handle = { m_shaderAssetHandle.alloc() };
+				return false;
+			}
+		}
 
-				ShaderRef& sr = m_shaderAssets[handle.idx];
-				sr.m_refCount = 1;
-				sr.m_codeData = bgfx::makeRef(_mem->data, _mem->size); // @todo ??? why not m_codeData = _mem?
-				
-				sr.m_sh = bgfx::createShader(sr.m_codeData);
+		void shaderAssetData(ShaderAssetHandle _handle, const bgfx::Memory* _mem)
+		{
+			ShaderRef& sr = m_shaderAssets[_handle.idx];
+			sr.m_codeData = bgfx::makeRef(_mem->data, _mem->size); // @todo ??? why not m_codeData = _mem?
+		}
 
+		void shaderAssetDataRuntime(ShaderAssetHandle _handle)
+		{
+			ShaderRef& sr = m_shaderAssets[_handle.idx];
+			sr.m_sh = bgfx::createShader(sr.m_codeData);
+		}
+
+		MENGINE_API_FUNC(ShaderAssetHandle createShader(const bgfx::Memory* _mem, const bx::FilePath& _virtualPath))
+		{
+			U32 hash = bx::hash<bx::HashMurmur2A>(_virtualPath.getCPtr());
+
+			ShaderAssetHandle handle;
+			if (shaderAssetFindOrCreate(hash, handle))
+			{
 				return handle;
 			}
 
-			BX_TRACE("Failed to create asset handle.");
-			return MENGINE_INVALID_HANDLE;
+			bool ok = m_shaderAssetHashMap.insert(hash, handle.idx);
+			BX_ASSERT(ok, "Shader asset already exists!"); BX_UNUSED(ok);
+
+			ShaderRef& sr = m_shaderAssets[handle.idx];
+			sr.m_refCount = 1;
+				
+			shaderAssetData(handle, _mem);
+			shaderAssetDataRuntime(handle);
+
+			return handle;
 		}
 
 		MENGINE_API_FUNC(ShaderAssetHandle loadShader(const bx::FilePath& _filePath))
 		{
 			U32 hash = bx::hash<bx::HashMurmur2A>(_filePath.getCPtr());
 
-			U16 idx = m_shaderAssetHashMap.find(hash);
-			if (kInvalidHandle != idx)
-			{
-				ShaderAssetHandle handle = { idx };
-				shaderAssetIncRef(handle);
-				return handle;
-			}
+			ShaderAssetHandle handle;
+			bool found = shaderAssetFindOrCreate(hash, handle);
+			BX_ASSERT(found, "Not found, we created a  shader handle.") // @todo Asset streaming if this is found == false.
 
-			bx::Error err;
-			bx::FileReader reader;
-			if (!bx::open(&reader, _filePath, &err))
-			{
-				BX_TRACE("Failed to open asset at path %s.", _filePath.getCPtr());
-				return MENGINE_INVALID_HANDLE;
-			}
-
-			ShaderAssetHandle handle = { m_shaderAssetHandle.alloc() };
-			if (isValid(handle))
-			{
-				bool ok = m_shaderAssetHashMap.insert(hash, handle.idx);
-				BX_ASSERT(ok, "Shader asset already exists!"); BX_UNUSED(ok);
-
-				ShaderRef& sr = m_shaderAssets[handle.idx];
-				sr.read(&reader, &err);
-				sr.m_sh = bgfx::createShader(sr.m_codeData);
-
-				shaderAssetIncRef(handle);
-
-				bx::close(&reader);
-				return handle;
-			}
-
-			bx::close(&reader);
-			BX_TRACE("Failed to load asset handle.");
-			return MENGINE_INVALID_HANDLE;
+			return handle;
 		}
 
 		MENGINE_API_FUNC(void destroyShader(ShaderAssetHandle _handle))
@@ -1055,200 +1018,6 @@ namespace mengine
 			shaderAssetDecRef(_handle);
 		}
 
-		MENGINE_API_FUNC(const bgfx::Memory* compileShader(const char* _shaderCode, bgfx::ShaderType::Enum _type))
-		{
-			bx::ErrorAssert err;
-
-			U32 size = sizeof(U32) + sizeof(U32) + sizeof(U32) + sizeof(U16) + sizeof(U32) + (U32)bx::strLen(_shaderCode) + sizeof(U8);
-			const bgfx::Memory* mem = bgfx::alloc(size);
-			bx::StaticMemoryBlockWriter writer(mem->data, mem->size);
-
-			//std::vector<Uniform> uniforms;
-			/*
-			bx::StringView parse(_shaderCode);
-			while (!parse.isEmpty())
-			{
-				parse = bx::strLTrimSpace(parse);
-				bx::StringView eol = bx::strFind(parse, ';');
-				if (!eol.isEmpty())
-				{
-					bx::StringView qualifier = bx::strWord(bx::strLTrimSpace(parse));
-					parse = bx::strLTrimSpace(bx::StringView(qualifier.getTerm(), parse.getTerm()));
-
-					if (0 == bx::strCmp(qualifier, "precision", 9))
-					{
-						// skip precision
-						parse.set(eol.getPtr() + 1, parse.getTerm());
-						continue;
-					}
-
-					if (0 == bx::strCmp(qualifier, "attribute", 9)
-						|| 0 == bx::strCmp(qualifier, "varying", 7)
-						|| 0 == bx::strCmp(qualifier, "in", 2)
-						|| 0 == bx::strCmp(qualifier, "out", 3)
-						)
-					{
-						// skip attributes and varyings.
-						parse.set(eol.getPtr() + 1, parse.getTerm());
-						continue;
-					}
-
-					if (0 == bx::strCmp(qualifier, "flat", 4)
-						|| 0 == bx::strCmp(qualifier, "smooth", 6)
-						|| 0 == bx::strCmp(qualifier, "noperspective", 13)
-						|| 0 == bx::strCmp(qualifier, "centroid", 8)
-						)
-					{
-						// skip interpolation qualifiers
-						parse.set(eol.getPtr() + 1, parse.getTerm());
-						continue;
-					}
-
-					if (0 == bx::strCmp(parse, "tmpvar", 6))
-					{
-						// skip temporaries
-						parse.set(eol.getPtr() + 1, parse.getTerm());
-						continue;
-					}
-
-					if (0 != bx::strCmp(qualifier, "uniform", 7))
-					{
-						// end if there is no uniform keyword.
-						parse.clear();
-						continue;
-					}
-
-					bx::StringView precision;
-
-					bx::StringView typen = bx::strWord(bx::strLTrimSpace(parse));
-					parse = bx::strLTrimSpace(bx::StringView(typen.getTerm(), parse.getTerm()));
-
-					if (0 == bx::strCmp(typen, "lowp", 4)
-						|| 0 == bx::strCmp(typen, "mediump", 7)
-						|| 0 == bx::strCmp(typen, "highp", 5))
-					{
-						precision = typen;
-						typen = bx::strWord(bx::strLTrimSpace(parse));
-						parse = bx::strLTrimSpace(bx::StringView(typen.getTerm(), parse.getTerm()));
-					}
-
-					BX_UNUSED(precision);
-
-					char uniformType[256];
-
-					if (0 == bx::strCmp(typen, "sampler", 7)
-						|| 0 == bx::strCmp(typen, "isampler", 8)
-						|| 0 == bx::strCmp(typen, "usampler", 8))
-					{
-						bx::strCopy(uniformType, BX_COUNTOF(uniformType), "int");
-					}
-					else
-					{
-						bx::strCopy(uniformType, BX_COUNTOF(uniformType), typen);
-					}
-
-
-					bx::StringView name = bx::strWord(bx::strLTrimSpace(parse));
-					parse = bx::strLTrimSpace(bx::StringView(name.getTerm(), parse.getTerm()));
-
-					U8 num = 1;
-					bx::StringView array = bx::strSubstr(parse, 0, 1);
-					if (0 == bx::strCmp(array, "[", 1))
-					{
-						parse = bx::strLTrimSpace(bx::StringView(parse.getPtr() + 1, parse.getTerm()));
-
-						U32 tmp;
-						bx::fromString(&tmp, parse);
-						num = uint8_t(tmp);
-					}
-
-					const char* uniformTypeName[] =
-					{
-						"int",  "int",
-						NULL,   NULL,
-						"vec4", "float4",
-						"mat3", "float3x3",
-						"mat4", "float4x4",
-					};
-
-					Uniform un;
-
-					for (U32 ii = 0; ii < bgfx::UniformType::Count * 2; ++ii)
-					{
-						if (NULL != uniformTypeName[ii]
-							&& 0 == bx::strCmp(uniformType, uniformTypeName[ii]))
-						{
-							un.type = bgfx::UniformType::Enum(ii / 2);
-							break;
-						}
-					}
-
-					if (bgfx::UniformType::Count != un.type)
-					{
-						un.name = static_cast<const char*>(bx::alloc(getAllocator(), (name.getTerm() - name.getPtr() + 1)));
-						memcpy(const_cast<char*>(un.name), name.getPtr(), name.getTerm() - name.getPtr());
-						const_cast<char*>(un.name)[name.getTerm() - name.getPtr()] = '\0';
-
-						BX_TRACE("name: %s (type %d, num %d)", un.name, un.type, num);
-
-						un.num = num;
-						un.regIndex = 0;
-						un.regCount = num;
-						switch (un.type)
-						{
-						case bgfx::UniformType::Mat3:
-							un.regCount *= 3;
-							break;
-						case bgfx::UniformType::Mat4:
-							un.regCount *= 4;
-							break;
-						default:
-							break;
-						}
-
-						uniforms.push_back(un);
-					}
-
-					parse = bx::strLTrimSpace(bx::strFindNl(bx::StringView(eol.getPtr(), parse.getTerm())));
-				}
-			}
-			*/
-
-			// Magic
-			if (bgfx::ShaderType::Fragment == _type)
-			{
-				bx::write(&writer, BGFX_CHUNK_MAGIC_FSH, &err);
-			}
-			else if (bgfx::ShaderType::Vertex == _type)
-			{
-				bx::write(&writer, BGFX_CHUNK_MAGIC_VSH, &err);
-			}
-			else
-			{
-				bx::write(&writer, BGFX_CHUNK_MAGIC_CSH, &err);
-			}
-
-			// Hashes
-			U32 hashIn = 0;
-			U32 hashOut = 0;
-			bx::write(&writer, hashIn, &err);
-			bx::write(&writer, hashOut, &err);
-
-			// Uniforms @todo
-			U16 count = 0;
-			bx::write(&writer, count, &err);
-
-			// Shader code
-			U32 shaderSize = (U32)bx::strLen(_shaderCode);
-			bx::write(&writer, shaderSize, &err);
-			bx::write(&writer, _shaderCode, shaderSize, &err);
-			U8 nul = 0;
-			bx::write(&writer, nul, &err);
-
-			// 
-			return mem;
-		}
-
 		void textureAssetIncRef(TextureAssetHandle _handle)
 		{
 			TextureRef& sr = m_textureAssets[_handle.idx];
@@ -1259,15 +1028,51 @@ namespace mengine
 		{
 			TextureRef& sr = m_textureAssets[_handle.idx];
 			U16 refs = --sr.m_refCount;
+
 			if (0 == refs)
 			{
 				bool ok = m_freeTextureAssets.queue(_handle); BX_UNUSED(ok);
 				BX_ASSERT(ok, "Texture Asset handle %d is already destroyed!", _handle.idx);
 
+				//@todo Figure out if bgfx takes ownership of texture data
 				bgfx::destroy(sr.m_th);
 
 				m_textureAssetHashMap.removeByHandle(_handle.idx);
 			}
+		}
+
+		bool textureAssetFindOrCreate(U32 _hash, TextureAssetHandle& _handle)
+		{
+			U16 idx = m_textureAssetHashMap.find(_hash);
+			if (kInvalidHandle != idx)
+			{
+				TextureAssetHandle handle = { idx };
+				textureAssetIncRef(handle);
+				_handle = handle;
+				return true;
+			}
+			else
+			{
+				_handle = { m_textureAssetHandle.alloc() };
+				return false;
+			}
+		}
+
+		void textureAssetData(TextureAssetHandle _handle, U16 _width, U16 _height, bool _hasMips, bgfx::TextureFormat::Enum _format, U16 _flags, const bgfx::Memory* _mem)
+		{
+			TextureRef& sr = m_textureAssets[_handle.idx];
+			sr.width = _width;
+			sr.height = _height;
+			sr.hasMips = _hasMips;
+			sr.format = _format;
+			sr.flags = _flags;
+			sr.mem = _mem;
+		}
+
+		void textureAssetDataRuntime(TextureAssetHandle _handle)
+		{
+			TextureRef& sr = m_textureAssets[_handle.idx];
+			sr.m_th = bgfx::createTexture2D(sr.width, sr.height, sr.hasMips, 1, sr.format, sr.flags, sr.mem);
 		}
 
 		MENGINE_API_FUNC(TextureAssetHandle createTexture(void* _data, U32 _size, U16 _width, U16 _height, bool _hasMips, 
@@ -1275,76 +1080,33 @@ namespace mengine
 		{
 			U32 hash = bx::hash<bx::HashMurmur2A>(_virtualPath.getCPtr());
 
-			U16 idx = m_textureAssetHashMap.find(hash);
-			if (kInvalidHandle != idx)
+			TextureAssetHandle handle;
+			if (textureAssetFindOrCreate(hash, handle))
 			{
-				TextureAssetHandle handle = { idx };
-				textureAssetIncRef(handle);
 				return handle;
 			}
+			
+			bool ok = m_textureAssetHashMap.insert(hash, handle.idx);
+			BX_ASSERT(ok, "Texture asset already exists!"); BX_UNUSED(ok);
 
-			TextureAssetHandle handle = { m_textureAssetHandle.alloc() };
-			if (isValid(handle))
-			{
-				bool ok = m_textureAssetHashMap.insert(hash, handle.idx);
-				BX_ASSERT(ok, "Texture asset already exists!"); BX_UNUSED(ok);
+			TextureRef& sr = m_textureAssets[handle.idx];
+			sr.m_refCount = 1;
+			
+			textureAssetData(handle, _width, _height, _hasMips, _format, _flags, bgfx::makeRef(_data, _size));
+			textureAssetDataRuntime(handle);
 
-				TextureRef& sr = m_textureAssets[handle.idx];
-				sr.m_refCount = 1;
-				sr.width = _width;
-				sr.height = _height;
-				sr.hasMips = _hasMips;
-				sr.format = _format;
-				sr.flags = _flags;
-				sr.mem = bgfx::makeRef(_data, _size);
-				sr.m_th = bgfx::createTexture2D(sr.width, sr.height, sr.hasMips, 1, sr.format, sr.flags, sr.mem);
-
-				return handle;
-			}
-
-			BX_TRACE("Failed to create asset handle.");
-			return MENGINE_INVALID_HANDLE;
+			return handle;
 		}
 
 		MENGINE_API_FUNC(TextureAssetHandle loadTexture(const bx::FilePath& _filePath))
 		{
-			U32 hash = bx::hash<bx::HashMurmur2A>(_filePath.getCPtr());
+			U32 hash = bx::hash<bx::HashMurmur2A>(_filePath.getCPtr()); 
 
-			U16 idx = m_textureAssetHashMap.find(hash);
-			if (kInvalidHandle != idx)
-			{
-				TextureAssetHandle handle = { idx };
-				textureAssetIncRef(handle);
-				return handle;
-			}
-
-			bx::Error err;
-			bx::FileReader reader;
-			if (!bx::open(&reader, _filePath, &err))
-			{
-				BX_TRACE("Failed to open asset at path %s.", _filePath.getCPtr());
-				return MENGINE_INVALID_HANDLE;
-			}
-
-			TextureAssetHandle handle = { m_textureAssetHandle.alloc() };
-			if (isValid(handle))
-			{
-				bool ok = m_textureAssetHashMap.insert(hash, handle.idx);
-				BX_ASSERT(ok, "Texture asset already exists!"); BX_UNUSED(ok);
-
-				TextureRef& sr = m_textureAssets[handle.idx];
-				sr.read(&reader, &err);
-				sr.m_th = bgfx::createTexture2D(sr.width, sr.height, sr.hasMips, 1, sr.format, sr.flags, sr.mem);
-
-				textureAssetIncRef(handle);
-
-				bx::close(&reader);
-				return handle;
-			}
-
-			bx::close(&reader);
-			BX_TRACE("Failed to load asset handle.");
-			return MENGINE_INVALID_HANDLE;
+			TextureAssetHandle handle;
+			bool found = textureAssetFindOrCreate(hash, handle);
+			BX_ASSERT(found, "Not found, we created a texture handle.") // @todo Asset streaming if this is found == false.
+			
+			return handle;
 		}
 
 		MENGINE_API_FUNC(void destroyTexture(TextureAssetHandle _handle))
@@ -1390,85 +1152,76 @@ namespace mengine
 				m_materialAssetHashMap.removeByHandle(_handle.idx);
 			}
 		}
+
+		bool materialAssetFindOrCreate(U32 _hash, MaterialAssetHandle& _handle)
+		{
+			U16 idx = m_materialAssetHashMap.find(_hash);
+			if (kInvalidHandle != idx)
+			{
+				MaterialAssetHandle handle = { idx };
+				materialAssetIncRef(handle);
+				_handle = handle;
+				return true;
+			}
+			else
+			{
+				_handle = { m_materialAssetHandle.alloc() };
+				return false;
+			}
+		}
+
+		void materialAssetData(MaterialAssetHandle _handle, U32 _vertHash, U32 _fragHash)
+		{
+			MaterialRef& sr = m_materialAssets[_handle.idx];
+			sr.m_vertHash = _vertHash;
+			sr.m_fragHash = _fragHash;
+		}
+
+		void materialAssetDataRuntime(MaterialAssetHandle _handle)
+		{
+			MaterialRef& sr = m_materialAssets[_handle.idx];
+			ShaderAssetHandle vsah = { m_shaderAssetHashMap.find(sr.m_vertHash) };
+			ShaderAssetHandle fsah = { m_shaderAssetHashMap.find(sr.m_fragHash) };
+			sr.m_ph = bgfx::createProgram(vsah, fsah);
+		}
+
 		// @todo use shader virtual paths instead of assethandles?
 		MENGINE_API_FUNC(MaterialAssetHandle createMaterial(ShaderAssetHandle _vert, ShaderAssetHandle _frag, const bx::FilePath& _virtualPath))
 		{
 			U32 hash = bx::hash<bx::HashMurmur2A>(_virtualPath.getCPtr());
 
-			U16 idx = m_materialAssetHashMap.find(hash);
-			if (kInvalidHandle != idx)
+			MaterialAssetHandle handle;
+			if (materialAssetFindOrCreate(hash, handle))
 			{
-				MaterialAssetHandle handle = { idx };
-				materialAssetIncRef(handle);
 				return handle;
 			}
 
-			MaterialAssetHandle handle = { m_materialAssetHandle.alloc() };
-			if (isValid(handle))
-			{
-				bool ok = m_materialAssetHashMap.insert(hash, handle.idx);
-				BX_ASSERT(ok, "Material asset already exists!"); BX_UNUSED(ok);
+			bool ok = m_materialAssetHashMap.insert(hash, handle.idx);
+			BX_ASSERT(ok, "Material asset already exists!"); BX_UNUSED(ok);
 
-				MaterialRef& sr = m_materialAssets[handle.idx];
-				sr.m_refCount = 1;
+			MaterialRef& sr = m_materialAssets[handle.idx];
+			sr.m_refCount = 1;
 
-				// Create
-				sr.m_vertHash = m_shaderAssetHashMap.findByHandle(_vert.idx); // @todo findbyhandle is slow and doesnt scale. 
-				sr.m_fragHash = m_shaderAssetHashMap.findByHandle(_frag.idx); // Alternative soloution using paths as refs for user and just call loadShader()
+			U32 vertHash = m_shaderAssetHashMap.findByHandle(_vert.idx);
+			U32 fragHash = m_shaderAssetHashMap.findByHandle(_frag.idx);
 
-				sr.m_ph = bgfx::createProgram(_vert, _frag);
+			materialAssetData(handle, 
+				m_shaderAssetHashMap.findByHandle(_vert.idx),
+				m_shaderAssetHashMap.findByHandle(_frag.idx));
+			materialAssetDataRuntime(handle);
 
-				return handle;
-			}
-
-			BX_TRACE("Failed to create asset handle.");
-			return MENGINE_INVALID_HANDLE;
+			return handle;
 		}
 
 		MENGINE_API_FUNC(MaterialAssetHandle loadMaterial(const bx::FilePath& _filePath))
 		{
 			U32 hash = bx::hash<bx::HashMurmur2A>(_filePath.getCPtr());
 
-			U16 idx = m_materialAssetHashMap.find(hash);
-			if (kInvalidHandle != idx)
-			{
-				MaterialAssetHandle handle = { idx };
-				materialAssetIncRef(handle);
-				return handle;
-			}
+			MaterialAssetHandle handle;
+			bool found = materialAssetFindOrCreate(hash, handle);
+			BX_ASSERT(found, "Not found, we created a material handle.") // @todo Asset streaming if this is found == false.
 
-			bx::Error err;
-			bx::FileReader reader;
-			if (!bx::open(&reader, _filePath, &err))
-			{
-				BX_TRACE("Failed to open asset at path %s.", _filePath.getCPtr());
-				return MENGINE_INVALID_HANDLE;
-			}
-
-			MaterialAssetHandle handle = { m_materialAssetHandle.alloc() };
-			if (isValid(handle))
-			{
-				bool ok = m_materialAssetHashMap.insert(hash, handle.idx);
-				BX_ASSERT(ok, "Material asset already exists!"); BX_UNUSED(ok);
-
-				MaterialRef& sr = m_materialAssets[handle.idx];
-				sr.read(&reader, &err);
-
-				// Load
-				ShaderAssetHandle vert = { m_shaderAssetHashMap.find(sr.m_vertHash) };
-				ShaderAssetHandle frag = { m_shaderAssetHashMap.find(sr.m_fragHash) };
-
-				sr.m_ph = bgfx::createProgram(vert, frag);
-
-				materialAssetIncRef(handle);
-
-				bx::close(&reader);
-				return handle;
-			}
-
-			bx::close(&reader);
-			BX_TRACE("Failed to load asset handle.");
-			return MENGINE_INVALID_HANDLE;
+			return handle;
 		}
 
 		MENGINE_API_FUNC(void destroyMaterial(MaterialAssetHandle _handle))
@@ -1484,14 +1237,14 @@ namespace mengine
 			materialAssetDecRef(_handle);
 		}
 
-		MENGINE_API_FUNC(void addMaterialTextures(MaterialAssetHandle _material, const char* _uniform, TextureAssetHandle _texture))
+		MENGINE_API_FUNC(void setMaterialTextures(MaterialAssetHandle _material, const char* _uniform, TextureAssetHandle _texture))
 		{
 			
 		}
 
-		MENGINE_API_FUNC(void addMaterialUniform(MaterialAssetHandle _material, const char* _uniform, void* _data, U32 _size))
+		MENGINE_API_FUNC(void setMaterialUniform(MaterialAssetHandle _handle, bgfx::UniformType::Enum _type, const char* _name, void* _value, U16 _num))
 		{
-
+			
 		}
 
 		MENGINE_API_FUNC(const mrender::MouseState* getMouseState())
