@@ -59,22 +59,22 @@ namespace mengine {
 
 			for (U16 ii = 0, num = m_freeGeometryAssets.getNumQueued(); ii < num; ++ii)
 			{
-				m_geometryAssetHandle.free(m_freeGeometryAssets.get(ii).idx);
+				m_geometryHandle.free(m_freeGeometryAssets.get(ii).idx);
 			}
 
 			for (U16 ii = 0, num = m_freeShaderAssets.getNumQueued(); ii < num; ++ii)
 			{
-				m_shaderAssetHandle.free(m_freeShaderAssets.get(ii).idx);
+				m_shaderHandle.free(m_freeShaderAssets.get(ii).idx);
 			}
 
 			for (U16 ii = 0, num = m_freeTextureAssets.getNumQueued(); ii < num; ++ii)
 			{
-				m_textureAssetHandle.free(m_freeTextureAssets.get(ii).idx);
+				m_textureHandle.free(m_freeTextureAssets.get(ii).idx);
 			}
 
 			for (U16 ii = 0, num = m_freeMaterialAssets.getNumQueued(); ii < num; ++ii)
 			{
-				m_materialAssetHandle.free(m_freeMaterialAssets.get(ii).idx);
+				m_materialHandle.free(m_freeMaterialAssets.get(ii).idx);
 			}
 
 			m_freeEntities.reset();
@@ -195,103 +195,105 @@ namespace mengine {
 		return s_ctx->unloadAssetPack(_filePath);
 	}
 
-	GeometryAssetHandle createGeometry(const void* _vertices, U32 _verticesSize, const void* _indices, U32 _indicesSize, bgfx::VertexLayout _layout, const bx::FilePath _virtualPath)
+	GeometryHandle createGeometry(ResourceHandle _resource)
 	{
-		if (NULL != _vertices && NULL != _indices)
+		if (isValid(_resource))
 		{
-			return s_ctx->createGeometry(_vertices, _verticesSize, _indices, _indicesSize, _layout, _virtualPath);
+			return s_ctx->createGeometry(_resource);
 		}
 
 		BX_TRACE("Data is null.");
 		return MENGINE_INVALID_HANDLE;
 	}
 
-	GeometryAssetHandle loadGeometry(const bx::FilePath _filePath)
+	ResourceHandle loadGeometry(const bx::FilePath& _filePath)
 	{
-		if (!_filePath.isEmpty())
-		{
-			return s_ctx->loadGeometry(_filePath);
-		}
-
-		BX_TRACE("Filepath is empty.");
-		return MENGINE_INVALID_HANDLE;
+		return s_ctx->loadGeometryResource(_filePath);
 	}
 
-	void destroy(GeometryAssetHandle _handle)
+	ResourceHandle createResource(const GeometryCreationData& _data, const bx::FilePath& _vfp)
+	{
+		return s_ctx->createGeometryResource(_data, _vfp);
+	}
+
+	void destroy(GeometryHandle _handle)
 	{
 		s_ctx->destroyGeometry(_handle);
 	}
 
-	ShaderAssetHandle createShader(const bgfx::Memory* _mem, const bx::FilePath _virtualPath)
+	ShaderHandle createShader(ResourceHandle _resource)
 	{
-		if (NULL != _mem)
+		if (isValid(_resource))
 		{
-			return s_ctx->createShader(_mem, _virtualPath);
+			return s_ctx->createShader(_resource);
 		}
 
 		BX_TRACE("Data is null.");
 		return MENGINE_INVALID_HANDLE;
 	}
 
-	ShaderAssetHandle loadShader(const bx::FilePath _filePath)
+	ResourceHandle loadShader(const bx::FilePath& _filePath)
 	{
-		if (!_filePath.isEmpty())
-		{
-			return s_ctx->loadShader(_filePath);
-		}
-
-		BX_TRACE("Filepath is empty.");
-		return MENGINE_INVALID_HANDLE;
+		return s_ctx->loadShaderResource(_filePath);
 	}
 
-	void destroy(ShaderAssetHandle _handle)
+	ResourceHandle createResource(const ShaderCreationData& _data, const bx::FilePath& _vfp)
+	{
+		return s_ctx->createShaderResource(_data, _vfp);
+	}
+
+	void destroy(ShaderHandle _handle)
 	{
 		s_ctx->destroyShader(_handle);
 	}
 
-	TextureAssetHandle createTexture(void* _data, U32 _size, U16 _width, U16 _height, bool _hasMips, bgfx::TextureFormat::Enum _format, U64 _flags, const bx::FilePath& _virtualPath)
+	TextureHandle createTexture(ResourceHandle _resource)
 	{
-		if (NULL != _data)
+		if (isValid(_resource))
 		{
-			return s_ctx->createTexture(_data, _size, _width, _height, _hasMips, _format, _flags, _virtualPath);
+			return s_ctx->createTexture(_resource);
 		}
 
 		BX_TRACE("Data is null.");
 		return MENGINE_INVALID_HANDLE;
 	}
 
-	TextureAssetHandle loadTexture(const bx::FilePath _filePath)
+	ResourceHandle loadTexture(const bx::FilePath& _filePath)
 	{
-		if (!_filePath.isEmpty())
-		{
-			return s_ctx->loadTexture(_filePath);
-		}
-
-		BX_TRACE("Filepath is empty.");
-		return MENGINE_INVALID_HANDLE;
+		return s_ctx->loadTextureResource(_filePath);
 	}
 
-	void destroy(TextureAssetHandle _handle)
+	ResourceHandle createResource(const TextureCreationData& _data, const bx::FilePath& _vfp)
+	{
+		return s_ctx->createTextureResource(_data, _vfp);
+	}
+
+	void destroy(TextureHandle _handle)
 	{
 		s_ctx->destroyTexture(_handle);
 	}
 
-	MaterialAssetHandle createMaterial(ShaderAssetHandle _vert, ShaderAssetHandle _frag, const bx::FilePath& _virtualPath)
+	MaterialHandle createMaterial(ResourceHandle _resource)
 	{
-		return s_ctx->createMaterial(_vert, _frag, _virtualPath);
+		return s_ctx->createMaterial(_resource);
 	}
 
-	MaterialAssetHandle loadMaterial(const bx::FilePath& _filePath)
+	ResourceHandle loadMaterial(const bx::FilePath& _filePath)
 	{
-		return s_ctx->loadMaterial(_filePath);
+		return s_ctx->loadMaterialResource(_filePath);
 	}
 
-	void destroy(MaterialAssetHandle _handle)
+	ResourceHandle createResource(const MaterialCreationData& _data, const bx::FilePath& _vfp)
+	{
+		return s_ctx->createMaterialResource(_data, _vfp);
+	}
+
+	void destroy(MaterialHandle _handle)
 	{
 		s_ctx->destroyMaterial(_handle);
 	}
 
-	void setMaterialUniform(MaterialAssetHandle _handle, bgfx::UniformType::Enum _type, const char* _name, void* _value, U16 _num)
+	void setMaterialUniform(MaterialHandle _handle, bgfx::UniformType::Enum _type, const char* _name, void* _value, U16 _num)
 	{
 		s_ctx->setMaterialUniform(_handle, _type, _name, _value, _num);
 	}
@@ -310,7 +312,7 @@ namespace mengine {
 
 namespace bgfx {
 
-	ProgramHandle createProgram(mengine::ShaderAssetHandle _vsah, mengine::ShaderAssetHandle _fsah)
+	ProgramHandle createProgram(mengine::ShaderHandle _vsah, mengine::ShaderHandle _fsah)
 	{
 		if (!isValid(_vsah) || !isValid(_fsah))
 		{
@@ -323,7 +325,7 @@ namespace bgfx {
 		return bgfx::createProgram(vsr.m_sh, fsr.m_sh);
 	}
 
-	void setGeometry(mengine::GeometryAssetHandle _handle)
+	void setGeometry(mengine::GeometryHandle _handle)
 	{
 		if (!isValid(_handle))
 		{
@@ -335,7 +337,7 @@ namespace bgfx {
 		bgfx::setIndexBuffer(sr.m_ibh);
 	}
 
-	void setTexture(U16 _stage, mengine::TextureAssetHandle _texture, UniformHandle _uniform)
+	void setTexture(U16 _stage, mengine::TextureHandle _texture, UniformHandle _uniform)
 	{
 		if (!isValid(_texture))
 		{
@@ -346,12 +348,12 @@ namespace bgfx {
 		bgfx::setTexture(_stage, _uniform, sr.m_th);
 	}
 
-	void setUniforms(mengine::MaterialAssetHandle _material)
+	void setUniforms(mengine::MaterialHandle _material)
 	{
 		mengine::MaterialRef& sr = mengine::s_ctx->m_materialAssets[_material.idx];
 	}
 
-	void submit(ViewId _view, mengine::MaterialAssetHandle _material)
+	void submit(ViewId _view, mengine::MaterialHandle _material)
 	{
 		mengine::MaterialRef& sr = mengine::s_ctx->m_materialAssets[_material.idx];
 		bgfx::submit(_view, sr.m_ph);

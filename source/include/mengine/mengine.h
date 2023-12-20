@@ -27,14 +27,15 @@ namespace mengine
 {
 	static const U16 kInvalidHandle = UINT16_MAX;
 
+	MENGINE_HANDLE(ResourceHandle)
 	MENGINE_HANDLE(EntityHandle)
 	MENGINE_HANDLE(ComponentHandle)
-	MENGINE_HANDLE(GeometryAssetHandle)
-	MENGINE_HANDLE(ShaderAssetHandle)
-	MENGINE_HANDLE(TextureAssetHandle)
-	MENGINE_HANDLE(MaterialAssetHandle)
-	MENGINE_HANDLE(MeshAssetHandle)
-	MENGINE_HANDLE(PrefabAssetHandle)
+	MENGINE_HANDLE(GeometryHandle)
+	MENGINE_HANDLE(ShaderHandle)
+	MENGINE_HANDLE(TextureHandle)
+	MENGINE_HANDLE(MaterialHandle)
+	MENGINE_HANDLE(MeshHandle)
+	MENGINE_HANDLE(PrefabHandle)
 
 	/// Component interface to implement destructor for it's data.
 	///
@@ -49,8 +50,9 @@ namespace mengine
 	}
 
 	///
-	struct BX_NO_VTABLE AssetI
+	struct BX_NO_VTABLE ResourceI
 	{
+		// @todo Virtual destructor?
 		virtual U32 getSize() = 0;
 
 		virtual void write(bx::WriterI* _writer, bx::Error* _err) = 0;
@@ -64,6 +66,38 @@ namespace mengine
 		U32 m_count;				   //!< Number of queried entities.
 		EntityHandle m_entities[1000]; //!< List of queried entities.
 		// @todo Should be allocated on heap, making it dynamic
+	};
+
+	///
+	struct GeometryCreationData
+	{
+		const void* vertices;
+		U32 verticesSize;
+		const U16* indices;
+		U32 indicesSize;
+		bgfx::VertexLayout layout;
+	};
+
+	struct ShaderCreationData
+	{
+		const bgfx::Memory* mem;
+	};
+
+	struct TextureCreationData
+	{
+		U16 width;
+		U16 height;
+		bool hasMips;
+		bgfx::TextureFormat::Enum format;
+		U64 flags;
+		const void* mem;
+		U32 memSize;
+	};
+
+	struct MaterialCreationData
+	{
+		bx::FilePath vertShaderPath;
+		bx::FilePath fragShaderPath;
 	};
 
 	/// Initialization parameters used by `mengine::init`.
@@ -96,6 +130,9 @@ namespace mengine
 	///
 	struct Stats
 	{
+		U16 numPaks;
+		U16 numEntries;
+
 		// @todo Remove asset ref stats, or make it lots better.
 		U16 entitiesRef[100];	//!< Number of references of entities.
 		U16 componentsRef[100]; //!< Number of references of components.
@@ -183,44 +220,55 @@ namespace mengine
 	bool unloadAssetPack(const bx::FilePath& _filePath);
 
 	//
-	GeometryAssetHandle createGeometry(const void* _vertices, U32 _verticesSize, const void* _indices, U32 _indicesSize, bgfx::VertexLayout _layout, const bx::FilePath _virtualPath);
+	GeometryHandle createGeometry(ResourceHandle _resource);
 
 	//
-	GeometryAssetHandle loadGeometry(const bx::FilePath _filePath);
+	ResourceHandle loadGeometry(const bx::FilePath& _filePath);
 
 	//
-	void destroy(GeometryAssetHandle _handle);
+	ResourceHandle createResource(const GeometryCreationData& _data, const bx::FilePath& _vfp);
 
 	//
-	ShaderAssetHandle createShader(const bgfx::Memory* _mem, const bx::FilePath _virtualPath);
+	void destroy(GeometryHandle _handle);
 
 	//
-	ShaderAssetHandle loadShader(const bx::FilePath _filePath);
+	ShaderHandle createShader(ResourceHandle _resource);
 
 	//
-	void destroy(ShaderAssetHandle _handle);
+	ResourceHandle loadShader(const bx::FilePath& _filePath);
 
 	//
-	TextureAssetHandle createTexture(void* _data, U32 _size, U16 _width, U16 _height, bool _hasMips,
-		bgfx::TextureFormat::Enum _format, U64 _flags, const bx::FilePath& _virtualPath);
+	ResourceHandle createResource(const ShaderCreationData& _data, const bx::FilePath& _vfp);
 
 	//
-	TextureAssetHandle loadTexture(const bx::FilePath _filePath);
+	void destroy(ShaderHandle _handle);
 
 	//
-	void destroy(TextureAssetHandle _handle);
+	TextureHandle createTexture(ResourceHandle _resource);
 
 	//
-	MaterialAssetHandle createMaterial(ShaderAssetHandle _vert, ShaderAssetHandle _frag, const bx::FilePath& _virtualPath);
+	ResourceHandle loadTexture(const bx::FilePath& _filePath);
 
 	//
-	MaterialAssetHandle loadMaterial(const bx::FilePath& _filePath);
+	ResourceHandle createResource(const TextureCreationData& _data, const bx::FilePath& _vfp);
 
 	//
-	void destroy(MaterialAssetHandle _handle);
+	void destroy(TextureHandle _handle);
 
 	//
-	void setMaterialUniform(MaterialAssetHandle _handle, bgfx::UniformType::Enum _type, const char* _name, void* _value, U16 _num = 1);
+	MaterialHandle createMaterial(ResourceHandle _resource);
+
+	//
+	ResourceHandle loadMaterial(const bx::FilePath& _filePath);
+
+	//
+	ResourceHandle createResource(const MaterialCreationData& _data, const bx::FilePath& _vfp);
+
+	//
+	void destroy(MaterialHandle _handle);
+
+	//
+	void setMaterialUniform(MaterialHandle _handle, bgfx::UniformType::Enum _type, const char* _name, void* _value, U16 _num = 1);
 
 	/// Returns mouse state for input.
 	///
@@ -234,15 +282,15 @@ namespace mengine
 
 namespace bgfx {
 
-	ProgramHandle createProgram(mengine::ShaderAssetHandle _vsah, mengine::ShaderAssetHandle _fsah);
+	ProgramHandle createProgram(mengine::ShaderHandle _vsah, mengine::ShaderHandle _fsah);
 
-	void setGeometry(mengine::GeometryAssetHandle _handle);
+	void setGeometry(mengine::GeometryHandle _handle);
 
-	void setTexture(U16 _stage, mengine::TextureAssetHandle _texture, UniformHandle _uniform);
+	void setTexture(U16 _stage, mengine::TextureHandle _texture, UniformHandle _uniform);
 
-	void setUniforms(mengine::MaterialAssetHandle _material);
+	void setUniforms(mengine::MaterialHandle _material);
 
-	void submit(ViewId _view, mengine::MaterialAssetHandle _material);
+	void submit(ViewId _view, mengine::MaterialHandle _material);
 }
 
 #endif // MENGINE_H_HEADER_GUARD
