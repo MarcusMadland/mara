@@ -755,7 +755,7 @@ namespace mengine
 			return handle;
 		}
 
-		MENGINE_API_FUNC(ResourceHandle createGeometryResource(const GeometryCreationData& _data, const bx::FilePath& _vfp))
+		MENGINE_API_FUNC(ResourceHandle createGeometryResource(const GeometryCreate& _data, const bx::FilePath& _vfp))
 		{
 			U32 hash = bx::hash<bx::HashMurmur2A>(_vfp);
 
@@ -891,7 +891,7 @@ namespace mengine
 			return handle;
 		}
 
-		MENGINE_API_FUNC(ResourceHandle createShaderResource(const ShaderCreationData& _data, const bx::FilePath& _vfp))
+		MENGINE_API_FUNC(ResourceHandle createShaderResource(const ShaderCreate& _data, const bx::FilePath& _vfp))
 		{
 			U32 hash = bx::hash<bx::HashMurmur2A>(_vfp);
 
@@ -1034,7 +1034,7 @@ namespace mengine
 			return handle;
 		}
 
-		MENGINE_API_FUNC(ResourceHandle createTextureResource(const TextureCreationData& _data, const bx::FilePath& _vfp))
+		MENGINE_API_FUNC(ResourceHandle createTextureResource(const TextureCreate& _data, const bx::FilePath& _vfp))
 		{
 			U32 hash = bx::hash<bx::HashMurmur2A>(_vfp);
 
@@ -1178,7 +1178,7 @@ namespace mengine
 			return handle;
 		}
 
-		MENGINE_API_FUNC(ResourceHandle createMaterialResource(const MaterialCreationData& _data, const bx::FilePath& _vfp))
+		MENGINE_API_FUNC(ResourceHandle createMaterialResource(const MaterialCreate& _data, const bx::FilePath& _vfp))
 		{
 			U32 hash = bx::hash<bx::HashMurmur2A>(_vfp);
 

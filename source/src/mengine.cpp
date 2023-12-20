@@ -211,7 +211,7 @@ namespace mengine {
 		return s_ctx->loadGeometryResource(_filePath);
 	}
 
-	ResourceHandle createResource(const GeometryCreationData& _data, const bx::FilePath& _vfp)
+	ResourceHandle createResource(const GeometryCreate& _data, const bx::FilePath& _vfp)
 	{
 		return s_ctx->createGeometryResource(_data, _vfp);
 	}
@@ -237,7 +237,7 @@ namespace mengine {
 		return s_ctx->loadShaderResource(_filePath);
 	}
 
-	ResourceHandle createResource(const ShaderCreationData& _data, const bx::FilePath& _vfp)
+	ResourceHandle createResource(const ShaderCreate& _data, const bx::FilePath& _vfp)
 	{
 		return s_ctx->createShaderResource(_data, _vfp);
 	}
@@ -263,7 +263,7 @@ namespace mengine {
 		return s_ctx->loadTextureResource(_filePath);
 	}
 
-	ResourceHandle createResource(const TextureCreationData& _data, const bx::FilePath& _vfp)
+	ResourceHandle createResource(const TextureCreate& _data, const bx::FilePath& _vfp)
 	{
 		return s_ctx->createTextureResource(_data, _vfp);
 	}
@@ -283,7 +283,7 @@ namespace mengine {
 		return s_ctx->loadMaterialResource(_filePath);
 	}
 
-	ResourceHandle createResource(const MaterialCreationData& _data, const bx::FilePath& _vfp)
+	ResourceHandle createResource(const MaterialCreate& _data, const bx::FilePath& _vfp)
 	{
 		return s_ctx->createMaterialResource(_data, _vfp);
 	}

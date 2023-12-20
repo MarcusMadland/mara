@@ -69,7 +69,7 @@ namespace mengine
 	};
 
 	///
-	struct GeometryCreationData
+	struct GeometryCreate
 	{
 		const void* vertices;
 		U32 verticesSize;
@@ -78,12 +78,12 @@ namespace mengine
 		bgfx::VertexLayout layout;
 	};
 
-	struct ShaderCreationData
+	struct ShaderCreate
 	{
 		const bgfx::Memory* mem;
 	};
 
-	struct TextureCreationData
+	struct TextureCreate
 	{
 		U16 width;
 		U16 height;
@@ -94,7 +94,7 @@ namespace mengine
 		U32 memSize;
 	};
 
-	struct MaterialCreationData
+	struct MaterialCreate
 	{
 		bx::FilePath vertShaderPath;
 		bx::FilePath fragShaderPath;
@@ -226,7 +226,7 @@ namespace mengine
 	ResourceHandle loadGeometry(const bx::FilePath& _filePath);
 
 	//
-	ResourceHandle createResource(const GeometryCreationData& _data, const bx::FilePath& _vfp);
+	ResourceHandle createResource(const GeometryCreate& _data, const bx::FilePath& _vfp);
 
 	//
 	void destroy(GeometryHandle _handle);
@@ -238,7 +238,7 @@ namespace mengine
 	ResourceHandle loadShader(const bx::FilePath& _filePath);
 
 	//
-	ResourceHandle createResource(const ShaderCreationData& _data, const bx::FilePath& _vfp);
+	ResourceHandle createResource(const ShaderCreate& _data, const bx::FilePath& _vfp);
 
 	//
 	void destroy(ShaderHandle _handle);
@@ -250,7 +250,7 @@ namespace mengine
 	ResourceHandle loadTexture(const bx::FilePath& _filePath);
 
 	//
-	ResourceHandle createResource(const TextureCreationData& _data, const bx::FilePath& _vfp);
+	ResourceHandle createResource(const TextureCreate& _data, const bx::FilePath& _vfp);
 
 	//
 	void destroy(TextureHandle _handle);
@@ -262,7 +262,7 @@ namespace mengine
 	ResourceHandle loadMaterial(const bx::FilePath& _filePath);
 
 	//
-	ResourceHandle createResource(const MaterialCreationData& _data, const bx::FilePath& _vfp);
+	ResourceHandle createResource(const MaterialCreate& _data, const bx::FilePath& _vfp);
 
 	//
 	void destroy(MaterialHandle _handle);
