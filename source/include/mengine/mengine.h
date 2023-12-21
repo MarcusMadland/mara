@@ -143,6 +143,7 @@ namespace mengine
 
 		U16 numEntities;		//!< Number of loaded entities.
 		U16 numComponents;		//!< Number of loaded components.
+		U16 numResources;
 		U16 numGeometryAssets;	//!< Number of loaded geometry assets.
 		U16 numShaderAssets;	//!< Number of loaded shader assets.
 		U16 numTextureAssets;	//!< Number of loaded texture assets.

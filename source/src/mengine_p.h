@@ -55,20 +55,8 @@
 #include <mapp/hash.h>
 #include <mapp/commandline.h>
 
-#define MENGINE_ASSET_PACK_VERSION 1
-#define MENGINE_CHUNK_MAGIC_MAP BX_MAKEFOURCC('M', 'A', 'P', MENGINE_ASSET_PACK_VERSION)
-
-#define BGFX_SHADER_BIN_VERSION 11
-#define BGFX_CHUNK_MAGIC_CSH BX_MAKEFOURCC('C', 'S', 'H', BGFX_SHADER_BIN_VERSION)
-#define BGFX_CHUNK_MAGIC_FSH BX_MAKEFOURCC('F', 'S', 'H', BGFX_SHADER_BIN_VERSION)
-#define BGFX_CHUNK_MAGIC_VSH BX_MAKEFOURCC('V', 'S', 'H', BGFX_SHADER_BIN_VERSION)
-
 namespace mengine 
 {
-	// @todo Assets. Think more about it
-	// Should inherit from AssetI, and stored in engine as a list of AssetI pointers. 
-	// Should store offline data only and contain logic for reading and writing. 
-	// Create compile functions for each assset, ShaderHandle compileShader(Handle _handle)
 	struct GeometryResource : ResourceI
 	{
 		U32 getSize() override
@@ -465,7 +453,8 @@ namespace mengine
 				bool ok = m_freeResources.queue(_handle); BX_UNUSED(ok);
 				BX_ASSERT(ok, "Resource handle %d is already destroyed!", _handle.idx);
 
-				bx::free(mrender::getAllocator(), sr.resource);
+				//bx::free(mrender::getAllocator(), sr.resource);
+				delete sr.resource;
 
 				m_resourceHashMap.removeByHandle(_handle.idx);
 			}
@@ -486,6 +475,25 @@ namespace mengine
 				_handle = { m_resourceHandle.alloc() };
 				return false;
 			}
+		}
+
+		MENGINE_API_FUNC(ResourceHandle createResource(const bx::FilePath& _vfp))
+		{
+			U32 hash = bx::hash<bx::HashMurmur2A>(_vfp.getCPtr());
+
+			ResourceHandle handle;
+			if (resourceFindOrCreate(hash, handle))
+			{
+				return handle;
+			}
+
+			bool ok = m_resourceHashMap.insert(hash, handle.idx);
+			BX_ASSERT(ok, "Resource already exists!"); BX_UNUSED(ok);
+
+			ResourceRef& rr = m_resources[handle.idx];
+			rr.m_refCount = 1;
+			rr.vfp = _vfp;
+			return handle;
 		}
 
 		MENGINE_API_FUNC(void destroyResource(ResourceHandle _handle))
@@ -757,21 +765,9 @@ namespace mengine
 
 		MENGINE_API_FUNC(ResourceHandle createGeometryResource(const GeometryCreate& _data, const bx::FilePath& _vfp))
 		{
-			U32 hash = bx::hash<bx::HashMurmur2A>(_vfp);
-
-			ResourceHandle handle;
-			if (resourceFindOrCreate(hash, handle))
-			{
-				return handle;
-			}
-
-			bool ok = m_resourceHashMap.insert(hash, handle.idx);
-			BX_ASSERT(ok, "Resource already exists!"); BX_UNUSED(ok);
+			ResourceHandle handle = createResource(_vfp);
 
 		    ResourceRef& rr = m_resources[handle.idx];
-			rr.m_refCount = 1;
-			rr.vfp = _vfp;
-			// @todo Since we store all resources in the same data structure, we are required to use 'new' to make the polymorphism work.
 			rr.resource = new GeometryResource(); 
 
 			((GeometryResource*)rr.resource)->vertexData = bgfx::makeRef(_data.vertices, _data.verticesSize);
@@ -783,32 +779,21 @@ namespace mengine
 
 		MENGINE_API_FUNC(ResourceHandle loadGeometryResource(const bx::FilePath& _filePath))
 		{
-			U32 hash = bx::hash<bx::HashMurmur2A>(_filePath.getCPtr());
+			ResourceHandle handle = createResource(_filePath);
 
-			ResourceHandle resourceHandle;
-			if (resourceFindOrCreate(hash, resourceHandle))
-			{
-				return resourceHandle;
-			}
-			else // If resource is not already loaded, find it in the entry list.
-			{
-				U16 entryHandle = m_pakEntryHashMap.find(hash);
+			U16 entryHandle = m_pakEntryHashMap.find(bx::hash<bx::HashMurmur2A>(_filePath.getCPtr()));
+			PakEntryRef& per = m_pakEntries[entryHandle];
+			bx::FileReader* reader = &m_pakReaders[m_pakReaderHashMap.find(per.pakHash)];
+			// Seek to the offset of the entry using the entry file pointer.
+			bx::seek(reader, per.offset, bx::Whence::Begin);
 
-				PakEntryRef& per = m_pakEntries[entryHandle];
-				bx::FileReader* reader = &m_pakReaders[m_pakReaderHashMap.find(per.pakHash)];
-				// Seek to the offset of the entry using the entry file pointer.
-				bx::seek(reader, per.offset, bx::Whence::Begin);
+			// Read resource data at offset position.
+			ResourceRef& rr = m_resources[handle.idx];
+			rr.resource = new GeometryResource();
+			rr.resource->read(reader, bx::ErrorAssert{});
 
-				// Read resource data at offset position.
-				ResourceRef& rr = m_resources[resourceHandle.idx];
-				rr.m_refCount = 0;
-				rr.vfp = _filePath;
-				rr.resource = new GeometryResource();
-				rr.resource->read(reader, bx::ErrorAssert{});
-
-				// Return now loaded resource.
-				return resourceHandle;
-			}
+			// Return now loaded resource.
+			return handle;
 		}
 
 		MENGINE_API_FUNC(void destroyGeometry(GeometryHandle _handle))
@@ -893,21 +878,9 @@ namespace mengine
 
 		MENGINE_API_FUNC(ResourceHandle createShaderResource(const ShaderCreate& _data, const bx::FilePath& _vfp))
 		{
-			U32 hash = bx::hash<bx::HashMurmur2A>(_vfp);
-
-			ResourceHandle handle;
-			if (resourceFindOrCreate(hash, handle))
-			{
-				return handle;
-			}
-
-			bool ok = m_resourceHashMap.insert(hash, handle.idx);
-			BX_ASSERT(ok, "Resource already exists!"); BX_UNUSED(ok);
+			ResourceHandle handle = createResource(_vfp);
 
 			ResourceRef& rr = m_resources[handle.idx];
-			rr.m_refCount = 1;
-			rr.vfp = _vfp;
-			// @todo Since we store all resources in the same data structure, we are required to use 'new' to make the polymorphism work.
 			rr.resource = new ShaderResource();
 
 			((ShaderResource*)rr.resource)->codeData = _data.mem;
@@ -917,32 +890,21 @@ namespace mengine
 
 		MENGINE_API_FUNC(ResourceHandle loadShaderResource(const bx::FilePath& _filePath))
 		{
-			U32 hash = bx::hash<bx::HashMurmur2A>(_filePath.getCPtr());
+			ResourceHandle handle = createResource(_filePath);
 
-			ResourceHandle resourceHandle;
-			if (resourceFindOrCreate(hash, resourceHandle))
-			{
-				return resourceHandle;
-			}
-			else // If resource is not already loaded, find it in the entry list.
-			{
-				U16 entryHandle = m_pakEntryHashMap.find(hash);
+			U16 entryHandle = m_pakEntryHashMap.find(bx::hash<bx::HashMurmur2A>(_filePath.getCPtr()));
+			PakEntryRef& per = m_pakEntries[entryHandle];
+			bx::FileReader* reader = &m_pakReaders[m_pakReaderHashMap.find(per.pakHash)];
+			// Seek to the offset of the entry using the entry file pointer.
+			bx::seek(reader, per.offset, bx::Whence::Begin);
 
-				PakEntryRef& per = m_pakEntries[entryHandle];
-				bx::FileReader* reader = &m_pakReaders[m_pakReaderHashMap.find(per.pakHash)];
-				// Seek to the offset of the entry using the entry file pointer.
-				bx::seek(reader, per.offset, bx::Whence::Begin);
+			// Read resource data at offset position.
+			ResourceRef& rr = m_resources[handle.idx];
+			rr.resource = new ShaderResource();
+			rr.resource->read(reader, bx::ErrorAssert{});
 
-				// Read resource data at offset position.
-				ResourceRef& rr = m_resources[resourceHandle.idx];
-				rr.m_refCount = 0;
-				rr.vfp = _filePath;
-				rr.resource = new ShaderResource();
-				rr.resource->read(reader, bx::ErrorAssert{});
-
-				// Return now loaded resource.
-				return resourceHandle;
-			}
+			// Return now loaded resource.
+			return handle;
 		}
 
 
@@ -1036,21 +998,9 @@ namespace mengine
 
 		MENGINE_API_FUNC(ResourceHandle createTextureResource(const TextureCreate& _data, const bx::FilePath& _vfp))
 		{
-			U32 hash = bx::hash<bx::HashMurmur2A>(_vfp);
-
-			ResourceHandle handle;
-			if (resourceFindOrCreate(hash, handle))
-			{
-				return handle;
-			}
-
-			bool ok = m_resourceHashMap.insert(hash, handle.idx);
-			BX_ASSERT(ok, "Resource already exists!"); BX_UNUSED(ok);
+			ResourceHandle handle = createResource(_vfp);
 
 			ResourceRef& rr = m_resources[handle.idx];
-			rr.m_refCount = 1;
-			rr.vfp = _vfp;
-			// @todo Since we store all resources in the same data structure, we are required to use 'new' to make the polymorphism work.
 			rr.resource = new TextureResource();
 
 			((TextureResource*)rr.resource)->width = _data.width;
@@ -1065,32 +1015,21 @@ namespace mengine
 
 		MENGINE_API_FUNC(ResourceHandle loadTextureResource(const bx::FilePath& _filePath))
 		{
-			U32 hash = bx::hash<bx::HashMurmur2A>(_filePath.getCPtr());
+			ResourceHandle handle = createResource(_filePath);
 
-			ResourceHandle resourceHandle;
-			if (resourceFindOrCreate(hash, resourceHandle))
-			{
-				return resourceHandle;
-			}
-			else // If resource is not already loaded, find it in the entry list.
-			{
-				U16 entryHandle = m_pakEntryHashMap.find(hash);
+			U16 entryHandle = m_pakEntryHashMap.find(bx::hash<bx::HashMurmur2A>(_filePath.getCPtr()));
+			PakEntryRef& per = m_pakEntries[entryHandle];
+			bx::FileReader* reader = &m_pakReaders[m_pakReaderHashMap.find(per.pakHash)];
+			// Seek to the offset of the entry using the entry file pointer.
+			bx::seek(reader, per.offset, bx::Whence::Begin);
 
-				PakEntryRef& per = m_pakEntries[entryHandle];
-				bx::FileReader* reader = &m_pakReaders[m_pakReaderHashMap.find(per.pakHash)];
-				// Seek to the offset of the entry using the entry file pointer.
-				bx::seek(reader, per.offset, bx::Whence::Begin);
+			// Read resource data at offset position.
+			ResourceRef& rr = m_resources[handle.idx];
+			rr.resource = new TextureResource();
+			rr.resource->read(reader, bx::ErrorAssert{});
 
-				// Read resource data at offset position.
-				ResourceRef& rr = m_resources[resourceHandle.idx];
-				rr.m_refCount = 0;
-				rr.vfp = _filePath;
-				rr.resource = new TextureResource();
-				rr.resource->read(reader, bx::ErrorAssert{});
-
-				// Return now loaded resource.
-				return resourceHandle;
-			}
+			// Return now loaded resource.
+			return handle;
 		}
 
 		MENGINE_API_FUNC(void destroyTexture(TextureHandle _handle))
@@ -1180,21 +1119,9 @@ namespace mengine
 
 		MENGINE_API_FUNC(ResourceHandle createMaterialResource(const MaterialCreate& _data, const bx::FilePath& _vfp))
 		{
-			U32 hash = bx::hash<bx::HashMurmur2A>(_vfp);
-
-			ResourceHandle handle;
-			if (resourceFindOrCreate(hash, handle))
-			{
-				return handle;
-			}
-
-			bool ok = m_resourceHashMap.insert(hash, handle.idx);
-			BX_ASSERT(ok, "Resource already exists!"); BX_UNUSED(ok);
+			ResourceHandle handle = createResource(_vfp);
 
 			ResourceRef& rr = m_resources[handle.idx];
-			rr.m_refCount = 1;
-			rr.vfp = _vfp;
-			// @todo Since we store all resources in the same data structure, we are required to use 'new' to make the polymorphism work.
 			rr.resource = new MaterialResource();
 
 			bx::strCopy(((MaterialResource*)rr.resource)->vertPath, bx::kMaxFilePath, _data.vertShaderPath.getCPtr());
@@ -1205,32 +1132,21 @@ namespace mengine
 
 		MENGINE_API_FUNC(ResourceHandle loadMaterialResource(const bx::FilePath& _filePath))
 		{
-			U32 hash = bx::hash<bx::HashMurmur2A>(_filePath.getCPtr());
+			ResourceHandle handle = createResource(_filePath);
 
-			ResourceHandle resourceHandle;
-			if (resourceFindOrCreate(hash, resourceHandle))
-			{
-				return resourceHandle;
-			}
-			else // If resource is not already loaded, find it in the entry list.
-			{
-				U16 entryHandle = m_pakEntryHashMap.find(hash);
+			U16 entryHandle = m_pakEntryHashMap.find(bx::hash<bx::HashMurmur2A>(_filePath.getCPtr()));
+			PakEntryRef& per = m_pakEntries[entryHandle];
+			bx::FileReader* reader = &m_pakReaders[m_pakReaderHashMap.find(per.pakHash)];
+			// Seek to the offset of the entry using the entry file pointer.
+			bx::seek(reader, per.offset, bx::Whence::Begin);
 
-				PakEntryRef& per = m_pakEntries[entryHandle];
-				bx::FileReader* reader = &m_pakReaders[m_pakReaderHashMap.find(per.pakHash)];
-				// Seek to the offset of the entry using the entry file pointer.
-				bx::seek(reader, per.offset, bx::Whence::Begin);
+			// Read resource data at offset position.
+			ResourceRef& rr = m_resources[handle.idx];
+			rr.resource = new MaterialResource();
+			rr.resource->read(reader, bx::ErrorAssert{});
 
-				// Read resource data at offset position.
-				ResourceRef& rr = m_resources[resourceHandle.idx];
-				rr.m_refCount = 0;
-				rr.vfp = _filePath;
-				rr.resource = new MaterialResource();
-				rr.resource->read(reader, bx::ErrorAssert{});
-
-				// Return now loaded resource.
-				return resourceHandle;
-			}
+			// Return now loaded resource.
+			return handle;
 		}
 
 		MENGINE_API_FUNC(void destroyMaterial(MaterialHandle _handle))
@@ -1270,6 +1186,7 @@ namespace mengine
 
 			stats.numEntities = m_entityHandle.getNumHandles();
 			stats.numComponents = m_componentHandle.getNumHandles();
+			stats.numResources = m_resourceHandle.getNumHandles();
 			stats.numGeometryAssets = m_geometryHandle.getNumHandles();
 			stats.numShaderAssets = m_shaderHandle.getNumHandles();
 			stats.numTextureAssets = m_textureHandle.getNumHandles();
