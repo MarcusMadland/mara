@@ -21,10 +21,12 @@ namespace mengine {
 	MaterialParameters& MaterialParameters::addVec4(const char* _name, F32 value[4], U16 _num)
 	{
 		U32 hash = bx::hash<bx::HashMurmur2A>(_name);
+		U32 index = parameterHashMap.getNumElements();
 
-		uniformData[hash].type = bgfx::UniformType::Vec4;
-		uniformData[hash].data = bgfx::makeRef(&value[0], sizeof(F32) * 4);
-		uniformData[hash].num = _num;
+		parameterHashMap.insert(hash, parameterHashMap.getNumElements());
+		parameters[index].type = bgfx::UniformType::Vec4;
+		parameters[index].data = bgfx::makeRef(&value[0], sizeof(F32) * 4);
+		parameters[index].num = _num;
 
 		return *this;
 	}
@@ -32,10 +34,12 @@ namespace mengine {
 	MaterialParameters& MaterialParameters::addMat3(const char* _name, F32 value[9], U16 _num)
 	{
 		U32 hash = bx::hash<bx::HashMurmur2A>(_name);
+		U32 index = parameterHashMap.getNumElements();
 
-		uniformData[hash].type = bgfx::UniformType::Mat3;
-		uniformData[hash].data = bgfx::makeRef(&value[0], sizeof(F32) * 9);
-		uniformData[hash].num = _num;
+		parameterHashMap.insert(hash, parameterHashMap.getNumElements());
+		parameters[index].type = bgfx::UniformType::Mat3;
+		parameters[index].data = bgfx::makeRef(&value[0], sizeof(F32) * 9);
+		parameters[index].num = _num;
 
 		return *this;
 	}
@@ -43,10 +47,12 @@ namespace mengine {
 	MaterialParameters& MaterialParameters::addMat4(const char* _name, F32 value[16], U16 _num)
 	{
 		U32 hash = bx::hash<bx::HashMurmur2A>(_name);
+		U32 index = parameterHashMap.getNumElements();
 
-		uniformData[hash].type = bgfx::UniformType::Mat4;
-		uniformData[hash].data = bgfx::makeRef(&value[0], sizeof(F32) * 16);
-		uniformData[hash].num = _num;
+		parameterHashMap.insert(hash, parameterHashMap.getNumElements());
+		parameters[index].type = bgfx::UniformType::Mat4;
+		parameters[index].data = bgfx::makeRef(&value[0], sizeof(F32) * 16);
+		parameters[index].num = _num;
 
 		return *this;
 	}
@@ -54,16 +60,18 @@ namespace mengine {
 	MaterialParameters& MaterialParameters::addTexture(const char* _name, mengine::ResourceHandle _handle, U16 _stage)
 	{
 		U32 hash = bx::hash<bx::HashMurmur2A>(_name);
-		const char* vfp = s_ctx->m_resources[_handle.idx].vfp.getCPtr();
+		U32 index = parameterHashMap.getNumElements();
 
+		const char* vfp = s_ctx->m_resources[_handle.idx].vfp.getCPtr();
 		size_t vfpLength = bx::strLen(vfp);
 		char* vfpWithNullTerminator = new char[vfpLength + 1];
 		bx::strCopy(vfpWithNullTerminator, vfpLength + 1, vfp);
 		vfpWithNullTerminator[vfpLength] = '\0';
 
-		uniformData[hash].type = bgfx::UniformType::Sampler;
-		uniformData[hash].data = bgfx::copy(vfpWithNullTerminator, vfpLength + 1);
-		uniformData[hash].num = _stage;
+		parameterHashMap.insert(hash, parameterHashMap.getNumElements());
+		parameters[index].type = bgfx::UniformType::Sampler;
+		parameters[index].data = bgfx::copy(vfpWithNullTerminator, vfpLength + 1);
+		parameters[index].num = _stage;
 
 		delete[] vfpWithNullTerminator;
 
@@ -110,6 +118,11 @@ namespace mengine {
 		{
 			bgfx::setViewRect(0, 0, 0, U16(width), U16(height));
 
+			for (U16 ii = 0, num = m_freeResources.getNumQueued(); ii < num; ++ii)
+			{
+				m_resourceHandle.free(m_freeResources.get(ii).idx);
+			}
+
 			for (U16 ii = 0, num = m_freeEntities.getNumQueued(); ii < num; ++ii)
 			{
 				m_entityHandle.free(m_freeEntities.get(ii).idx);
@@ -140,6 +153,7 @@ namespace mengine {
 				m_materialHandle.free(m_freeMaterialAssets.get(ii).idx);
 			}
 
+			m_freeResources.reset();
 			m_freeEntities.reset();
 			m_freeComponents.reset();
 			m_freeGeometryAssets.reset();
@@ -414,8 +428,6 @@ namespace bgfx {
 	void submit(ViewId _view, mengine::MaterialHandle _material)
 	{
 		mengine::MaterialRef& mr = mengine::s_ctx->m_materialAssets[_material.idx];
-
-		// @todo Set uniforms
 		mengine::ShaderRef& sr = mengine::s_ctx->m_shaderAssets[mr.m_fsh.idx];
 		
 		bgfx::UniformHandle uniforms[MENGINE_CONFIG_MAX_UNIFORMS_PER_SHADER];
@@ -431,17 +443,16 @@ namespace bgfx {
 				mengine::MaterialResource* resource = (mengine::MaterialResource*)mengine::s_ctx->m_resources[handle].resource;
 					
 				U32 uniformHash = bx::hash<bx::HashMurmur2A>(info.name);
-				mengine::MaterialParameters::UniformData& data = resource->parameters.uniformData[uniformHash];
+				U32 index = resource->parameters.parameterHashMap.find(uniformHash);
+				mengine::MaterialParameters::UniformData& data = resource->parameters.parameters[index];
 					
-				if (info.type != bgfx::UniformType::Sampler)
+				if (info.type == bgfx::UniformType::Sampler)
 				{
-					bgfx::setUniform(uniforms[i], data.data->data, data.num);
+					bgfx::setTexture(data.num, mr.m_textures[index], uniforms[i]);
 				}
 				else
 				{
-					// @todo MEMORY LEAK
-					mengine::ResourceHandle resource = mengine::loadTexture((const char*)data.data->data); 
-					bgfx::setTexture(data.num, createTexture(resource), uniforms[i]);
+					bgfx::setUniform(uniforms[i], data.data->data, data.num);
 				}
 			}
 			

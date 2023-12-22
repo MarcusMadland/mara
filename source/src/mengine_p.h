@@ -184,15 +184,15 @@ namespace mengine
 			bx::write(_writer, fragPath, fragPathSize, _err);
 
 			////
-			U32 numEntries = static_cast<U32>(parameters.uniformData.size());
-			bx::write(_writer, &numEntries, sizeof(numEntries), _err);
+			U32 numParameter = (U32)parameters.parameterHashMap.getNumElements();
+			bx::write(_writer, &numParameter, sizeof(numParameter), _err);
 
-			for (const auto& entry : parameters.uniformData)
+			for (U32 i = 0; i < numParameter; i++)
 			{
-				U32 hash = entry.first;
+				U32 hash = parameters.parameterHashMap.findByHandle(i);
 				bx::write(_writer, &hash, sizeof(hash), _err);
 
-				const MaterialParameters::UniformData& uniformData = entry.second;
+				const MaterialParameters::UniformData& uniformData = parameters.parameters[i];
 				bx::write(_writer, &uniformData.type, sizeof(uniformData.type), _err);
 				bx::write(_writer, &uniformData.num, sizeof(uniformData.num), _err);
 				bx::write(_writer, &uniformData.data->size, sizeof(uniformData.data->size), _err);
@@ -214,11 +214,11 @@ namespace mengine
 			fragPath[bx::kMaxFilePath] = '\0';
 
 			////
-			U32 numEntries;
-			bx::read(_reader, &numEntries, sizeof(numEntries), _err);
+			U32 numParameter;
+			bx::read(_reader, &numParameter, sizeof(numParameter), _err);
 
 			// Iterate through the entries and read each one
-			for (U32 i = 0; i < numEntries; ++i)
+			for (U32 i = 0; i < numParameter; ++i)
 			{
 				// Read the hash
 				U32 hash;
@@ -234,7 +234,8 @@ namespace mengine
 				bx::read(_reader, uniformData.data->data, size, _err);
 
 				// Insert the entry into the map
-				parameters.uniformData[hash] = std::move(uniformData);
+				parameters.parameterHashMap.insert(hash, i);
+				parameters.parameters[i] = uniformData;
 			}
 		}
 
@@ -457,6 +458,13 @@ namespace mengine
 				// Read entry hash
 				U32 hash;
 				bx::read(&pr, &hash, sizeof(U32), bx::ErrorAssert{});
+
+				// Find resource at hash if we have it loaded 
+				U16 handle = m_resourceHashMap.find(hash);
+				if (kInvalidHandle != handle)
+				{
+					destroyResource({ handle });
+				}
 
 				// Find already created entry handle using hash
 				U16 entryHandle = m_pakEntryHashMap.find(hash);
@@ -1165,9 +1173,19 @@ namespace mengine
 				bool ok = m_freeMaterialAssets.queue(_handle); BX_UNUSED(ok);
 				BX_ASSERT(ok, "Material Asset handle %d is already destroyed!", _handle.idx);
 
+				MaterialResource* matResource = (MaterialResource*)m_resources[m_resourceHashMap.find(sr.m_hash)].resource;
+
 				bgfx::destroy(sr.m_ph);
 				destroyShader(sr.m_vsh);
 				destroyShader(sr.m_fsh);
+				for (U32 i = 0; i < matResource->parameters.parameterHashMap.getNumElements(); i++)
+				{
+					MaterialParameters::UniformData& data = matResource->parameters.parameters[i];
+					if (data.type == bgfx::UniformType::Sampler)
+					{
+						destroyTexture(sr.m_textures[i]);
+					}
+				}
 				sr.m_hash = 0;
 
 				m_materialAssetHashMap.removeByHandle(_handle.idx);
@@ -1218,9 +1236,17 @@ namespace mengine
 			sr.m_vsh = createShader(loadShader(matResource->vertPath));
 			sr.m_fsh = createShader(loadShader(matResource->fragPath));
 			sr.m_ph = bgfx::createProgram(sr.m_vsh, sr.m_fsh);
-			// @todo For each texture load it
-			// sr.m_textures[0] = createTexture(loadTexture(""));
+			for (U32 i = 0; i < matResource->parameters.parameterHashMap.getNumElements(); i++)
+			{
+				MaterialParameters::UniformData& data = matResource->parameters.parameters[i];
+				if (data.type == bgfx::UniformType::Sampler)
+				{
+					const char* vfp = (const char*)data.data->data;
+					sr.m_textures[i] = createTexture(loadTexture(vfp));
+				}
+			}
 			sr.m_hash = hash;
+
 
 			return handle;
 		}
@@ -1450,7 +1476,6 @@ namespace mengine
 		FreeHandle<ShaderHandle, MENGINE_CONFIG_MAX_SHADER_ASSETS> m_freeShaderAssets;
 		FreeHandle<TextureHandle, MENGINE_CONFIG_MAX_TEXTURE_ASSETS> m_freeTextureAssets;
 		FreeHandle<MaterialHandle, MENGINE_CONFIG_MAX_TEXTURE_ASSETS> m_freeMaterialAssets;
-		FreeHandle<MeshHandle, MENGINE_CONFIG_MAX_TEXTURE_ASSETS> m_freeMeshAssets;
 
 		mrender::MouseState m_mouseState;
 	};

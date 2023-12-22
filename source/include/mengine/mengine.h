@@ -10,10 +10,11 @@
 #include <mrender/entry.h>
 #include <mapp/types.h>
 #include <mapp/readerwriter.h>
+#include <mapp/handlealloc.h>
 
 #include "defines.h"
 
-#include <unordered_map> // @todo
+#include "../../src/config.h" // @todo
 
 ///
 #define MENGINE_HANDLE(_name) \
@@ -88,7 +89,8 @@ namespace mengine
 			const bgfx::Memory* data;
 			U16 num;
 		};
-		std::unordered_map<U32, UniformData> uniformData;
+		bx::HandleHashMapT<MENGINE_CONFIG_MAX_UNIFORMS_PER_SHADER> parameterHashMap;
+		UniformData parameters[MENGINE_CONFIG_MAX_UNIFORMS_PER_SHADER];
 	};
 
 	///
