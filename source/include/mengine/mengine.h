@@ -85,7 +85,7 @@ namespace mengine
 		struct UniformData
 		{
 			bgfx::UniformType::Enum type;
-			F32 data[16];
+			const bgfx::Memory* data;
 			U16 num;
 		};
 		std::unordered_map<U32, UniformData> uniformData;
@@ -307,7 +307,7 @@ namespace mengine
 
 namespace bgfx {
 
-	ProgramHandle createProgram(mengine::ShaderHandle _vsah, mengine::ShaderHandle _fsah);
+	ProgramHandle createProgram(mengine::ShaderHandle _vsah, mengine::ShaderHandle _fsah, bool _destroyShaders = false);
 
 	void setGeometry(mengine::GeometryHandle _handle);
 

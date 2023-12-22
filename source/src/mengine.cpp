@@ -18,43 +18,34 @@ namespace mengine {
 		return *this;
 	}
 
-	MaterialParameters& MaterialParameters::addVec4(const char* _name, float value[4], U16 _num)
+	MaterialParameters& MaterialParameters::addVec4(const char* _name, F32 value[4], U16 _num)
 	{
 		U32 hash = bx::hash<bx::HashMurmur2A>(_name);
 
 		uniformData[hash].type = bgfx::UniformType::Vec4;
-		for (U32 i = 0; i < 4; i++)
-		{
-			uniformData[hash].data[i] = value[i];
-		}
+		uniformData[hash].data = bgfx::makeRef(&value[0], sizeof(F32) * 4);
 		uniformData[hash].num = _num;
 
 		return *this;
 	}
 
-	MaterialParameters& MaterialParameters::addMat3(const char* _name, float value[9], U16 _num)
+	MaterialParameters& MaterialParameters::addMat3(const char* _name, F32 value[9], U16 _num)
 	{
 		U32 hash = bx::hash<bx::HashMurmur2A>(_name);
 
 		uniformData[hash].type = bgfx::UniformType::Mat3;
-		for (U32 i = 0; i < 9; i++)
-		{
-			uniformData[hash].data[i] = value[i];
-		}
+		uniformData[hash].data = bgfx::makeRef(&value[0], sizeof(F32) * 9);
 		uniformData[hash].num = _num;
 
 		return *this;
 	}
 
-	MaterialParameters& MaterialParameters::addMat4(const char* _name, float value[16], U16 _num)
+	MaterialParameters& MaterialParameters::addMat4(const char* _name, F32 value[16], U16 _num)
 	{
 		U32 hash = bx::hash<bx::HashMurmur2A>(_name);
 
 		uniformData[hash].type = bgfx::UniformType::Mat4;
-		for (U32 i = 0; i < 16; i++)
-		{
-			uniformData[hash].data[i] = value[i];
-		}
+		uniformData[hash].data = bgfx::makeRef(&value[0], sizeof(F32) * 16);
 		uniformData[hash].num = _num;
 
 		return *this;
@@ -63,14 +54,18 @@ namespace mengine {
 	MaterialParameters& MaterialParameters::addTexture(const char* _name, mengine::ResourceHandle _handle, U16 _stage)
 	{
 		U32 hash = bx::hash<bx::HashMurmur2A>(_name);
-		U32 resourceHash = bx::hash<bx::HashMurmur2A>(s_ctx->m_resources[_handle.idx].vfp.getCPtr());
+		const char* vfp = s_ctx->m_resources[_handle.idx].vfp.getCPtr();
 
-		float resourceHashFloat;
-		std::memcpy(&resourceHashFloat, &resourceHash, sizeof(F32));
+		size_t vfpLength = bx::strLen(vfp);
+		char* vfpWithNullTerminator = new char[vfpLength + 1];
+		bx::strCopy(vfpWithNullTerminator, vfpLength + 1, vfp);
+		vfpWithNullTerminator[vfpLength] = '\0';
 
 		uniformData[hash].type = bgfx::UniformType::Sampler;
-		uniformData[hash].data[0] = resourceHashFloat;
+		uniformData[hash].data = bgfx::copy(vfpWithNullTerminator, vfpLength + 1);
 		uniformData[hash].num = _stage;
+
+		delete[] vfpWithNullTerminator;
 
 		return *this;
 	}
@@ -380,7 +375,7 @@ namespace mengine {
 
 namespace bgfx {
 
-	ProgramHandle createProgram(mengine::ShaderHandle _vsah, mengine::ShaderHandle _fsah)
+	ProgramHandle createProgram(mengine::ShaderHandle _vsah, mengine::ShaderHandle _fsah, bool _destroyShaders)
 	{
 		if (!isValid(_vsah) || !isValid(_fsah))
 		{
@@ -390,7 +385,7 @@ namespace bgfx {
 
 		mengine::ShaderRef& vsr = mengine::s_ctx->m_shaderAssets[_vsah.idx];
 		mengine::ShaderRef& fsr = mengine::s_ctx->m_shaderAssets[_fsah.idx];
-		return bgfx::createProgram(vsr.m_sh, fsr.m_sh);
+		return bgfx::createProgram(vsr.m_sh, fsr.m_sh, _destroyShaders);
 	}
 
 	void setGeometry(mengine::GeometryHandle _handle)
@@ -440,11 +435,13 @@ namespace bgfx {
 					
 				if (info.type != bgfx::UniformType::Sampler)
 				{
-					bgfx::setUniform(uniforms[i], data.data, data.num);
+					bgfx::setUniform(uniforms[i], data.data->data, data.num);
 				}
 				else
 				{
-					bgfx::setTexture(data.num, uniforms[i], BGFX_INVALID_HANDLE);
+					// @todo MEMORY LEAK
+					mengine::ResourceHandle resource = mengine::loadTexture((const char*)data.data->data); 
+					bgfx::setTexture(data.num, createTexture(resource), uniforms[i]);
 				}
 			}
 			

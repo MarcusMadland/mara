@@ -195,7 +195,8 @@ namespace mengine
 				const MaterialParameters::UniformData& uniformData = entry.second;
 				bx::write(_writer, &uniformData.type, sizeof(uniformData.type), _err);
 				bx::write(_writer, &uniformData.num, sizeof(uniformData.num), _err);
-				bx::write(_writer, &uniformData.data, sizeof(uniformData.data), _err);
+				bx::write(_writer, &uniformData.data->size, sizeof(uniformData.data->size), _err);
+				bx::write(_writer, uniformData.data->data, uniformData.data->size, _err);
 			}
 		}
 
@@ -227,7 +228,10 @@ namespace mengine
 				MaterialParameters::UniformData uniformData;
 				bx::read(_reader, &uniformData.type, sizeof(uniformData.type), _err);
 				bx::read(_reader, &uniformData.num, sizeof(uniformData.num), _err);
-				bx::read(_reader, &uniformData.data, sizeof(uniformData.data), _err);
+				U32 size;
+				bx::read(_reader, &size, sizeof(size), _err);
+				uniformData.data = bgfx::alloc(size);
+				bx::read(_reader, uniformData.data->data, size, _err);
 
 				// Insert the entry into the map
 				parameters.uniformData[hash] = std::move(uniformData);
@@ -298,6 +302,8 @@ namespace mengine
 		bgfx::ProgramHandle m_ph;
 		ShaderHandle m_vsh;
 		ShaderHandle m_fsh;
+		U16 m_numTextures;
+		TextureHandle m_textures[MENGINE_CONFIG_MAX_UNIFORMS_PER_SHADER];
 		U32 m_hash;
 		U16 m_refCount;
 	};
@@ -327,6 +333,22 @@ namespace mengine
 		// Implement load on demand. Also dont like the use of 'new' use alloc instead.
 		MENGINE_API_FUNC(bool packAssets(const bx::FilePath& _filePath))
 		{
+			// LAYOUT:                  // Example:
+			// 
+			// numEntries (U32);        // 3
+			// 
+			// hash (U32);              // 2039230
+			// entry (PakEntryRef);     // PakEntryRef()
+			// 
+			// hash (U32);              // 2039230
+			// entry (PakEntryRef);     // PakEntryRef()
+			// 
+			// hash (U32);              // 2039230
+			// entry (PakEntryRef);		// PakEntryRef()
+			// 
+			// data (we dont know, but we dont care, should always be inherited from ResourceI anyway);
+			// 
+
 			// Clear directory
 			bx::removeAll(_filePath);
 			bx::makeAll(_filePath.getPath());
@@ -371,22 +393,6 @@ namespace mengine
 				ResourceRef& resource = m_resources[i];
 				resource.resource->write(&writer, bx::ErrorAssert{});
 			}
-
-			// LAYOUT:                  // Example:
-			// 
-			// numEntries (U32);        // 3
-			// 
-			// hash (U32);              // 2039230
-			// entry (PakEntryRef);     // PakEntryRef()
-			// 
-			// hash (U32);              // 2039230
-			// entry (PakEntryRef);     // PakEntryRef()
-			// 
-			// hash (U32);              // 2039230
-			// entry (PakEntryRef);		// PakEntryRef()
-			// 
-			// data (we dont know, but we dont care, should always be inherited from ResourceI anyway);
-			// 
 
 			return true;
 		}
@@ -489,7 +495,6 @@ namespace mengine
 				bool ok = m_freeResources.queue(_handle); BX_UNUSED(ok);
 				BX_ASSERT(ok, "Resource handle %d is already destroyed!", _handle.idx);
 
-				//bx::free(mrender::getAllocator(), sr.resource);
 				delete sr.resource;
 
 				m_resourceHashMap.removeByHandle(_handle.idx);
@@ -815,18 +820,33 @@ namespace mengine
 
 		MENGINE_API_FUNC(ResourceHandle loadGeometryResource(const bx::FilePath& _filePath))
 		{
-			ResourceHandle handle = createResource(_filePath);
-			
+			U32 hash = bx::hash<bx::HashMurmur2A>(_filePath.getCPtr());
+
+			ResourceHandle handle;
+			if (resourceFindOrCreate(hash, handle))
+			{
+				return handle;
+			}
+
+			// Check if resource is inside a loaded asset pack
 			U16 entryHandle = m_pakEntryHashMap.find(bx::hash<bx::HashMurmur2A>(_filePath.getCPtr()));
 			if (kInvalidHandle != entryHandle)
 			{
+				// Create resource
+				bool ok = m_resourceHashMap.insert(hash, handle.idx);
+				BX_ASSERT(ok, "Resource already exists!"); BX_UNUSED(ok);
+
+				// Get pak file reader
 				PakEntryRef& per = m_pakEntries[entryHandle];
 				bx::FileReader* reader = &m_pakReaders[m_pakReaderHashMap.find(per.pakHash)];
+
 				// Seek to the offset of the entry using the entry file pointer.
 				bx::seek(reader, per.offset, bx::Whence::Begin);
 
 				// Read resource data at offset position.
 				ResourceRef& rr = m_resources[handle.idx];
+				rr.m_refCount = 1;
+				rr.vfp = _filePath;
 				rr.resource = new GeometryResource();
 				rr.resource->read(reader, bx::ErrorAssert{});
 
@@ -834,6 +854,7 @@ namespace mengine
 				return handle;
 			}
 
+			BX_TRACE("@todo Add support for single file loading here...")
 			return handle;
 		}
 
@@ -931,25 +952,41 @@ namespace mengine
 
 		MENGINE_API_FUNC(ResourceHandle loadShaderResource(const bx::FilePath& _filePath))
 		{
-			ResourceHandle handle = createResource(_filePath);
+			U32 hash = bx::hash<bx::HashMurmur2A>(_filePath.getCPtr());
 
+			ResourceHandle handle;
+			if (resourceFindOrCreate(hash, handle))
+			{
+				return handle;
+			}
+
+			// Check if resource is inside a loaded asset pack
 			U16 entryHandle = m_pakEntryHashMap.find(bx::hash<bx::HashMurmur2A>(_filePath.getCPtr()));
 			if (kInvalidHandle != entryHandle)
 			{
+				// Create resource
+				bool ok = m_resourceHashMap.insert(hash, handle.idx);
+				BX_ASSERT(ok, "Resource already exists!"); BX_UNUSED(ok);
+
+				// Get pak file reader
 				PakEntryRef& per = m_pakEntries[entryHandle];
 				bx::FileReader* reader = &m_pakReaders[m_pakReaderHashMap.find(per.pakHash)];
+
 				// Seek to the offset of the entry using the entry file pointer.
 				bx::seek(reader, per.offset, bx::Whence::Begin);
 
 				// Read resource data at offset position.
 				ResourceRef& rr = m_resources[handle.idx];
+				rr.m_refCount = 1;
+				rr.vfp = _filePath;
 				rr.resource = new ShaderResource();
 				rr.resource->read(reader, bx::ErrorAssert{});
 
 				// Return now loaded resource.
 				return handle;
 			}
-			
+
+			BX_TRACE("@todo Add support for single file loading here...")
 			return handle;
 		}
 
@@ -1061,18 +1098,33 @@ namespace mengine
 
 		MENGINE_API_FUNC(ResourceHandle loadTextureResource(const bx::FilePath& _filePath))
 		{
-			ResourceHandle handle = createResource(_filePath);
+			U32 hash = bx::hash<bx::HashMurmur2A>(_filePath.getCPtr());
 
+			ResourceHandle handle;
+			if (resourceFindOrCreate(hash, handle))
+			{
+				return handle;
+			}
+
+			// Check if resource is inside a loaded asset pack
 			U16 entryHandle = m_pakEntryHashMap.find(bx::hash<bx::HashMurmur2A>(_filePath.getCPtr()));
 			if (kInvalidHandle != entryHandle)
 			{
+				// Create resource
+				bool ok = m_resourceHashMap.insert(hash, handle.idx);
+				BX_ASSERT(ok, "Resource already exists!"); BX_UNUSED(ok);
+
+				// Get pak file reader
 				PakEntryRef& per = m_pakEntries[entryHandle];
 				bx::FileReader* reader = &m_pakReaders[m_pakReaderHashMap.find(per.pakHash)];
+				
 				// Seek to the offset of the entry using the entry file pointer.
 				bx::seek(reader, per.offset, bx::Whence::Begin);
 
 				// Read resource data at offset position.
 				ResourceRef& rr = m_resources[handle.idx];
+				rr.m_refCount = 1;
+				rr.vfp = _filePath;
 				rr.resource = new TextureResource();
 				rr.resource->read(reader, bx::ErrorAssert{});
 
@@ -1080,6 +1132,7 @@ namespace mengine
 				return handle;
 			}
 			
+			BX_TRACE("@todo Add support for single file loading here...")
 			return handle;
 		}
 
@@ -1156,7 +1209,7 @@ namespace mengine
 			if (NULL == matResource)
 			{
 				BX_TRACE("Resource handle is not a material resource.")
-					return MENGINE_INVALID_HANDLE;
+				return MENGINE_INVALID_HANDLE;
 			}
 
 			MaterialRef& sr = m_materialAssets[handle.idx];
@@ -1165,6 +1218,8 @@ namespace mengine
 			sr.m_vsh = createShader(loadShader(matResource->vertPath));
 			sr.m_fsh = createShader(loadShader(matResource->fragPath));
 			sr.m_ph = bgfx::createProgram(sr.m_vsh, sr.m_fsh);
+			// @todo For each texture load it
+			// sr.m_textures[0] = createTexture(loadTexture(""));
 			sr.m_hash = hash;
 
 			return handle;
@@ -1185,18 +1240,33 @@ namespace mengine
 
 		MENGINE_API_FUNC(ResourceHandle loadMaterialResource(const bx::FilePath& _filePath))
 		{
-			ResourceHandle handle = createResource(_filePath);
+			U32 hash = bx::hash<bx::HashMurmur2A>(_filePath.getCPtr());
 
+			ResourceHandle handle;
+			if (resourceFindOrCreate(hash, handle))
+			{
+				return handle;
+			}
+
+			// Check if resource is inside a loaded asset pack
 			U16 entryHandle = m_pakEntryHashMap.find(bx::hash<bx::HashMurmur2A>(_filePath.getCPtr()));
 			if (kInvalidHandle != entryHandle)
 			{
+				// Create resource
+				bool ok = m_resourceHashMap.insert(hash, handle.idx);
+				BX_ASSERT(ok, "Resource already exists!"); BX_UNUSED(ok);
+
+				// Get pak file reader
 				PakEntryRef& per = m_pakEntries[entryHandle];
 				bx::FileReader* reader = &m_pakReaders[m_pakReaderHashMap.find(per.pakHash)];
+
 				// Seek to the offset of the entry using the entry file pointer.
 				bx::seek(reader, per.offset, bx::Whence::Begin);
 
 				// Read resource data at offset position.
 				ResourceRef& rr = m_resources[handle.idx];
+				rr.m_refCount = 1;
+				rr.vfp = _filePath;
 				rr.resource = new MaterialResource();
 				rr.resource->read(reader, bx::ErrorAssert{});
 
@@ -1204,6 +1274,7 @@ namespace mengine
 				return handle;
 			}
 
+			BX_TRACE("@todo Add support for single file loading here...")
 			return handle;
 		}
 
