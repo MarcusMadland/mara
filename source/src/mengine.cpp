@@ -12,6 +12,74 @@ namespace mengine {
 
 	static Context* s_ctx = NULL;
 
+	MaterialParameters& MaterialParameters::begin()
+	{
+		// I will do this later
+		return *this;
+	}
+
+	MaterialParameters& MaterialParameters::addVec4(const char* _name, float value[4], U16 _num)
+	{
+		U32 hash = bx::hash<bx::HashMurmur2A>(_name);
+
+		uniformData[hash].type = bgfx::UniformType::Vec4;
+		for (U32 i = 0; i < 4; i++)
+		{
+			uniformData[hash].data[i] = value[i];
+		}
+		uniformData[hash].num = _num;
+
+		return *this;
+	}
+
+	MaterialParameters& MaterialParameters::addMat3(const char* _name, float value[9], U16 _num)
+	{
+		U32 hash = bx::hash<bx::HashMurmur2A>(_name);
+
+		uniformData[hash].type = bgfx::UniformType::Mat3;
+		for (U32 i = 0; i < 9; i++)
+		{
+			uniformData[hash].data[i] = value[i];
+		}
+		uniformData[hash].num = _num;
+
+		return *this;
+	}
+
+	MaterialParameters& MaterialParameters::addMat4(const char* _name, float value[16], U16 _num)
+	{
+		U32 hash = bx::hash<bx::HashMurmur2A>(_name);
+
+		uniformData[hash].type = bgfx::UniformType::Mat4;
+		for (U32 i = 0; i < 16; i++)
+		{
+			uniformData[hash].data[i] = value[i];
+		}
+		uniformData[hash].num = _num;
+
+		return *this;
+	}
+
+	MaterialParameters& MaterialParameters::addTexture(const char* _name, mengine::ResourceHandle _handle, U16 _stage)
+	{
+		U32 hash = bx::hash<bx::HashMurmur2A>(_name);
+		U32 resourceHash = bx::hash<bx::HashMurmur2A>(s_ctx->m_resources[_handle.idx].vfp.getCPtr());
+
+		float resourceHashFloat;
+		std::memcpy(&resourceHashFloat, &resourceHash, sizeof(F32));
+
+		uniformData[hash].type = bgfx::UniformType::Sampler;
+		uniformData[hash].data[0] = resourceHashFloat;
+		uniformData[hash].num = _stage;
+
+		return *this;
+	}
+
+	void MaterialParameters::end()
+	{
+		// I will do this later
+	}
+
 	bool Context::init(const Init& _init)
 	{
 		bgfx::Init bgfxInit;
@@ -348,15 +416,41 @@ namespace bgfx {
 		bgfx::setTexture(_stage, _uniform, sr.m_th);
 	}
 
-	void setUniforms(mengine::MaterialHandle _material)
-	{
-		mengine::MaterialRef& sr = mengine::s_ctx->m_materialAssets[_material.idx];
-	}
-
 	void submit(ViewId _view, mengine::MaterialHandle _material)
 	{
-		mengine::MaterialRef& sr = mengine::s_ctx->m_materialAssets[_material.idx];
-		bgfx::submit(_view, sr.m_ph);
+		mengine::MaterialRef& mr = mengine::s_ctx->m_materialAssets[_material.idx];
+
+		// @todo Set uniforms
+		mengine::ShaderRef& sr = mengine::s_ctx->m_shaderAssets[mr.m_fsh.idx];
+		
+		bgfx::UniformHandle uniforms[MENGINE_CONFIG_MAX_UNIFORMS_PER_SHADER];
+		U16 numUniforms = bgfx::getShaderUniforms(sr.m_sh, uniforms, MENGINE_CONFIG_MAX_UNIFORMS_PER_SHADER);
+		for (U16 i = 0; i < numUniforms; i++)
+		{
+			bgfx::UniformInfo info;
+			bgfx::getUniformInfo(uniforms[i], info);
+
+			U16 handle = mengine::s_ctx->m_resourceHashMap.find(mr.m_hash);
+			if (kInvalidHandle != handle)
+			{
+				mengine::MaterialResource* resource = (mengine::MaterialResource*)mengine::s_ctx->m_resources[handle].resource;
+					
+				U32 uniformHash = bx::hash<bx::HashMurmur2A>(info.name);
+				mengine::MaterialParameters::UniformData& data = resource->parameters.uniformData[uniformHash];
+					
+				if (info.type != bgfx::UniformType::Sampler)
+				{
+					bgfx::setUniform(uniforms[i], data.data, data.num);
+				}
+				else
+				{
+					bgfx::setTexture(data.num, uniforms[i], BGFX_INVALID_HANDLE);
+				}
+			}
+			
+		}
+
+		bgfx::submit(_view, mr.m_ph);
 	}
 }
 

@@ -174,7 +174,6 @@ namespace mengine
 
 		void write(bx::WriterI* _writer, bx::Error* _err) override
 		{
-			// Include null terminator in the size calculation
 			U32 vertPathSize = static_cast<U32>(bx::strLen(vertPath)) + 1;
 			U32 fragPathSize = static_cast<U32>(bx::strLen(fragPath)) + 1;
 
@@ -183,6 +182,21 @@ namespace mengine
 
 			bx::write(_writer, &fragPathSize, sizeof(fragPathSize), _err);
 			bx::write(_writer, fragPath, fragPathSize, _err);
+
+			////
+			U32 numEntries = static_cast<U32>(parameters.uniformData.size());
+			bx::write(_writer, &numEntries, sizeof(numEntries), _err);
+
+			for (const auto& entry : parameters.uniformData)
+			{
+				U32 hash = entry.first;
+				bx::write(_writer, &hash, sizeof(hash), _err);
+
+				const MaterialParameters::UniformData& uniformData = entry.second;
+				bx::write(_writer, &uniformData.type, sizeof(uniformData.type), _err);
+				bx::write(_writer, &uniformData.num, sizeof(uniformData.num), _err);
+				bx::write(_writer, &uniformData.data, sizeof(uniformData.data), _err);
+			}
 		}
 
 		void read(bx::ReaderSeekerI* _reader, bx::Error* _err) override
@@ -195,13 +209,34 @@ namespace mengine
 			bx::read(_reader, &fragPathSize, sizeof(fragPathSize), _err);
 			bx::read(_reader, fragPath, fragPathSize, _err);
 
-			// Ensure null-termination
 			vertPath[bx::kMaxFilePath] = '\0';
 			fragPath[bx::kMaxFilePath] = '\0';
+
+			////
+			U32 numEntries;
+			bx::read(_reader, &numEntries, sizeof(numEntries), _err);
+
+			// Iterate through the entries and read each one
+			for (U32 i = 0; i < numEntries; ++i)
+			{
+				// Read the hash
+				U32 hash;
+				bx::read(_reader, &hash, sizeof(hash), _err);
+
+				// Read the UniformData structure
+				MaterialParameters::UniformData uniformData;
+				bx::read(_reader, &uniformData.type, sizeof(uniformData.type), _err);
+				bx::read(_reader, &uniformData.num, sizeof(uniformData.num), _err);
+				bx::read(_reader, &uniformData.data, sizeof(uniformData.data), _err);
+
+				// Insert the entry into the map
+				parameters.uniformData[hash] = std::move(uniformData);
+			}
 		}
 
 		char vertPath[bx::kMaxFilePath + 1];
 		char fragPath[bx::kMaxFilePath + 1];
+		MaterialParameters parameters;
 	};
 
 	struct PakEntryRef
@@ -263,6 +298,7 @@ namespace mengine
 		bgfx::ProgramHandle m_ph;
 		ShaderHandle m_vsh;
 		ShaderHandle m_fsh;
+		U32 m_hash;
 		U16 m_refCount;
 	};
 
@@ -780,19 +816,24 @@ namespace mengine
 		MENGINE_API_FUNC(ResourceHandle loadGeometryResource(const bx::FilePath& _filePath))
 		{
 			ResourceHandle handle = createResource(_filePath);
-
+			
 			U16 entryHandle = m_pakEntryHashMap.find(bx::hash<bx::HashMurmur2A>(_filePath.getCPtr()));
-			PakEntryRef& per = m_pakEntries[entryHandle];
-			bx::FileReader* reader = &m_pakReaders[m_pakReaderHashMap.find(per.pakHash)];
-			// Seek to the offset of the entry using the entry file pointer.
-			bx::seek(reader, per.offset, bx::Whence::Begin);
+			if (kInvalidHandle != entryHandle)
+			{
+				PakEntryRef& per = m_pakEntries[entryHandle];
+				bx::FileReader* reader = &m_pakReaders[m_pakReaderHashMap.find(per.pakHash)];
+				// Seek to the offset of the entry using the entry file pointer.
+				bx::seek(reader, per.offset, bx::Whence::Begin);
 
-			// Read resource data at offset position.
-			ResourceRef& rr = m_resources[handle.idx];
-			rr.resource = new GeometryResource();
-			rr.resource->read(reader, bx::ErrorAssert{});
+				// Read resource data at offset position.
+				ResourceRef& rr = m_resources[handle.idx];
+				rr.resource = new GeometryResource();
+				rr.resource->read(reader, bx::ErrorAssert{});
 
-			// Return now loaded resource.
+				// Return now loaded resource.
+				return handle;
+			}
+
 			return handle;
 		}
 
@@ -893,17 +934,22 @@ namespace mengine
 			ResourceHandle handle = createResource(_filePath);
 
 			U16 entryHandle = m_pakEntryHashMap.find(bx::hash<bx::HashMurmur2A>(_filePath.getCPtr()));
-			PakEntryRef& per = m_pakEntries[entryHandle];
-			bx::FileReader* reader = &m_pakReaders[m_pakReaderHashMap.find(per.pakHash)];
-			// Seek to the offset of the entry using the entry file pointer.
-			bx::seek(reader, per.offset, bx::Whence::Begin);
+			if (kInvalidHandle != entryHandle)
+			{
+				PakEntryRef& per = m_pakEntries[entryHandle];
+				bx::FileReader* reader = &m_pakReaders[m_pakReaderHashMap.find(per.pakHash)];
+				// Seek to the offset of the entry using the entry file pointer.
+				bx::seek(reader, per.offset, bx::Whence::Begin);
 
-			// Read resource data at offset position.
-			ResourceRef& rr = m_resources[handle.idx];
-			rr.resource = new ShaderResource();
-			rr.resource->read(reader, bx::ErrorAssert{});
+				// Read resource data at offset position.
+				ResourceRef& rr = m_resources[handle.idx];
+				rr.resource = new ShaderResource();
+				rr.resource->read(reader, bx::ErrorAssert{});
 
-			// Return now loaded resource.
+				// Return now loaded resource.
+				return handle;
+			}
+			
 			return handle;
 		}
 
@@ -1018,17 +1064,22 @@ namespace mengine
 			ResourceHandle handle = createResource(_filePath);
 
 			U16 entryHandle = m_pakEntryHashMap.find(bx::hash<bx::HashMurmur2A>(_filePath.getCPtr()));
-			PakEntryRef& per = m_pakEntries[entryHandle];
-			bx::FileReader* reader = &m_pakReaders[m_pakReaderHashMap.find(per.pakHash)];
-			// Seek to the offset of the entry using the entry file pointer.
-			bx::seek(reader, per.offset, bx::Whence::Begin);
+			if (kInvalidHandle != entryHandle)
+			{
+				PakEntryRef& per = m_pakEntries[entryHandle];
+				bx::FileReader* reader = &m_pakReaders[m_pakReaderHashMap.find(per.pakHash)];
+				// Seek to the offset of the entry using the entry file pointer.
+				bx::seek(reader, per.offset, bx::Whence::Begin);
 
-			// Read resource data at offset position.
-			ResourceRef& rr = m_resources[handle.idx];
-			rr.resource = new TextureResource();
-			rr.resource->read(reader, bx::ErrorAssert{});
+				// Read resource data at offset position.
+				ResourceRef& rr = m_resources[handle.idx];
+				rr.resource = new TextureResource();
+				rr.resource->read(reader, bx::ErrorAssert{});
 
-			// Return now loaded resource.
+				// Return now loaded resource.
+				return handle;
+			}
+			
 			return handle;
 		}
 
@@ -1064,6 +1115,7 @@ namespace mengine
 				bgfx::destroy(sr.m_ph);
 				destroyShader(sr.m_vsh);
 				destroyShader(sr.m_fsh);
+				sr.m_hash = 0;
 
 				m_materialAssetHashMap.removeByHandle(_handle.idx);
 			}
@@ -1113,6 +1165,7 @@ namespace mengine
 			sr.m_vsh = createShader(loadShader(matResource->vertPath));
 			sr.m_fsh = createShader(loadShader(matResource->fragPath));
 			sr.m_ph = bgfx::createProgram(sr.m_vsh, sr.m_fsh);
+			sr.m_hash = hash;
 
 			return handle;
 		}
@@ -1126,7 +1179,7 @@ namespace mengine
 
 			bx::strCopy(((MaterialResource*)rr.resource)->vertPath, bx::kMaxFilePath, _data.vertShaderPath.getCPtr());
 			bx::strCopy(((MaterialResource*)rr.resource)->fragPath, bx::kMaxFilePath, _data.fragShaderPath.getCPtr());
-
+			((MaterialResource*)rr.resource)->parameters = _data.parameters;
 			return handle;
 		}
 
@@ -1135,17 +1188,22 @@ namespace mengine
 			ResourceHandle handle = createResource(_filePath);
 
 			U16 entryHandle = m_pakEntryHashMap.find(bx::hash<bx::HashMurmur2A>(_filePath.getCPtr()));
-			PakEntryRef& per = m_pakEntries[entryHandle];
-			bx::FileReader* reader = &m_pakReaders[m_pakReaderHashMap.find(per.pakHash)];
-			// Seek to the offset of the entry using the entry file pointer.
-			bx::seek(reader, per.offset, bx::Whence::Begin);
+			if (kInvalidHandle != entryHandle)
+			{
+				PakEntryRef& per = m_pakEntries[entryHandle];
+				bx::FileReader* reader = &m_pakReaders[m_pakReaderHashMap.find(per.pakHash)];
+				// Seek to the offset of the entry using the entry file pointer.
+				bx::seek(reader, per.offset, bx::Whence::Begin);
 
-			// Read resource data at offset position.
-			ResourceRef& rr = m_resources[handle.idx];
-			rr.resource = new MaterialResource();
-			rr.resource->read(reader, bx::ErrorAssert{});
+				// Read resource data at offset position.
+				ResourceRef& rr = m_resources[handle.idx];
+				rr.resource = new MaterialResource();
+				rr.resource->read(reader, bx::ErrorAssert{});
 
-			// Return now loaded resource.
+				// Return now loaded resource.
+				return handle;
+			}
+
 			return handle;
 		}
 

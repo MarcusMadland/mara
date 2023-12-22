@@ -13,6 +13,8 @@
 
 #include "defines.h"
 
+#include <unordered_map> // @todo
+
 ///
 #define MENGINE_HANDLE(_name) \
 	struct _name { U16 idx; }; \
@@ -69,6 +71,27 @@ namespace mengine
 	};
 
 	///
+	struct MaterialParameters
+	{
+		MaterialParameters& begin();
+
+		MaterialParameters& addVec4(const char* _name, float value[4], U16 _num = 1);
+		MaterialParameters& addMat3(const char* _name, float value[9], U16 _num = 1);
+		MaterialParameters& addMat4(const char* _name, float value[16], U16 _num = 1);
+		MaterialParameters& addTexture(const char* _name, mengine::ResourceHandle _handle, U16 _stage = 0);
+
+		void end();
+
+		struct UniformData
+		{
+			bgfx::UniformType::Enum type;
+			F32 data[16];
+			U16 num;
+		};
+		std::unordered_map<U32, UniformData> uniformData;
+	};
+
+	///
 	struct GeometryCreate
 	{
 		const void* vertices;
@@ -98,6 +121,7 @@ namespace mengine
 	{
 		bx::FilePath vertShaderPath;
 		bx::FilePath fragShaderPath;
+		MaterialParameters parameters;
 	};
 
 	/// Initialization parameters used by `mengine::init`.
@@ -288,8 +312,6 @@ namespace bgfx {
 	void setGeometry(mengine::GeometryHandle _handle);
 
 	void setTexture(U16 _stage, mengine::TextureHandle _texture, UniformHandle _uniform);
-
-	void setUniforms(mengine::MaterialHandle _material);
 
 	void submit(ViewId _view, mengine::MaterialHandle _material);
 }
