@@ -73,24 +73,24 @@ namespace mengine
 			bx::write(_writer, &indexData->size, sizeof(U32), _err);
 			bx::write(_writer, indexData->data, (I32)indexData->size, _err);
 			bx::write(_writer, &layoutSize, sizeof(U32), _err);
-			bx::write(_writer, &layout, (I32)layoutSize, _err);
+			bx::write(_writer, &layout, layoutSize, _err);
 		};
 
 		void read(bx::ReaderSeekerI* _reader, bx::Error* _err) override
 		{
 			U32 vertexDataSize;
 			bx::read(_reader, &vertexDataSize, sizeof(vertexDataSize), _err);
-			vertexData = bgfx::alloc(vertexDataSize);
+			vertexData = bgfx::alloc(vertexDataSize);//bgfx::makeRef(bx::alloc(mrender::getAllocator(), vertexDataSize), vertexDataSize);
 			bx::read(_reader, vertexData->data, vertexDataSize, _err);
 
 			U32 indexDataSize;
 			bx::read(_reader, &indexDataSize, sizeof(indexDataSize), _err);
-			indexData = bgfx::alloc(indexDataSize);
+			indexData = bgfx::alloc(indexDataSize);//bgfx::makeRef(bx::alloc(mrender::getAllocator(), indexDataSize), indexDataSize);
 			bx::read(_reader, indexData->data, indexDataSize, _err);
 
 			U32 layoutSize;
 			bx::read(_reader, &layoutSize, sizeof(layoutSize), _err);
-			bx::read(_reader, &layout, (I32)layoutSize, _err);
+			bx::read(_reader, &layout, layoutSize, _err);
 		};
 
 		const bgfx::Memory* vertexData;
@@ -115,7 +115,7 @@ namespace mengine
 		{
 			U32 size;
 			bx::read(_reader, &size, sizeof(size), _err);
-			codeData = bgfx::alloc(size);
+			codeData = bgfx::alloc(size);//bgfx::makeRef(bx::alloc(mrender::getAllocator(), size), size);
 			bx::read(_reader, codeData->data, size, _err);
 		};
 
@@ -152,7 +152,7 @@ namespace mengine
 
 			U32 size;
 			bx::read(_reader, &size, sizeof(size), _err);
-			mem = bgfx::alloc(size);
+			mem = bgfx::alloc(size);//bgfx::makeRef(bx::alloc(mrender::getAllocator(), size), size);
 			bx::read(_reader, mem->data, size, _err);
 		};
 
@@ -168,8 +168,25 @@ namespace mengine
 	{
 		U32 getSize() override
 		{
-			// Account for null-terminators in both strings
-			return (bx::kMaxFilePath + 1) * 2;
+			U32 size = 0;
+			
+			size += (U32)sizeof(U32) + (U32)bx::strLen(vertPath) + 1;
+			size += (U32)sizeof(U32) + (U32)bx::strLen(fragPath) + 1;
+
+			size += (U32)sizeof(U32);
+
+			for (U32 i = 0; i < parameters.parameterHashMap.getNumElements(); i++)
+			{
+				U32 hash = parameters.parameterHashMap.findByHandle(i);
+				const MaterialParameters::UniformData& uniformData = parameters.parameters[i];
+
+				size += sizeof(U32); 
+				size += sizeof(uniformData.type);
+				size += sizeof(uniformData.num);
+				size += sizeof(U32) + uniformData.data->size; 
+			}
+
+			return size;
 		}
 
 		void write(bx::WriterI* _writer, bx::Error* _err) override
@@ -230,7 +247,7 @@ namespace mengine
 				bx::read(_reader, &uniformData.num, sizeof(uniformData.num), _err);
 				U32 size;
 				bx::read(_reader, &size, sizeof(size), _err);
-				uniformData.data = bgfx::alloc(size);
+				uniformData.data = bgfx::alloc(size);//bgfx::makeRef(bx::alloc(mrender::getAllocator(), size), size);
 				bx::read(_reader, uniformData.data->data, size, _err);
 
 				// Insert the entry into the map
@@ -819,8 +836,8 @@ namespace mengine
 		    ResourceRef& rr = m_resources[handle.idx];
 			rr.resource = new GeometryResource(); 
 
-			((GeometryResource*)rr.resource)->vertexData = bgfx::makeRef(_data.vertices, _data.verticesSize);
-			((GeometryResource*)rr.resource)->indexData = bgfx::makeRef(_data.indices, _data.indicesSize);
+			((GeometryResource*)rr.resource)->vertexData = bgfx::copy(_data.vertices, _data.verticesSize);
+			((GeometryResource*)rr.resource)->indexData = bgfx::copy(_data.indices, _data.indicesSize);
 			((GeometryResource*)rr.resource)->layout = _data.layout;
 
 			return handle;
@@ -953,7 +970,7 @@ namespace mengine
 			ResourceRef& rr = m_resources[handle.idx];
 			rr.resource = new ShaderResource();
 
-			((ShaderResource*)rr.resource)->codeData = _data.mem;
+			((ShaderResource*)rr.resource)->codeData = bgfx::copy(_data.mem->data, _data.mem->size);
 
 			return handle;
 		}
@@ -1099,7 +1116,7 @@ namespace mengine
 			((TextureResource*)rr.resource)->hasMips = _data.hasMips;
 			((TextureResource*)rr.resource)->format = _data.format;
 			((TextureResource*)rr.resource)->flags = _data.flags;
-			((TextureResource*)rr.resource)->mem = bgfx::makeRef(_data.mem, _data.memSize);
+			((TextureResource*)rr.resource)->mem = bgfx::copy(_data.mem, _data.memSize);
 
 			return handle;
 		}
@@ -1347,6 +1364,10 @@ namespace mengine
 			stats.numTextureAssets = m_textureHandle.getNumHandles();
 			stats.numMaterialAssets = m_materialHandle.getNumHandles();
 
+			for (U16 i = 0; i < stats.numResources; i++)
+			{
+				stats.resourcesRef[i] = m_resources[i].m_refCount;
+			}
 			for (U16 i = 0; i < stats.numEntities; i++)
 			{
 				stats.entitiesRef[i] = m_entities[i].m_refCount;

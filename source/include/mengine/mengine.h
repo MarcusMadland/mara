@@ -160,6 +160,7 @@ namespace mengine
 		U16 numEntries;
 
 		// @todo Remove asset ref stats, or make it lots better.
+		U16 resourcesRef[100];	//!< Number of references of resources.
 		U16 entitiesRef[100];	//!< Number of references of entities.
 		U16 componentsRef[100]; //!< Number of references of components.
 		U16 geometryRef[100];	//!< Number of references of geometry assets.
