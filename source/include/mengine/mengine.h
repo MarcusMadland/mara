@@ -38,7 +38,6 @@ namespace mengine
 	MENGINE_HANDLE(TextureHandle)
 	MENGINE_HANDLE(MaterialHandle)
 	MENGINE_HANDLE(MeshHandle)
-	MENGINE_HANDLE(PrefabHandle)
 
 	/// Component interface to implement destructor for it's data.
 	///
@@ -126,6 +125,16 @@ namespace mengine
 		MaterialParameters parameters;
 	};
 
+	struct MeshCreate
+	{
+		bx::FilePath materialPath;
+
+		U16 numGeometries;
+		bx::FilePath geometryPaths[MENGINE_CONFIG_MAX_GEOMETRIES_PER_MESH];
+
+		F32 m_transforms[MENGINE_CONFIG_MAX_GEOMETRIES_PER_MESH][16];
+	};
+
 	/// Initialization parameters used by `mengine::init`.
 	///
 	struct Init
@@ -156,25 +165,26 @@ namespace mengine
 	///
 	struct Stats
 	{
-		U16 numPaks;
-		U16 numEntries;
-
-		// @todo Remove asset ref stats, or make it lots better.
+		// @todo Remove ref stats, or make it lots better.
 		U16 resourcesRef[100];	//!< Number of references of resources.
 		U16 entitiesRef[100];	//!< Number of references of entities.
 		U16 componentsRef[100]; //!< Number of references of components.
-		U16 geometryRef[100];	//!< Number of references of geometry assets.
-		U16 shaderRef[100];		//!< Number of references of shader assets.
-		U16 textureRef[100];	//!< Number of references of texture assets.
-		U16 materialRef[100];	//!< Number of references of material assets.
+		U16 geometryRef[100];	//!< Number of references of geometries.
+		U16 shaderRef[100];		//!< Number of references of shaders.
+		U16 textureRef[100];	//!< Number of references of textures.
+		U16 materialRef[100];	//!< Number of references of materials.
+		U16 meshRef[100];		//!< Number of references of mesh.
 
+		U16 numPaks;			//!< Number of loaded of paks.
+		U16 numPakEntries;		//!< Number of loaded of pak entries.
+		U16 numResources;		//!< Number of loaded resources.
 		U16 numEntities;		//!< Number of loaded entities.
 		U16 numComponents;		//!< Number of loaded components.
-		U16 numResources;
-		U16 numGeometryAssets;	//!< Number of loaded geometry assets.
-		U16 numShaderAssets;	//!< Number of loaded shader assets.
-		U16 numTextureAssets;	//!< Number of loaded texture assets.
-		U16 numMaterialAssets;  //!< Number of loaded material assets.
+		U16 numGeometries;		//!< Number of loaded geometries.
+		U16 numShaders;			//!< Number of loaded shaders.
+		U16 numTextures;		//!< Number of loaded textures.
+		U16 numMaterials;		//!< Number of loaded materials.
+		U16 numMeshes;			//!< Number of loaded meshes.
 	};
 
 	/// Initialize the mengine.
@@ -218,6 +228,9 @@ namespace mengine
 	bool update(U32 _debug, U32 _reset);
 
 	//
+	void destroy(ResourceHandle _handle);
+
+	//
 	ComponentHandle createComponent(ComponentI* _data);
 
 	//
@@ -239,13 +252,13 @@ namespace mengine
 	void destroy(EntityHandle _handle);
 
 	//
-	bool packAssets(const bx::FilePath& _filePath);
+	bool createPak(const bx::FilePath& _filePath);
 
 	//
-	bool loadAssetPack(const bx::FilePath& _filePath);
+	bool loadPak(const bx::FilePath& _filePath);
 
 	//
-	bool unloadAssetPack(const bx::FilePath& _filePath);
+	bool unloadPak(const bx::FilePath& _filePath);
 
 	//
 	GeometryHandle createGeometry(ResourceHandle _resource);
@@ -296,7 +309,16 @@ namespace mengine
 	void destroy(MaterialHandle _handle);
 
 	//
-	void setMaterialUniform(MaterialHandle _handle, bgfx::UniformType::Enum _type, const char* _name, void* _value, U16 _num = 1);
+	MeshHandle createMesh(ResourceHandle _resource);
+
+	//
+	ResourceHandle loadMesh(const bx::FilePath& _filePath);
+
+	//
+	ResourceHandle createResource(const MeshCreate& _data, const bx::FilePath& _vfp);
+
+	//
+	void destroy(MeshHandle _handle);
 
 	/// Returns mouse state for input.
 	///
@@ -317,6 +339,8 @@ namespace bgfx {
 	void setTexture(U16 _stage, mengine::TextureHandle _texture, UniformHandle _uniform);
 
 	void submit(ViewId _view, mengine::MaterialHandle _material);
+
+	void submit(ViewId _view, mengine::MeshHandle _handle);
 }
 
 #endif // MENGINE_H_HEADER_GUARD

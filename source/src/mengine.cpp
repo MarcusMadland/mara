@@ -133,33 +133,39 @@ namespace mengine {
 				m_componentHandle.free(m_freeComponents.get(ii).idx);
 			}
 
-			for (U16 ii = 0, num = m_freeGeometryAssets.getNumQueued(); ii < num; ++ii)
+			for (U16 ii = 0, num = m_freeGeometries.getNumQueued(); ii < num; ++ii)
 			{
-				m_geometryHandle.free(m_freeGeometryAssets.get(ii).idx);
+				m_geometryHandle.free(m_freeGeometries.get(ii).idx);
 			}
 
-			for (U16 ii = 0, num = m_freeShaderAssets.getNumQueued(); ii < num; ++ii)
+			for (U16 ii = 0, num = m_freeShaders.getNumQueued(); ii < num; ++ii)
 			{
-				m_shaderHandle.free(m_freeShaderAssets.get(ii).idx);
+				m_shaderHandle.free(m_freeShaders.get(ii).idx);
 			}
 
-			for (U16 ii = 0, num = m_freeTextureAssets.getNumQueued(); ii < num; ++ii)
+			for (U16 ii = 0, num = m_freeTextures.getNumQueued(); ii < num; ++ii)
 			{
-				m_textureHandle.free(m_freeTextureAssets.get(ii).idx);
+				m_textureHandle.free(m_freeTextures.get(ii).idx);
 			}
 
-			for (U16 ii = 0, num = m_freeMaterialAssets.getNumQueued(); ii < num; ++ii)
+			for (U16 ii = 0, num = m_freeMaterials.getNumQueued(); ii < num; ++ii)
 			{
-				m_materialHandle.free(m_freeMaterialAssets.get(ii).idx);
+				m_materialHandle.free(m_freeMaterials.get(ii).idx);
+			}
+
+			for (U16 ii = 0, num = m_freeMeshes.getNumQueued(); ii < num; ++ii)
+			{
+				m_meshHandle.free(m_freeMeshes.get(ii).idx);
 			}
 
 			m_freeResources.reset();
 			m_freeEntities.reset();
 			m_freeComponents.reset();
-			m_freeGeometryAssets.reset();
-			m_freeShaderAssets.reset();
-			m_freeTextureAssets.reset();
-			m_freeMaterialAssets.reset();
+			m_freeGeometries.reset();
+			m_freeShaders.reset();
+			m_freeTextures.reset();
+			m_freeMaterials.reset();
+			m_freeMeshes.reset();
 
 			return true;
 		}
@@ -222,6 +228,11 @@ namespace mengine {
 		return false;
 	}
 
+	void destroy(ResourceHandle _handle)
+	{
+		s_ctx->destroyResource(_handle);
+	}
+
 	ComponentHandle createComponent(ComponentI* _data)
 	{
 		return s_ctx->createComponent(_data);
@@ -257,19 +268,19 @@ namespace mengine {
 		s_ctx->destroyEntity(_handle);
 	}
 
-	bool packAssets(const bx::FilePath& _filePath)
+	bool createPak(const bx::FilePath& _filePath)
 	{
-		return s_ctx->packAssets(_filePath);
+		return s_ctx->createPak(_filePath);
 	}
 
-	bool loadAssetPack(const bx::FilePath& _filePath)
+	bool loadPak(const bx::FilePath& _filePath)
 	{
-		return s_ctx->loadAssetPack(_filePath);
+		return s_ctx->loadPak(_filePath);
 	}
 
-	bool unloadAssetPack(const bx::FilePath& _filePath)
+	bool unloadPak(const bx::FilePath& _filePath)
 	{
-		return s_ctx->unloadAssetPack(_filePath);
+		return s_ctx->unloadPak(_filePath);
 	}
 
 	GeometryHandle createGeometry(ResourceHandle _resource)
@@ -370,9 +381,28 @@ namespace mengine {
 		s_ctx->destroyMaterial(_handle);
 	}
 
-	void setMaterialUniform(MaterialHandle _handle, bgfx::UniformType::Enum _type, const char* _name, void* _value, U16 _num)
+	//
+	MeshHandle createMesh(ResourceHandle _resource)
 	{
-		s_ctx->setMaterialUniform(_handle, _type, _name, _value, _num);
+		return s_ctx->createMesh(_resource);
+	}
+
+	//
+	ResourceHandle loadMesh(const bx::FilePath& _filePath)
+	{ 
+		return s_ctx->loadMeshResource(_filePath);
+	}
+
+	//
+	ResourceHandle createResource(const MeshCreate& _data, const bx::FilePath& _vfp)
+	{
+		return s_ctx->createMeshResource(_data, _vfp);
+	}
+
+	//
+	void destroy(MeshHandle _handle)
+	{
+		s_ctx->destroyMesh(_handle);
 	}
 
 	const mrender::MouseState* getMouseState()
@@ -393,12 +423,12 @@ namespace bgfx {
 	{
 		if (!isValid(_vsah) || !isValid(_fsah))
 		{
-			BX_TRACE("Asset handle is invalid.");
+			BX_TRACE("Shader handle is invalid.");
 			return BGFX_INVALID_HANDLE;
 		}
 
-		mengine::ShaderRef& vsr = mengine::s_ctx->m_shaderAssets[_vsah.idx];
-		mengine::ShaderRef& fsr = mengine::s_ctx->m_shaderAssets[_fsah.idx];
+		mengine::ShaderRef& vsr = mengine::s_ctx->m_shaders[_vsah.idx];
+		mengine::ShaderRef& fsr = mengine::s_ctx->m_shaders[_fsah.idx];
 		return bgfx::createProgram(vsr.m_sh, fsr.m_sh, _destroyShaders);
 	}
 
@@ -406,10 +436,10 @@ namespace bgfx {
 	{
 		if (!isValid(_handle))
 		{
-			BX_TRACE("Asset handle is invalid.");
+			BX_TRACE("Geometry handle is invalid.");
 		}
 
-		mengine::GeometryRef& sr = mengine::s_ctx->m_geometryAssets[_handle.idx];
+		mengine::GeometryRef& sr = mengine::s_ctx->m_geometries[_handle.idx];
 		bgfx::setVertexBuffer(0, sr.m_vbh);
 		bgfx::setIndexBuffer(sr.m_ibh);
 	}
@@ -418,17 +448,17 @@ namespace bgfx {
 	{
 		if (!isValid(_texture))
 		{
-			BX_TRACE("Asset handle is invalid.");
+			BX_TRACE("Texture handle is invalid.");
 		}
 
-		mengine::TextureRef& sr = mengine::s_ctx->m_textureAssets[_texture.idx];
+		mengine::TextureRef& sr = mengine::s_ctx->m_textures[_texture.idx];
 		bgfx::setTexture(_stage, _uniform, sr.m_th);
 	}
 
 	void submit(ViewId _view, mengine::MaterialHandle _material)
 	{
-		mengine::MaterialRef& mr = mengine::s_ctx->m_materialAssets[_material.idx];
-		mengine::ShaderRef& sr = mengine::s_ctx->m_shaderAssets[mr.m_fsh.idx];
+		mengine::MaterialRef& mr = mengine::s_ctx->m_materials[_material.idx];
+		mengine::ShaderRef& sr = mengine::s_ctx->m_shaders[mr.m_fsh.idx];
 		
 		bgfx::UniformHandle uniforms[MENGINE_CONFIG_MAX_UNIFORMS_PER_SHADER];
 		U16 numUniforms = bgfx::getShaderUniforms(sr.m_sh, uniforms, MENGINE_CONFIG_MAX_UNIFORMS_PER_SHADER);
@@ -459,6 +489,18 @@ namespace bgfx {
 		}
 
 		bgfx::submit(_view, mr.m_ph);
+	}
+
+	void submit(ViewId _view, mengine::MeshHandle _handle)
+	{
+		mengine::MeshRef& sr = mengine::s_ctx->m_meshes[_handle.idx];
+
+		for (U32 i = 0; i < sr.m_numGeometries; i++)
+		{
+			setGeometry(sr.m_geometries[i]);
+		}
+
+		submit(_view, sr.m_material);
 	}
 }
 
