@@ -1,3 +1,3 @@
-[submodule "mrender"]
-	path = mrender
-	url = https://github.com/MarcusMadland/mrender.git
+[submodule "graphics"]
+	path = graphics
+	url = https://github.com/MarcusMadland/graphics.git
