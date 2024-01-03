@@ -3074,9 +3074,9 @@ static float stbtt__sized_trapezoid_area(float height, float top_width, float bo
    return (top_width + bottom_width) / 2.0f * height;
 }
 
-static float stbtt__position_trapezoid_area(float height, float tx0, float tx1, float bx0, float bx1)
+static float stbtt__position_trapezoid_area(float height, float tx0, float tx1, float base0, float base1)
 {
-   return stbtt__sized_trapezoid_area(height, tx1 - tx0, bx1 - bx0);
+   return stbtt__sized_trapezoid_area(height, tx1 - tx0, base1 - base0);
 }
 
 static float stbtt__sized_triangle_area(float height, float width)
@@ -4629,10 +4629,10 @@ STBTT_DEF unsigned char * stbtt_GetGlyphSDF(const stbtt_fontinfo *info, float sc
             float x2 = verts[j].x *scale_x, y2 = verts[j].y *scale_y;
             float x1 = verts[i].cx*scale_x, y1 = verts[i].cy*scale_y;
             float x0 = verts[i].x *scale_x, y0 = verts[i].y *scale_y;
-            float bx = x0 - 2*x1 + x2, by = y0 - 2*y1 + y2;
-            float len2 = bx*bx + by*by;
+            float base = x0 - 2*x1 + x2, by = y0 - 2*y1 + y2;
+            float len2 = base*base + by*by;
             if (len2 != 0.0f)
-               precompute[i] = 1.0f / (bx*bx + by*by);
+               precompute[i] = 1.0f / (base*base + by*by);
             else
                precompute[i] = 0.0f;
          } else
@@ -4688,14 +4688,14 @@ STBTT_DEF unsigned char * stbtt_GetGlyphSDF(const stbtt_fontinfo *info, float sc
                   if (sx > box_x0-min_dist && sx < box_x1+min_dist && sy > box_y0-min_dist && sy < box_y1+min_dist) {
                      int num=0;
                      float ax = x1-x0, ay = y1-y0;
-                     float bx = x0 - 2*x1 + x2, by = y0 - 2*y1 + y2;
+                     float base = x0 - 2*x1 + x2, by = y0 - 2*y1 + y2;
                      float mx = x0 - sx, my = y0 - sy;
                      float res[3] = {0.f,0.f,0.f};
                      float px,py,t,it,dist2;
                      float a_inv = precompute[i];
                      if (a_inv == 0.0) { // if a_inv is 0, it's 2nd degree so use quadratic formula
-                        float a = 3*(ax*bx + ay*by);
-                        float b = 2*(ax*ax + ay*ay) + (mx*bx+my*by);
+                        float a = 3*(ax*base + ay*by);
+                        float b = 2*(ax*ax + ay*ay) + (mx*base+my*by);
                         float c = mx*ax+my*ay;
                         if (a == 0.0) { // if a is 0, it's linear
                            if (b != 0.0) {
@@ -4713,8 +4713,8 @@ STBTT_DEF unsigned char * stbtt_GetGlyphSDF(const stbtt_fontinfo *info, float sc
                            }
                         }
                      } else {
-                        float b = 3*(ax*bx + ay*by) * a_inv; // could precompute this as it doesn't depend on sample point
-                        float c = (2*(ax*ax + ay*ay) + (mx*bx+my*by)) * a_inv;
+                        float b = 3*(ax*base + ay*by) * a_inv; // could precompute this as it doesn't depend on sample point
+                        float c = (2*(ax*ax + ay*ay) + (mx*base+my*by)) * a_inv;
                         float d = (mx*ax+my*ay) * a_inv;
                         num = stbtt__solve_cubic(b, c, d, res);
                      }

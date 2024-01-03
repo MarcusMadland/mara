@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10.2) # version supported by android studio
-project(mengine)
+project(mara)
 cmake_policy(SET CMP0054 NEW)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -20,39 +20,39 @@ endif()
 include(CMakeDependentOption)
 
 # Options
-option(MRENDER_CONFIG_MULTITHREADED "Build mrender with multithreaded configuration" ON)
-option(MENGINE_CONFIG_IMGUI "Build mengine with imgui library" ON)
+option(MARA_CONFIG_IMGUI "Build mara with imgui library" ON)
+option(GRAPHICS_CONFIG_MULTITHREADED "Build graphics with multithreaded configuration" ON)
 
 # Variables
-set(MRENDER_OPENGL_VERSION "" CACHE STRING "Specify minimum opengl version")
-set(MRENDER_OPENGLES_VERSION "" CACHE STRING "Specify minimum OpenGL ES version")
-set(MRENDER_LIBRARY_TYPE "STATIC" CACHE STRING "Linking type for library")
-set_property(CACHE MRENDER_LIBRARY_TYPE PROPERTY STRINGS "STATIC" "SHARED")
-set(MRENDER_CONFIG_DEFAULT_MAX_ENCODERS "" CACHE STRING "Specify default maximum encoder count (multithreaded only)")
-set(MRENDER_CONFIG_MAX_DRAW_CALLS "" CACHE STRING "Specify maximum draw calls")
-set(MRENDER_CONFIG_MAX_VIEWS "" CACHE STRING "Specify maximum view count (should be a power of two)")
-set(MRENDER_CONFIG_MAX_FRAME_BUFFERS "" CACHE STRING "Specify maximum frame buffers")
-set(MRENDER_CONFIG_MAX_VERTEX_LAYOUTS "" CACHE STRING "Specify maximum vertex layouts")
-set(MRENDER_CONFIG_MAX_VERTEX_BUFFERS "" CACHE STRING "Specify maximum vertex buffer count")
-set(MRENDER_CONFIG_MAX_DYNAMIC_VERTEX_BUFFERS "" CACHE STRING "Specify maximum dynamic vertex buffer count")
-set(MRENDER_CONFIG_MAX_INDEX_BUFFERS "" CACHE STRING "Specify maximum index buffer count")
-set(MRENDER_CONFIG_MAX_DYNAMIC_INDEX_BUFFERS "" CACHE STRING "Specify maximum dynamic index buffer count")
-set(MRENDER_CONFIG_MAX_TEXTURES "" CACHE STRING "Specify maximum texture count")
-set(MRENDER_CONFIG_MAX_TEXTURE_SAMPLERS "" CACHE STRING "Specify maximum texture samplers")
-set(MRENDER_CONFIG_MAX_SHADERS "" CACHE STRING "Specify shader count")
-set(MRENDER_CONFIG_SORT_KEY_NUM_BITS_PROGRAM "" CACHE STRING "Specify maximum program count as 2^(program bits)")
-set(MRENDER_CMAKE_USER_SCRIPT "" CACHE STRING "Path to custom cmake script to include")
+set(GRAPHICS_OPENGL_VERSION "" CACHE STRING "Specify minimum opengl version")
+set(GRAPHICS_OPENGLES_VERSION "" CACHE STRING "Specify minimum OpenGL ES version")
+set(GRAPHICS_LIBRARY_TYPE "STATIC" CACHE STRING "Linking type for library")
+set_property(CACHE GRAPHICS_LIBRARY_TYPE PROPERTY STRINGS "STATIC" "SHARED")
+set(GRAPHICS_CONFIG_DEFAULT_MAX_ENCODERS "" CACHE STRING "Specify default maximum encoder count (multithreaded only)")
+set(GRAPHICS_CONFIG_MAX_DRAW_CALLS "" CACHE STRING "Specify maximum draw calls")
+set(GRAPHICS_CONFIG_MAX_VIEWS "" CACHE STRING "Specify maximum view count (should be a power of two)")
+set(GRAPHICS_CONFIG_MAX_FRAME_BUFFERS "" CACHE STRING "Specify maximum frame buffers")
+set(GRAPHICS_CONFIG_MAX_VERTEX_LAYOUTS "" CACHE STRING "Specify maximum vertex layouts")
+set(GRAPHICS_CONFIG_MAX_VERTEX_BUFFERS "" CACHE STRING "Specify maximum vertex buffer count")
+set(GRAPHICS_CONFIG_MAX_DYNAMIC_VERTEX_BUFFERS "" CACHE STRING "Specify maximum dynamic vertex buffer count")
+set(GRAPHICS_CONFIG_MAX_INDEX_BUFFERS "" CACHE STRING "Specify maximum index buffer count")
+set(GRAPHICS_CONFIG_MAX_DYNAMIC_INDEX_BUFFERS "" CACHE STRING "Specify maximum dynamic index buffer count")
+set(GRAPHICS_CONFIG_MAX_TEXTURES "" CACHE STRING "Specify maximum texture count")
+set(GRAPHICS_CONFIG_MAX_TEXTURE_SAMPLERS "" CACHE STRING "Specify maximum texture samplers")
+set(GRAPHICS_CONFIG_MAX_SHADERS "" CACHE STRING "Specify shader count")
+set(GRAPHICS_CONFIG_SORT_KEY_NUM_BITS_PROGRAM "" CACHE STRING "Specify maximum program count as 2^(program bits)")
+set(GRAPHICS_CMAKE_USER_SCRIPT "" CACHE STRING "Path to custom cmake script to include")
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # Sources
 file(
     GLOB_RECURSE 
     FILE_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/source/src/**.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/source/src/**.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/source/include/**.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/mara/src/**.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/mara/src/**.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/mara/include/**.h
 
-if (MENGINE_CONFIG_IMGUI)
+if (MARA_CONFIG_IMGUI)
     ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/imgui/**.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/imgui/**.h
 endif()
@@ -75,14 +75,14 @@ add_library(
     ${PROJECT_NAME}
     "${FILE_SOURCES}"
     )
-target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/source/include)
-if (MENGINE_CONFIG_IMGUI)
+target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/mara/include)
+if (MARA_CONFIG_IMGUI)
    target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty)
 endif()
 
-# mrender
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/mrender)
+# graphics
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/graphics)
 target_link_libraries(
     ${PROJECT_NAME}
-    mrender
+    graphics
 )

@@ -1,25 +1,25 @@
 /*
  * Copyright 2023 Marcus Madland. All rights reserved.
- * License: https://github.com/MarcusMadland/mengine/blob/main/LICENSE
+ * License: https://github.com/MarcusMadland/mara/blob/main/LICENSE
  */
 
-#ifndef MENGINE_P_H_HEADER_GUARD
-#define MENGINE_P_H_HEADER_GUARD
+#ifndef MARA_P_H_HEADER_GUARD
+#define MARA_P_H_HEADER_GUARD
 
-#include <mapp/platform.h>
+#include <base/platform.h>
 
-#ifndef BX_CONFIG_DEBUG
-#	error "BX_CONFIG_DEBUG must be defined in build script!"
-#endif // BX_CONFIG_DEBUG
+#ifndef BASE_CONFIG_DEBUG
+#	error "BASE_CONFIG_DEBUG must be defined in build script!"
+#endif // BASE_CONFIG_DEBUG
 
-#define MENGINE_CONFIG_DEBUG BX_CONFIG_DEBUG
+#define MARA_CONFIG_DEBUG BASE_CONFIG_DEBUG
 
-#include "mengine/mengine.h"
+#include "mara/mara.h"
 #include "config.h"
 
- // Check handle, cannot be bgfx::kInvalidHandle and must be valid.
-#define MENGINE_CHECK_HANDLE(_desc, _handleAlloc, _handle) \
-	BX_ASSERT(isValid(_handle)                          \
+ // Check handle, cannot be graphics::kInvalidHandle and must be valid.
+#define MARA_CHECK_HANDLE(_desc, _handleAlloc, _handle) \
+	BASE_ASSERT(isValid(_handle)                          \
 		&& _handleAlloc.isValid(_handle.idx)            \
 		, "Invalid handle. %s handle: %d (max %d)"      \
 		, _desc                                         \
@@ -27,9 +27,9 @@
 		, _handleAlloc.getMaxHandles()                  \
 		)
 
-// Check handle, it's ok to be bgfx::kInvalidHandle or must be valid.
-#define MENGINE_CHECK_HANDLE_INVALID_OK(_desc, _handleAlloc, _handle) \
-	BX_ASSERT(!isValid(_handle)                                    \
+// Check handle, it's ok to be graphics::kInvalidHandle or must be valid.
+#define MARA_CHECK_HANDLE_INVALID_OK(_desc, _handleAlloc, _handle) \
+	BASE_ASSERT(!isValid(_handle)                                    \
 		|| _handleAlloc.isValid(_handle.idx)                       \
 		, "Invalid handle. %s handle: %d (max %d)"                 \
 		, _desc                                                    \
@@ -37,25 +37,25 @@
 		, _handleAlloc.getMaxHandles()                             \
 		)
 
-#if MENGINE_CONFIG_MULTITHREADED
-#	define MENGINE_MUTEX_SCOPE(_mutex) bx::MutexScope BX_CONCATENATE(mutexScope, __LINE__)(_mutex)
+#if MARA_CONFIG_MULTITHREADED
+#	define MARA_MUTEX_SCOPE(_mutex) base::MutexScope BASE_CONCATENATE(mutexScope, __LINE__)(_mutex)
 #else
-#	define MENGINE_MUTEX_SCOPE(_mutex) BX_NOOP()
-#endif // MENGINE_CONFIG_MULTITHREADED
+#	define MARA_MUTEX_SCOPE(_mutex) BASE_NOOP()
+#endif // MARA_CONFIG_MULTITHREADED
 
-#include <mapp/bx.h>
-#include <mapp/timer.h>
-#include <mapp/math.h>
-#include <mapp/bounds.h>
-#include <mapp/pixelformat.h>
-#include <mapp/string.h>
-#include <mapp/allocator.h>
-#include <mapp/file.h>
-#include <mapp/handlealloc.h>
-#include <mapp/hash.h>
-#include <mapp/commandline.h>
+#include <base/base.h>
+#include <base/timer.h>
+#include <base/math.h>
+#include <base/bounds.h>
+#include <base/pixelformat.h>
+#include <base/string.h>
+#include <base/allocator.h>
+#include <base/file.h>
+#include <base/handlealloc.h>
+#include <base/hash.h>
+#include <base/commandline.h>
 
-namespace mengine 
+namespace mara 
 {
 	struct GeometryResource : ResourceI
 	{
@@ -64,38 +64,38 @@ namespace mengine
 			return sizeof(U32) + vertexData->size + sizeof(U32) + indexData->size + sizeof(U32) + (I32)sizeof(layout);
 		};
 
-		void write(bx::WriterI* _writer, bx::Error* _err) override
+		void write(base::WriterI* _writer, base::Error* _err) override
 		{
 			U32 layoutSize = sizeof(layout);
 
-			bx::write(_writer, &vertexData->size, sizeof(U32), _err);
-			bx::write(_writer, vertexData->data, (I32)vertexData->size, _err);
-			bx::write(_writer, &indexData->size, sizeof(U32), _err);
-			bx::write(_writer, indexData->data, (I32)indexData->size, _err);
-			bx::write(_writer, &layoutSize, sizeof(U32), _err);
-			bx::write(_writer, &layout, layoutSize, _err);
+			base::write(_writer, &vertexData->size, sizeof(U32), _err);
+			base::write(_writer, vertexData->data, (I32)vertexData->size, _err);
+			base::write(_writer, &indexData->size, sizeof(U32), _err);
+			base::write(_writer, indexData->data, (I32)indexData->size, _err);
+			base::write(_writer, &layoutSize, sizeof(U32), _err);
+			base::write(_writer, &layout, layoutSize, _err);
 		};
 
-		void read(bx::ReaderSeekerI* _reader, bx::Error* _err) override
+		void read(base::ReaderSeekerI* _reader, base::Error* _err) override
 		{
 			U32 vertexDataSize;
-			bx::read(_reader, &vertexDataSize, sizeof(vertexDataSize), _err);
-			vertexData = bgfx::alloc(vertexDataSize);//bgfx::makeRef(bx::alloc(mrender::getAllocator(), vertexDataSize), vertexDataSize);
-			bx::read(_reader, vertexData->data, vertexDataSize, _err);
+			base::read(_reader, &vertexDataSize, sizeof(vertexDataSize), _err);
+			vertexData = graphics::alloc(vertexDataSize);
+			base::read(_reader, vertexData->data, vertexDataSize, _err);
 
 			U32 indexDataSize;
-			bx::read(_reader, &indexDataSize, sizeof(indexDataSize), _err);
-			indexData = bgfx::alloc(indexDataSize);//bgfx::makeRef(bx::alloc(mrender::getAllocator(), indexDataSize), indexDataSize);
-			bx::read(_reader, indexData->data, indexDataSize, _err);
+			base::read(_reader, &indexDataSize, sizeof(indexDataSize), _err);
+			indexData = graphics::alloc(indexDataSize);
+			base::read(_reader, indexData->data, indexDataSize, _err);
 
 			U32 layoutSize;
-			bx::read(_reader, &layoutSize, sizeof(layoutSize), _err);
-			bx::read(_reader, &layout, layoutSize, _err);
+			base::read(_reader, &layoutSize, sizeof(layoutSize), _err);
+			base::read(_reader, &layout, layoutSize, _err);
 		};
 
-		const bgfx::Memory* vertexData;
-		const bgfx::Memory* indexData;
-		bgfx::VertexLayout layout;
+		const graphics::Memory* vertexData;
+		const graphics::Memory* indexData;
+		graphics::VertexLayout layout;
 	};
 
 	struct ShaderResource : ResourceI
@@ -105,21 +105,21 @@ namespace mengine
 			return sizeof(codeData->size) + codeData->size;
 		};
 
-		void write(bx::WriterI* _writer, bx::Error* _err) override
+		void write(base::WriterI* _writer, base::Error* _err) override
 		{
-			bx::write(_writer, &codeData->size, sizeof(U32), _err);
-			bx::write(_writer, codeData->data, codeData->size, _err);
+			base::write(_writer, &codeData->size, sizeof(U32), _err);
+			base::write(_writer, codeData->data, codeData->size, _err);
 		};
 
-		void read(bx::ReaderSeekerI* _reader, bx::Error* _err) override
+		void read(base::ReaderSeekerI* _reader, base::Error* _err) override
 		{
 			U32 size;
-			bx::read(_reader, &size, sizeof(size), _err);
-			codeData = bgfx::alloc(size);//bgfx::makeRef(bx::alloc(mrender::getAllocator(), size), size);
-			bx::read(_reader, codeData->data, size, _err);
+			base::read(_reader, &size, sizeof(size), _err);
+			codeData = graphics::alloc(size);//graphics::makeRef(base::alloc(graphics::getAllocator(), size), size);
+			base::read(_reader, codeData->data, size, _err);
 		};
 
-		const bgfx::Memory* codeData;
+		const graphics::Memory* codeData;
 	};
 
 	struct TextureResource : ResourceI
@@ -130,38 +130,38 @@ namespace mengine
 				+ sizeof(mem->size) + mem->size;
 		};
 
-		void write(bx::WriterI* _writer, bx::Error* _err) override
+		void write(base::WriterI* _writer, base::Error* _err) override
 		{
-			bx::write(_writer, &width, sizeof(width), _err);
-			bx::write(_writer, &height, sizeof(height), _err);
-			bx::write(_writer, &hasMips, sizeof(hasMips), _err);
-			bx::write(_writer, &format, sizeof(format), _err);
-			bx::write(_writer, &flags, sizeof(flags), _err);
+			base::write(_writer, &width, sizeof(width), _err);
+			base::write(_writer, &height, sizeof(height), _err);
+			base::write(_writer, &hasMips, sizeof(hasMips), _err);
+			base::write(_writer, &format, sizeof(format), _err);
+			base::write(_writer, &flags, sizeof(flags), _err);
 
-			bx::write(_writer, &mem->size, sizeof(mem->size), _err);
-			bx::write(_writer, mem->data, mem->size, _err);
+			base::write(_writer, &mem->size, sizeof(mem->size), _err);
+			base::write(_writer, mem->data, mem->size, _err);
 		};
 
-		void read(bx::ReaderSeekerI* _reader, bx::Error* _err) override
+		void read(base::ReaderSeekerI* _reader, base::Error* _err) override
 		{
-			bx::read(_reader, &width, sizeof(width), _err);
-			bx::read(_reader, &height, sizeof(height), _err);
-			bx::read(_reader, &hasMips, sizeof(hasMips), _err);
-			bx::read(_reader, &format, sizeof(format), _err);
-			bx::read(_reader, &flags, sizeof(flags), _err);
+			base::read(_reader, &width, sizeof(width), _err);
+			base::read(_reader, &height, sizeof(height), _err);
+			base::read(_reader, &hasMips, sizeof(hasMips), _err);
+			base::read(_reader, &format, sizeof(format), _err);
+			base::read(_reader, &flags, sizeof(flags), _err);
 
 			U32 size;
-			bx::read(_reader, &size, sizeof(size), _err);
-			mem = bgfx::alloc(size);//bgfx::makeRef(bx::alloc(mrender::getAllocator(), size), size);
-			bx::read(_reader, mem->data, size, _err);
+			base::read(_reader, &size, sizeof(size), _err);
+			mem = graphics::alloc(size);//graphics::makeRef(base::alloc(graphics::getAllocator(), size), size);
+			base::read(_reader, mem->data, size, _err);
 		};
 
 		U16 width;
 		U16 height;
 		bool hasMips;
-		bgfx::TextureFormat::Enum format;
+		graphics::TextureFormat::Enum format;
 		U64 flags;
-		const bgfx::Memory* mem;
+		const graphics::Memory* mem;
 	};
 
 	struct MaterialResource : ResourceI
@@ -170,8 +170,8 @@ namespace mengine
 		{
 			U32 size = 0;
 			
-			size += (U32)sizeof(U32) + (U32)bx::strLen(vertPath) + 1;
-			size += (U32)sizeof(U32) + (U32)bx::strLen(fragPath) + 1;
+			size += (U32)sizeof(U32) + (U32)base::strLen(vertPath) + 1;
+			size += (U32)sizeof(U32) + (U32)base::strLen(fragPath) + 1;
 
 			size += (U32)sizeof(U32);
 
@@ -189,66 +189,65 @@ namespace mengine
 			return size;
 		}
 
-		void write(bx::WriterI* _writer, bx::Error* _err) override
+		void write(base::WriterI* _writer, base::Error* _err) override
 		{
-			U32 vertPathSize = static_cast<U32>(bx::strLen(vertPath)) + 1;
-			U32 fragPathSize = static_cast<U32>(bx::strLen(fragPath)) + 1;
+			U32 vertPathSize = static_cast<U32>(base::strLen(vertPath)) + 1;
+			U32 fragPathSize = static_cast<U32>(base::strLen(fragPath)) + 1;
 
-			bx::write(_writer, &vertPathSize, sizeof(vertPathSize), _err);
-			bx::write(_writer, vertPath, vertPathSize, _err);
+			base::write(_writer, &vertPathSize, sizeof(vertPathSize), _err);
+			base::write(_writer, vertPath, vertPathSize, _err);
 
-			bx::write(_writer, &fragPathSize, sizeof(fragPathSize), _err);
-			bx::write(_writer, fragPath, fragPathSize, _err);
+			base::write(_writer, &fragPathSize, sizeof(fragPathSize), _err);
+			base::write(_writer, fragPath, fragPathSize, _err);
 
 			////
 			U32 numParameter = (U32)parameters.parameterHashMap.getNumElements();
-			bx::write(_writer, &numParameter, sizeof(numParameter), _err);
+			base::write(_writer, &numParameter, sizeof(numParameter), _err);
 
 			for (U32 i = 0; i < numParameter; i++)
 			{
 				U32 hash = parameters.parameterHashMap.findByHandle(i);
-				bx::write(_writer, &hash, sizeof(hash), _err);
+				base::write(_writer, &hash, sizeof(hash), _err);
 
 				const MaterialParameters::UniformData& uniformData = parameters.parameters[i];
-				bx::write(_writer, &uniformData.type, sizeof(uniformData.type), _err);
-				bx::write(_writer, &uniformData.num, sizeof(uniformData.num), _err);
-				bx::write(_writer, &uniformData.data->size, sizeof(uniformData.data->size), _err);
-				bx::write(_writer, uniformData.data->data, uniformData.data->size, _err);
+				base::write(_writer, &uniformData.type, sizeof(uniformData.type), _err);
+				base::write(_writer, &uniformData.num, sizeof(uniformData.num), _err);
+				base::write(_writer, &uniformData.data->size, sizeof(uniformData.data->size), _err);
+				base::write(_writer, uniformData.data->data, uniformData.data->size, _err);
 			}
 		}
 
-		void read(bx::ReaderSeekerI* _reader, bx::Error* _err) override
+		void read(base::ReaderSeekerI* _reader, base::Error* _err) override
 		{
-			U32 vertPathSize, fragPathSize;
+			U32 vertPathSize; 
+			base::read(_reader, &vertPathSize, sizeof(vertPathSize), _err);
+			base::read(_reader, vertPath, vertPathSize, _err);
+			vertPath[base::kMaxFilePath] = '\0';
 
-			bx::read(_reader, &vertPathSize, sizeof(vertPathSize), _err);
-			bx::read(_reader, vertPath, vertPathSize, _err);
-
-			bx::read(_reader, &fragPathSize, sizeof(fragPathSize), _err);
-			bx::read(_reader, fragPath, fragPathSize, _err);
-
-			vertPath[bx::kMaxFilePath] = '\0';
-			fragPath[bx::kMaxFilePath] = '\0';
+			U32 fragPathSize;
+			base::read(_reader, &fragPathSize, sizeof(fragPathSize), _err);
+			base::read(_reader, fragPath, fragPathSize, _err);
+			fragPath[base::kMaxFilePath] = '\0';
 
 			////
 			U32 numParameter;
-			bx::read(_reader, &numParameter, sizeof(numParameter), _err);
+			base::read(_reader, &numParameter, sizeof(numParameter), _err);
 
 			// Iterate through the entries and read each one
 			for (U32 i = 0; i < numParameter; ++i)
 			{
 				// Read the hash
 				U32 hash;
-				bx::read(_reader, &hash, sizeof(hash), _err);
+				base::read(_reader, &hash, sizeof(hash), _err);
 
 				// Read the UniformData structure
 				MaterialParameters::UniformData uniformData;
-				bx::read(_reader, &uniformData.type, sizeof(uniformData.type), _err);
-				bx::read(_reader, &uniformData.num, sizeof(uniformData.num), _err);
+				base::read(_reader, &uniformData.type, sizeof(uniformData.type), _err);
+				base::read(_reader, &uniformData.num, sizeof(uniformData.num), _err);
 				U32 size;
-				bx::read(_reader, &size, sizeof(size), _err);
-				uniformData.data = bgfx::alloc(size);//bgfx::makeRef(bx::alloc(mrender::getAllocator(), size), size);
-				bx::read(_reader, uniformData.data->data, size, _err);
+				base::read(_reader, &size, sizeof(size), _err);
+				uniformData.data = graphics::alloc(size);//graphics::makeRef(base::alloc(graphics::getAllocator(), size), size);
+				base::read(_reader, uniformData.data->data, size, _err);
 
 				// Insert the entry into the map
 				parameters.parameterHashMap.insert(hash, i);
@@ -256,8 +255,8 @@ namespace mengine
 			}
 		}
 
-		char vertPath[bx::kMaxFilePath + 1];
-		char fragPath[bx::kMaxFilePath + 1];
+		char vertPath[base::kMaxFilePath + 1];
+		char fragPath[base::kMaxFilePath + 1];
 		MaterialParameters parameters;
 	};
 
@@ -266,55 +265,50 @@ namespace mengine
 		U32 getSize() override
 		{
 			U32 size = 0;
-			size += (U32)sizeof(U32) + (U32)bx::strLen(materialPath) + 1;
-
-			size += (U32)sizeof(U32);
-			for (U32 i = 0; i < numGeometries; i++)
-			{
-				size += (U32)sizeof(U32) + (U32)bx::strLen(geometryPaths[i]) + 1;
-			}
+			size += (U32)sizeof(U32) + (U32)base::strLen(materialPath) + 1;
+			size += (U32)sizeof(U32) + (U32)base::strLen(geometryPath) + 1;
+			size += (U32)sizeof(F32) * 16;
 
 			return size;
 		}
 
-		void write(bx::WriterI* _writer, bx::Error* _err) override
+		void write(base::WriterI* _writer, base::Error* _err) override
 		{
-			U32 materialPathSize = static_cast<U32>(bx::strLen(materialPath)) + 1;
-			bx::write(_writer, &materialPathSize, sizeof(materialPathSize), _err);
-			bx::write(_writer, materialPath, materialPathSize, _err);
+			U32 materialPathSize = static_cast<U32>(base::strLen(materialPath)) + 1;
+			base::write(_writer, &materialPathSize, sizeof(materialPathSize), _err);
+			base::write(_writer, materialPath, materialPathSize, _err);
+			
+			U32 geometryPathSize = static_cast<U32>(base::strLen(geometryPath)) + 1;
+			base::write(_writer, &geometryPathSize, sizeof(geometryPathSize), _err);
+			base::write(_writer, geometryPath, geometryPathSize, _err);
 
-			bx::write(_writer, &numGeometries, sizeof(numGeometries), _err);
-			for (U32 i = 0; i < numGeometries; i++)
+			for (U32 i = 0; i < 16; i++)
 			{
-				U32 geometryPathSize = static_cast<U32>(bx::strLen(geometryPaths[i])) + 1;
-				bx::write(_writer, &geometryPathSize, sizeof(geometryPathSize), _err);
-				bx::write(_writer, geometryPaths[i], geometryPathSize, _err);
+				base::write(_writer, &m_transform[i], sizeof(F32), _err);
 			}
 		}
 
-		void read(bx::ReaderSeekerI* _reader, bx::Error* _err) override
+		void read(base::ReaderSeekerI* _reader, base::Error* _err) override
 		{
 			U32 materialPathSize;
-			bx::read(_reader, &materialPathSize, sizeof(materialPathSize), _err);
-			bx::read(_reader, materialPath, materialPathSize, _err);
-			materialPath[bx::kMaxFilePath] = '\0';
+			base::read(_reader, &materialPathSize, sizeof(materialPathSize), _err);
+			base::read(_reader, materialPath, materialPathSize, _err);
+			materialPath[base::kMaxFilePath] = '\0';
 
-			bx::read(_reader, &numGeometries, sizeof(numGeometries), _err);
-			for (U32 i = 0; i < numGeometries; i++)
+			U32 geometryPathSize;
+			base::read(_reader, &geometryPathSize, sizeof(geometryPathSize), _err);
+			base::read(_reader, geometryPath, geometryPathSize, _err);
+			geometryPath[base::kMaxFilePath] = '\0';
+
+			for (U32 i = 0; i < 16; i++)
 			{
-				U32 geometryPathSize;
-				bx::read(_reader, &geometryPathSize, sizeof(geometryPathSize), _err);
-				bx::read(_reader, geometryPaths[i], geometryPathSize, _err);
-				geometryPaths[i][bx::kMaxFilePath] = '\0';
+				base::read(_reader, &m_transform[i], sizeof(F32), _err);
 			}
 		}
 
-		char materialPath[bx::kMaxFilePath + 1];
-
-		U16 numGeometries;
-		char geometryPaths[MENGINE_CONFIG_MAX_GEOMETRIES_PER_MESH][bx::kMaxFilePath + 1];
-
-		F32 m_transforms[MENGINE_CONFIG_MAX_GEOMETRIES_PER_MESH][16];
+		char materialPath[base::kMaxFilePath + 1];
+		char geometryPath[base::kMaxFilePath + 1];
+		F32 m_transform[16];
 	};
 
 	struct PakEntryRef
@@ -326,7 +320,7 @@ namespace mengine
 	struct ResourceRef
 	{
 		ResourceI* resource;
-		bx::FilePath vfp;
+		base::FilePath vfp;
 		U16 m_refCount;
 	};
 
@@ -354,8 +348,8 @@ namespace mengine
 
 	struct GeometryRef
 	{
-		bgfx::VertexBufferHandle m_vbh;
-		bgfx::IndexBufferHandle m_ibh;
+		graphics::VertexBufferHandle m_vbh;
+		graphics::IndexBufferHandle m_ibh;
 
 		U32 m_hash;
 		U16 m_refCount;
@@ -363,7 +357,7 @@ namespace mengine
 
 	struct ShaderRef
 	{
-		bgfx::ShaderHandle m_sh;
+		graphics::ShaderHandle m_sh;
 
 		U32 m_hash;
 		U16 m_refCount;
@@ -371,7 +365,7 @@ namespace mengine
 
 	struct TextureRef
 	{
-		bgfx::TextureHandle m_th;
+		graphics::TextureHandle m_th;
 
 		U32 m_hash;
 		U16 m_refCount;
@@ -379,11 +373,11 @@ namespace mengine
 
 	struct MaterialRef
 	{
-		bgfx::ProgramHandle m_ph;
+		graphics::ProgramHandle m_ph;
 		ShaderHandle m_vsh;
 		ShaderHandle m_fsh;
 		U16 m_numTextures;
-		TextureHandle m_textures[MENGINE_CONFIG_MAX_UNIFORMS_PER_SHADER];
+		TextureHandle m_textures[MARA_CONFIG_MAX_UNIFORMS_PER_SHADER];
 		
 		U32 m_hash;
 		U16 m_refCount;
@@ -392,23 +386,23 @@ namespace mengine
 	struct MeshRef
 	{
 		MaterialHandle m_material;
-		U16 m_numGeometries;
-		GeometryHandle m_geometries[MENGINE_CONFIG_MAX_GEOMETRIES_PER_MESH];
+		F32 m_transform[16];
+		GeometryHandle m_geometry;
 
 		U32 m_hash;
 		U16 m_refCount;
 	};
 
-#if MENGINE_CONFIG_DEBUG
-#	define MENGINE_API_FUNC(_func) BX_NO_INLINE _func
+#if MARA_CONFIG_DEBUG
+#	define MARA_API_FUNC(_func) BASE_NO_INLINE _func
 #else
-#	define MENGINE_API_FUNC(_func) _func
-#endif // BGFX_CONFIG_DEBUG
+#	define MARA_API_FUNC(_func) _func
+#endif // GRAPHICS_CONFIG_DEBUG
 
 	struct Context
 	{
 		Context()
-			: m_stats(mengine::Stats())
+			: m_stats(mara::Stats())
 		{
 		}
 
@@ -420,7 +414,7 @@ namespace mengine
 		void shutdown();
 		bool update(U32 _debug, U32 _reset);
 
-		MENGINE_API_FUNC(bool createPak(const bx::FilePath& _filePath))
+		MARA_API_FUNC(bool createPak(const base::FilePath& _filePath))
 		{
 			// LAYOUT:                  // Example:
 			// 
@@ -439,40 +433,40 @@ namespace mengine
 			// 
 
 			// Clear directory
-			bx::removeAll(_filePath);
-			bx::makeAll(_filePath.getPath());
+			base::removeAll(_filePath);
+			base::makeAll(_filePath.getPath());
 
 			// Get File Writer
-			bx::FileWriter writer;
+			base::FileWriter writer;
 
 			// Open file.
-			if (!bx::open(&writer, _filePath, bx::ErrorAssert{}))
+			if (!base::open(&writer, _filePath, base::ErrorAssert{}))
 			{
-				BX_TRACE("Failed to write pack at path %s.", _filePath.getCPtr());
+				BASE_TRACE("Failed to write pack at path %s.", _filePath.getCPtr());
 				return false;
 			}
 
 			// Write Entries
 			U32 numEntries = m_resourceHashMap.getNumElements();
-			bx::write(&writer, &numEntries, sizeof(U32), bx::ErrorAssert{});
+			base::write(&writer, &numEntries, sizeof(U32), base::ErrorAssert{});
 			//			  numEntries             hashes                      entries
 			U32 offset = sizeof(U32) + (numEntries * sizeof(U32)) + (numEntries * sizeof(PakEntryRef));
 			for (U32 i = 0; i < numEntries; i++)
 			{
 				// Write entry hash
 				ResourceRef& resource = m_resources[i];
-				U32 entryHash = bx::hash<bx::HashMurmur2A>(resource.vfp.getCPtr());
-				bx::write(&writer, &entryHash, sizeof(U32), bx::ErrorAssert{});
+				U32 entryHash = base::hash<base::HashMurmur2A>(resource.vfp.getCPtr());
+				base::write(&writer, &entryHash, sizeof(U32), base::ErrorAssert{});
 
 				// Create entry 
 				PakEntryRef pak;
-				U32 pakHash = bx::hash<bx::HashMurmur2A>(_filePath.getCPtr());
+				U32 pakHash = base::hash<base::HashMurmur2A>(_filePath.getCPtr());
 				pak.pakHash = pakHash;
 				pak.offset = offset;
 				offset += resource.resource->getSize();
 
 				// Write entry 
-				bx::write(&writer, &pak, sizeof(PakEntryRef), bx::ErrorAssert{});
+				base::write(&writer, &pak, sizeof(PakEntryRef), base::ErrorAssert{});
 			}
 
 			// Write Data
@@ -480,72 +474,72 @@ namespace mengine
 			{
 				// Write resource data
 				ResourceRef& resource = m_resources[i];
-				resource.resource->write(&writer, bx::ErrorAssert{});
+				resource.resource->write(&writer, base::ErrorAssert{});
 			}
 
 			return true;
 		}
 
-		MENGINE_API_FUNC(bool loadPak(const bx::FilePath& _filePath))
+		MARA_API_FUNC(bool loadPak(const base::FilePath& _filePath))
 		{
 			// Get File Reader.
-			U32 hash = bx::hash<bx::HashMurmur2A>(_filePath.getCPtr());
+			U32 hash = base::hash<base::HashMurmur2A>(_filePath.getCPtr());
 			U16 fileReaderHandle = m_pakHashMap.find(hash);
 			if (fileReaderHandle != kInvalidHandle)
 			{
-				BX_TRACE("Already loaded this pack.")
+				BASE_TRACE("Already loaded this pack.")
 				return false;
 			}
 			fileReaderHandle = m_pakHandle.alloc();
 			m_pakHashMap.insert(hash, fileReaderHandle);
 			
-			bx::FileReader* pr = &m_paks[fileReaderHandle];
+			base::FileReader* pr = &m_paks[fileReaderHandle];
 
 			// Open file (This file will stay open until unloadPack() is called).
-			if (!bx::open(pr, _filePath, bx::ErrorAssert{}))
+			if (!base::open(pr, _filePath, base::ErrorAssert{}))
 			{
-				BX_TRACE("Failed to open pack at path %s.", _filePath.getCPtr());
+				BASE_TRACE("Failed to open pack at path %s.", _filePath.getCPtr());
 				return false;
 			}
 
 			// Read Entries
 			U32 numEntries;
-			bx::read(pr, &numEntries, sizeof(U32), bx::ErrorAssert{});
+			base::read(pr, &numEntries, sizeof(U32), base::ErrorAssert{});
 			for (U32 i = 0; i < numEntries; i++)
 			{
 				// Read entry hash
 				U32 hash;
-				bx::read(pr, &hash, sizeof(U32), bx::ErrorAssert{});
+				base::read(pr, &hash, sizeof(U32), base::ErrorAssert{});
 
 				// Read and create entry handle
 				U16 entryHandle = m_pakEntryHandle.alloc();
 				bool ok = m_pakEntryHashMap.insert(hash, entryHandle);
-				BX_ASSERT(ok, " pack already loaded.")
-				bx::read(pr, &m_pakEntries[entryHandle], sizeof(PakEntryRef), bx::ErrorAssert{});
+				BASE_ASSERT(ok, " pack already loaded.")
+				base::read(pr, &m_pakEntries[entryHandle], sizeof(PakEntryRef), base::ErrorAssert{});
 			}
 			
 			return true;
 		}
 
-		MENGINE_API_FUNC(bool unloadPak(const bx::FilePath& _filePath))
+		MARA_API_FUNC(bool unloadPak(const base::FilePath& _filePath))
 		{
 			// Get File Reader.
-			U32 hash = bx::hash<bx::HashMurmur2A>(_filePath.getCPtr());
+			U32 hash = base::hash<base::HashMurmur2A>(_filePath.getCPtr());
 			U16 fileReaderHandle = m_pakHashMap.find(hash);
-			bx::FileReader& pr = m_paks[fileReaderHandle];
+			base::FileReader& pr = m_paks[fileReaderHandle];
 
 			// Make sure we read from beginning since resources could've already been loaded 
 			// and we would be in a different position.
-			bx::seek(&pr, 0, bx::Whence::Begin);
+			base::seek(&pr, 0, base::Whence::Begin);
 
 			// Read Entries
 			U32 numEntries;
-			bx::read(&pr, &numEntries, sizeof(U32), bx::ErrorAssert{});
+			base::read(&pr, &numEntries, sizeof(U32), base::ErrorAssert{});
 			for (U32 i = 0; i < numEntries; i++)
 			{
 				// Read entry hash
 				U32 hash;
-				bx::read(&pr, &hash, sizeof(U32), bx::ErrorAssert{});
+				base::read(&pr, &hash, sizeof(U32), base::ErrorAssert{});
 
 				// Find resource at hash if we have it loaded 
 				U16 handle = m_resourceHashMap.find(hash);
@@ -562,11 +556,11 @@ namespace mengine
 				m_pakEntryHandle.free(entryHandle);
 
 				// Jump over the entry data as we dont need that when unloading.
-				bx::seek(&pr, sizeof(PakEntryRef), bx::Whence::Current);
+				base::seek(&pr, sizeof(PakEntryRef), base::Whence::Current);
 			}
 
 			// Finally close the  pack file since its no longer in use.
-			bx::close(&pr);
+			base::close(&pr);
 
 			// Remove reader from map
 			m_pakHashMap.removeByHandle(fileReaderHandle);
@@ -588,8 +582,8 @@ namespace mengine
 
 			if (0 == refs)
 			{
-				bool ok = m_freeResources.queue(_handle); BX_UNUSED(ok);
-				BX_ASSERT(ok, "Resource handle %d is already destroyed!", _handle.idx);
+				bool ok = m_freeResources.queue(_handle); BASE_UNUSED(ok);
+				BASE_ASSERT(ok, "Resource handle %d is already destroyed!", _handle.idx);
 
 				delete sr.resource;
 
@@ -614,9 +608,9 @@ namespace mengine
 			}
 		}
 
-		MENGINE_API_FUNC(ResourceHandle createResource(const bx::FilePath& _vfp))
+		MARA_API_FUNC(ResourceHandle createResource(const base::FilePath& _vfp))
 		{
-			U32 hash = bx::hash<bx::HashMurmur2A>(_vfp.getCPtr());
+			U32 hash = base::hash<base::HashMurmur2A>(_vfp.getCPtr());
 
 			ResourceHandle handle;
 			if (resourceFindOrCreate(hash, handle))
@@ -625,7 +619,7 @@ namespace mengine
 			}
 
 			bool ok = m_resourceHashMap.insert(hash, handle.idx);
-			BX_ASSERT(ok, "Resource already exists!"); BX_UNUSED(ok);
+			BASE_ASSERT(ok, "Resource already exists!"); BASE_UNUSED(ok);
 
 			ResourceRef& rr = m_resources[handle.idx];
 			rr.m_refCount = 1;
@@ -633,13 +627,13 @@ namespace mengine
 			return handle;
 		}
 
-		MENGINE_API_FUNC(void destroyResource(ResourceHandle _handle))
+		MARA_API_FUNC(void destroyResource(ResourceHandle _handle))
 		{
-			MENGINE_MUTEX_SCOPE(m_resourceApiLock);
+			MARA_MUTEX_SCOPE(m_resourceApiLock);
 
 			if (!isValid(_handle) && !m_resourceHandle.isValid(_handle.idx))
 			{
-				BX_WARN(false, "Passing invalid resource handle to mengine::destroyResource.");
+				BASE_WARN(false, "Passing invalid resource handle to mara::destroyResource.");
 				return;
 			}
 
@@ -659,8 +653,8 @@ namespace mengine
 
 			if (0 == refs)
 			{
-				bool ok = m_freeComponents.queue(_handle); BX_UNUSED(ok);
-				BX_ASSERT(ok, "Component handle %d is already destroyed!", _handle.idx);
+				bool ok = m_freeComponents.queue(_handle); BASE_UNUSED(ok);
+				BASE_ASSERT(ok, "Component handle %d is already destroyed!", _handle.idx);
 
 				// @todo We are using delete because we are using virtual destructors. Can we do this manually?
 				delete sr.m_data; 
@@ -668,7 +662,7 @@ namespace mengine
 			}
 		}
 
-		MENGINE_API_FUNC(ComponentHandle createComponent(ComponentI* _data))
+		MARA_API_FUNC(ComponentHandle createComponent(ComponentI* _data))
 		{
 			ComponentHandle handle = { m_componentHandle.alloc() };
 
@@ -682,27 +676,27 @@ namespace mengine
 				return handle;
 			}
 
-			BX_TRACE("Failed to create component handle.");
-			return MENGINE_INVALID_HANDLE;
+			BASE_TRACE("Failed to create component handle.");
+			return MARA_INVALID_HANDLE;
 		}
 
-		MENGINE_API_FUNC(void destroyComponent(ComponentHandle _handle))
+		MARA_API_FUNC(void destroyComponent(ComponentHandle _handle))
 		{
-			MENGINE_MUTEX_SCOPE(m_resourceApiLock);
+			MARA_MUTEX_SCOPE(m_resourceApiLock);
 
 			if (!isValid(_handle) && !m_componentHandle.isValid(_handle.idx))
 			{
-				BX_WARN(false, "Passing invalid component handle to mengine::destroyComponent.");
+				BASE_WARN(false, "Passing invalid component handle to mara::destroyComponent.");
 				return;
 			}
 
 			componentDecRef(_handle);
 		}
 
-		MENGINE_API_FUNC(void addComponent(EntityHandle _entity, U32 _type, ComponentHandle _component))
+		MARA_API_FUNC(void addComponent(EntityHandle _entity, U32 _type, ComponentHandle _component))
 		{
 			bool ok = m_componentHashMap[_type].insert(_entity.idx, _component.idx);
-			BX_ASSERT(ok, "Entities cannot have duplicated components!", _entity.idx);
+			BASE_ASSERT(ok, "Entities cannot have duplicated components!", _entity.idx);
 
 			m_entityHashMap[_type].insert(m_entityHashMap[_type].getNumElements(), _entity.idx);
 
@@ -716,7 +710,7 @@ namespace mengine
 			return idx != kInvalidHandle;
 		}
 
-		MENGINE_API_FUNC(void* getComponentData(EntityHandle _handle, U32 _type))
+		MARA_API_FUNC(void* getComponentData(EntityHandle _handle, U32 _type))
 		{
 			const U16 idx = m_componentHashMap[_type].find(_handle.idx);
 			if (idx != kInvalidHandle)
@@ -727,19 +721,19 @@ namespace mengine
 					return data;
 				}
 
-				BX_ASSERT(true, "Component data is NULL but entity contains component type")
+				BASE_ASSERT(true, "Component data is NULL but entity contains component type")
 				return NULL;
 			}
 
-			BX_ASSERT(true, "Component handle is invalid")
+			BASE_ASSERT(true, "Component handle is invalid")
 			return NULL;
 		}
 
-		MENGINE_API_FUNC(EntityQuery* queryEntities(U32 _types))
+		MARA_API_FUNC(EntityQuery* queryEntities(U32 _types))
 		{
 			// @todo What if- instead of allocating an entity query here, we have a global entity query we change instead. 
 			// Then we can allocate and deallocate that ourself without leaving that respnsibility to the user.
-			EntityQuery* query = (EntityQuery*)bx::alloc(mrender::getAllocator(), sizeof(EntityQuery));
+			EntityQuery* query = (EntityQuery*)base::alloc(entry::getAllocator(), sizeof(EntityQuery));
 			query->m_count = 0;
 
 			for (U32 i = 0; i < 32; ++i)
@@ -777,14 +771,14 @@ namespace mengine
 
 			if (0 == refs)
 			{
-				bool ok = m_freeEntities.queue(_handle); BX_UNUSED(ok);
-				BX_ASSERT(ok, "Entity handle %d is already destroyed!", _handle.idx);
+				bool ok = m_freeEntities.queue(_handle); BASE_UNUSED(ok);
+				BASE_ASSERT(ok, "Entity handle %d is already destroyed!", _handle.idx);
 
 				sr.m_mask = 0;
 			}
 		}
 
-		MENGINE_API_FUNC(EntityHandle createEntity())
+		MARA_API_FUNC(EntityHandle createEntity())
 		{
 			EntityHandle handle = { m_entityHandle.alloc() };
 
@@ -796,17 +790,17 @@ namespace mengine
 				return handle;
 			}
 
-			BX_TRACE("Failed to create entity handle.");
-			return MENGINE_INVALID_HANDLE;
+			BASE_TRACE("Failed to create entity handle.");
+			return MARA_INVALID_HANDLE;
 		}
 
-		MENGINE_API_FUNC(void destroyEntity(EntityHandle _handle))
+		MARA_API_FUNC(void destroyEntity(EntityHandle _handle))
 		{
-			MENGINE_MUTEX_SCOPE(m_resourceApiLock);
+			MARA_MUTEX_SCOPE(m_resourceApiLock);
 
 			if (!isValid(_handle))
 			{
-				BX_WARN(false, "Passing invalid entity handle to mengine::destroyEntity.");
+				BASE_WARN(false, "Passing invalid entity handle to mara::destroyEntity.");
 				return;
 			}
 
@@ -845,11 +839,11 @@ namespace mengine
 
 			if (0 == refs)
 			{
-				bool ok = m_freeGeometries.queue(_handle); BX_UNUSED(ok);
-				BX_ASSERT(ok, "Geometry  handle %d is already destroyed!", _handle.idx);
+				bool ok = m_freeGeometries.queue(_handle); BASE_UNUSED(ok);
+				BASE_ASSERT(ok, "Geometry  handle %d is already destroyed!", _handle.idx);
 
-				bgfx::destroy(gr.m_vbh);
-				bgfx::destroy(gr.m_ibh);
+				graphics::destroy(gr.m_vbh);
+				graphics::destroy(gr.m_ibh);
 
 				m_geometryHashMap.removeByHandle(_handle.idx);
 			}
@@ -872,10 +866,10 @@ namespace mengine
 			}
 		}
 
-		MENGINE_API_FUNC(GeometryHandle createGeometry(ResourceHandle _resource))
+		MARA_API_FUNC(GeometryHandle createGeometry(ResourceHandle _resource))
 		{
 			ResourceRef& resource = m_resources[_resource.idx];
-			U32 hash = bx::hash<bx::HashMurmur2A>(resource.vfp.getCPtr());
+			U32 hash = base::hash<base::HashMurmur2A>(resource.vfp.getCPtr());
 
 			GeometryHandle handle;
 			if (geometryFindOrCreate(hash, handle))
@@ -884,42 +878,47 @@ namespace mengine
 			}
 
 			bool ok = m_geometryHashMap.insert(hash, handle.idx);
-			BX_ASSERT(ok, "Geometry  already exists!"); BX_UNUSED(ok);
+			BASE_ASSERT(ok, "Geometry  already exists!"); BASE_UNUSED(ok);
 
 			GeometryResource* geomResource = (GeometryResource*)resource.resource;
 			if (NULL == geomResource)
 			{
-				BX_TRACE("Resource handle is not a geometry resource.")
-				return MENGINE_INVALID_HANDLE;
+				BASE_TRACE("Resource handle is not a geometry resource.")
+				return MARA_INVALID_HANDLE;
 			}
 
 			GeometryRef& gr = m_geometries[handle.idx];
 			gr.m_refCount = 1;
 			gr.m_hash = hash;
 
-			gr.m_vbh = bgfx::createVertexBuffer(geomResource->vertexData, geomResource->layout);
-			gr.m_ibh = bgfx::createIndexBuffer(geomResource->indexData);
+			gr.m_vbh = graphics::createVertexBuffer(geomResource->vertexData, geomResource->layout);
+			gr.m_ibh = graphics::createIndexBuffer(geomResource->indexData);
 
 			return handle;
 		}
 
-		MENGINE_API_FUNC(ResourceHandle createGeometryResource(const GeometryCreate& _data, const bx::FilePath& _vfp))
+		MARA_API_FUNC(ResourceHandle createGeometryResource(const GeometryCreate& _data, const base::FilePath& _vfp))
 		{
 			ResourceHandle handle = createResource(_vfp);
 
 		    ResourceRef& rr = m_resources[handle.idx];
+			if (rr.m_refCount > 1)
+			{
+				return handle;
+			}
+
 			rr.resource = new GeometryResource(); 
 
-			((GeometryResource*)rr.resource)->vertexData = bgfx::copy(_data.vertices, _data.verticesSize);
-			((GeometryResource*)rr.resource)->indexData = bgfx::copy(_data.indices, _data.indicesSize);
+			((GeometryResource*)rr.resource)->vertexData = graphics::copy(_data.vertices, _data.verticesSize);
+			((GeometryResource*)rr.resource)->indexData = graphics::copy(_data.indices, _data.indicesSize);
 			((GeometryResource*)rr.resource)->layout = _data.layout;
 
 			return handle;
 		}
 
-		MENGINE_API_FUNC(ResourceHandle loadGeometryResource(const bx::FilePath& _filePath))
+		MARA_API_FUNC(ResourceHandle loadGeometryResource(const base::FilePath& _filePath))
 		{
-			U32 hash = bx::hash<bx::HashMurmur2A>(_filePath.getCPtr());
+			U32 hash = base::hash<base::HashMurmur2A>(_filePath.getCPtr());
 
 			ResourceHandle handle;
 			if (resourceFindOrCreate(hash, handle))
@@ -928,42 +927,42 @@ namespace mengine
 			}
 
 			// Check if resource is inside a loaded  pack
-			U16 entryHandle = m_pakEntryHashMap.find(bx::hash<bx::HashMurmur2A>(_filePath.getCPtr()));
+			U16 entryHandle = m_pakEntryHashMap.find(base::hash<base::HashMurmur2A>(_filePath.getCPtr()));
 			if (kInvalidHandle != entryHandle)
 			{
 				// Create resource
 				bool ok = m_resourceHashMap.insert(hash, handle.idx);
-				BX_ASSERT(ok, "Resource already exists!"); BX_UNUSED(ok);
+				BASE_ASSERT(ok, "Resource already exists!"); BASE_UNUSED(ok);
 
 				// Get pak file reader
 				PakEntryRef& per = m_pakEntries[entryHandle];
-				bx::FileReader* reader = &m_paks[m_pakHashMap.find(per.pakHash)];
+				base::FileReader* reader = &m_paks[m_pakHashMap.find(per.pakHash)];
 
 				// Seek to the offset of the entry using the entry file pointer.
-				bx::seek(reader, per.offset, bx::Whence::Begin);
+				base::seek(reader, per.offset, base::Whence::Begin);
 
 				// Read resource data at offset position.
 				ResourceRef& rr = m_resources[handle.idx];
 				rr.m_refCount = 1;
 				rr.vfp = _filePath;
 				rr.resource = new GeometryResource();
-				rr.resource->read(reader, bx::ErrorAssert{});
+				rr.resource->read(reader, base::ErrorAssert{});
 
 				// Return now loaded resource.
 				return handle;
 			}
 
-			BX_TRACE("@todo Add support for single file loading here...")
+			BASE_TRACE("@todo Add support for single file loading here...")
 			return handle;
 		}
 
-		MENGINE_API_FUNC(void destroyGeometry(GeometryHandle _handle))
+		MARA_API_FUNC(void destroyGeometry(GeometryHandle _handle))
 		{
-			MENGINE_MUTEX_SCOPE(m_resourceApiLock);
+			MARA_MUTEX_SCOPE(m_resourceApiLock);
 
 			if (!isValid(_handle) && !m_geometryHandle.isValid(_handle.idx))
 			{
-				BX_WARN(false, "Passing invalid geometry handle to mengine::destroyGeometry.");
+				BASE_WARN(false, "Passing invalid geometry handle to mara::destroyGeometry.");
 				return;
 			}
 
@@ -987,10 +986,10 @@ namespace mengine
 
 			if (0 == refs)
 			{
-				bool ok = m_freeShaders.queue(_handle); BX_UNUSED(ok);
-				BX_ASSERT(ok, "Shader  handle %d is already destroyed!", _handle.idx);
+				bool ok = m_freeShaders.queue(_handle); BASE_UNUSED(ok);
+				BASE_ASSERT(ok, "Shader  handle %d is already destroyed!", _handle.idx);
 
-				bgfx::destroy(sr.m_sh);
+				graphics::destroy(sr.m_sh);
 
 				m_shaderHashMap.removeByHandle(_handle.idx);
 			}
@@ -1013,10 +1012,10 @@ namespace mengine
 			}
 		}
 
-		MENGINE_API_FUNC(ShaderHandle createShader(ResourceHandle _resource))
+		MARA_API_FUNC(ShaderHandle createShader(ResourceHandle _resource))
 		{
 			ResourceRef& resource = m_resources[_resource.idx];
-			U32 hash = bx::hash<bx::HashMurmur2A>(resource.vfp.getCPtr());
+			U32 hash = base::hash<base::HashMurmur2A>(resource.vfp.getCPtr());
 
 			ShaderHandle handle;
 			if (shaderFindOrCreate(hash, handle))
@@ -1025,39 +1024,44 @@ namespace mengine
 			}
 
 			bool ok = m_shaderHashMap.insert(hash, handle.idx);
-			BX_ASSERT(ok, "Shader  already exists!"); BX_UNUSED(ok);
+			BASE_ASSERT(ok, "Shader  already exists!"); BASE_UNUSED(ok);
 
 			ShaderResource* shadResource = (ShaderResource*)resource.resource;
 			if (NULL == shadResource)
 			{
-				BX_TRACE("Resource handle is not a shader resource.")
-				return MENGINE_INVALID_HANDLE;
+				BASE_TRACE("Resource handle is not a shader resource.")
+				return MARA_INVALID_HANDLE;
 			}
 
 			ShaderRef& sr = m_shaders[handle.idx];
 			sr.m_refCount = 1;
 			sr.m_hash = hash;
 
-			sr.m_sh = bgfx::createShader(shadResource->codeData);
+			sr.m_sh = graphics::createShader(shadResource->codeData);
 
 			return handle;
 		}
 
-		MENGINE_API_FUNC(ResourceHandle createShaderResource(const ShaderCreate& _data, const bx::FilePath& _vfp))
+		MARA_API_FUNC(ResourceHandle createShaderResource(const ShaderCreate& _data, const base::FilePath& _vfp))
 		{
 			ResourceHandle handle = createResource(_vfp);
 
 			ResourceRef& rr = m_resources[handle.idx];
+			if (rr.m_refCount > 1)
+			{
+				return handle;
+			}
+
 			rr.resource = new ShaderResource();
 
-			((ShaderResource*)rr.resource)->codeData = bgfx::copy(_data.mem->data, _data.mem->size);
+			((ShaderResource*)rr.resource)->codeData = graphics::copy(_data.mem->data, _data.mem->size);
 
 			return handle;
 		}
 
-		MENGINE_API_FUNC(ResourceHandle loadShaderResource(const bx::FilePath& _filePath))
+		MARA_API_FUNC(ResourceHandle loadShaderResource(const base::FilePath& _filePath))
 		{
-			U32 hash = bx::hash<bx::HashMurmur2A>(_filePath.getCPtr());
+			U32 hash = base::hash<base::HashMurmur2A>(_filePath.getCPtr());
 
 			ResourceHandle handle;
 			if (resourceFindOrCreate(hash, handle))
@@ -1066,42 +1070,42 @@ namespace mengine
 			}
 
 			// Check if resource is inside a loaded  pack
-			U16 entryHandle = m_pakEntryHashMap.find(bx::hash<bx::HashMurmur2A>(_filePath.getCPtr()));
+			U16 entryHandle = m_pakEntryHashMap.find(base::hash<base::HashMurmur2A>(_filePath.getCPtr()));
 			if (kInvalidHandle != entryHandle)
 			{
 				// Create resource
 				bool ok = m_resourceHashMap.insert(hash, handle.idx);
-				BX_ASSERT(ok, "Resource already exists!"); BX_UNUSED(ok);
+				BASE_ASSERT(ok, "Resource already exists!"); BASE_UNUSED(ok);
 
 				// Get pak file reader
 				PakEntryRef& per = m_pakEntries[entryHandle];
-				bx::FileReader* reader = &m_paks[m_pakHashMap.find(per.pakHash)];
+				base::FileReader* reader = &m_paks[m_pakHashMap.find(per.pakHash)];
 
 				// Seek to the offset of the entry using the entry file pointer.
-				bx::seek(reader, per.offset, bx::Whence::Begin);
+				base::seek(reader, per.offset, base::Whence::Begin);
 
 				// Read resource data at offset position.
 				ResourceRef& rr = m_resources[handle.idx];
 				rr.m_refCount = 1;
 				rr.vfp = _filePath;
 				rr.resource = new ShaderResource();
-				rr.resource->read(reader, bx::ErrorAssert{});
+				rr.resource->read(reader, base::ErrorAssert{});
 
 				// Return now loaded resource.
 				return handle;
 			}
 
-			BX_TRACE("@todo Add support for single file loading here...")
+			BASE_TRACE("@todo Add support for single file loading here...")
 			return handle;
 		}
 
-		MENGINE_API_FUNC(void destroyShader(ShaderHandle _handle))
+		MARA_API_FUNC(void destroyShader(ShaderHandle _handle))
 		{
-			MENGINE_MUTEX_SCOPE(m_resourceApiLock);
+			MARA_MUTEX_SCOPE(m_resourceApiLock);
 
 			if (!isValid(_handle) && !m_shaderHandle.isValid(_handle.idx))
 			{
-				BX_WARN(false, "Passing invalid shader  handle to mengine::destroyShader.");
+				BASE_WARN(false, "Passing invalid shader  handle to mara::destroyShader.");
 				return;
 			}
 
@@ -1125,10 +1129,10 @@ namespace mengine
 
 			if (0 == refs)
 			{
-				bool ok = m_freeTextures.queue(_handle); BX_UNUSED(ok);
-				BX_ASSERT(ok, "Texture  handle %d is already destroyed!", _handle.idx);
+				bool ok = m_freeTextures.queue(_handle); BASE_UNUSED(ok);
+				BASE_ASSERT(ok, "Texture  handle %d is already destroyed!", _handle.idx);
 
-				bgfx::destroy(sr.m_th);
+				graphics::destroy(sr.m_th);
 
 				m_textureHashMap.removeByHandle(_handle.idx);
 			}
@@ -1151,10 +1155,10 @@ namespace mengine
 			}
 		}
 
-		MENGINE_API_FUNC(TextureHandle createTexture(ResourceHandle _resource))
+		MARA_API_FUNC(TextureHandle createTexture(ResourceHandle _resource))
 		{
 			ResourceRef& resource = m_resources[_resource.idx];
-			U32 hash = bx::hash<bx::HashMurmur2A>(resource.vfp.getCPtr());
+			U32 hash = base::hash<base::HashMurmur2A>(resource.vfp.getCPtr());
 
 			TextureHandle handle;
 			if (textureFindOrCreate(hash, handle))
@@ -1163,20 +1167,20 @@ namespace mengine
 			}
 			
 			bool ok = m_textureHashMap.insert(hash, handle.idx);
-			BX_ASSERT(ok, "Texture  already exists!"); BX_UNUSED(ok);
+			BASE_ASSERT(ok, "Texture  already exists!"); BASE_UNUSED(ok);
 
 			TextureResource* texResource = (TextureResource*)resource.resource;
 			if (NULL == texResource)
 			{
-				BX_TRACE("Resource handle is not a texture resource.")
-					return MENGINE_INVALID_HANDLE;
+				BASE_TRACE("Resource handle is not a texture resource.")
+					return MARA_INVALID_HANDLE;
 			}
 
 			TextureRef& sr = m_textures[handle.idx];
 			sr.m_refCount = 1;
 			sr.m_hash = hash;
 
-			sr.m_th = bgfx::createTexture2D(
+			sr.m_th = graphics::createTexture2D(
 				texResource->width,
 				texResource->height,
 				texResource->hasMips,
@@ -1189,11 +1193,16 @@ namespace mengine
 			return handle;
 		}
 
-		MENGINE_API_FUNC(ResourceHandle createTextureResource(const TextureCreate& _data, const bx::FilePath& _vfp))
+		MARA_API_FUNC(ResourceHandle createTextureResource(const TextureCreate& _data, const base::FilePath& _vfp))
 		{
 			ResourceHandle handle = createResource(_vfp);
 
 			ResourceRef& rr = m_resources[handle.idx];
+			if (rr.m_refCount > 1)
+			{
+				return handle;
+			}
+
 			rr.resource = new TextureResource();
 
 			((TextureResource*)rr.resource)->width = _data.width;
@@ -1201,14 +1210,14 @@ namespace mengine
 			((TextureResource*)rr.resource)->hasMips = _data.hasMips;
 			((TextureResource*)rr.resource)->format = _data.format;
 			((TextureResource*)rr.resource)->flags = _data.flags;
-			((TextureResource*)rr.resource)->mem = bgfx::copy(_data.mem, _data.memSize);
+			((TextureResource*)rr.resource)->mem = graphics::copy(_data.mem, _data.memSize);
 
 			return handle;
 		}
 
-		MENGINE_API_FUNC(ResourceHandle loadTextureResource(const bx::FilePath& _filePath))
+		MARA_API_FUNC(ResourceHandle loadTextureResource(const base::FilePath& _filePath))
 		{
-			U32 hash = bx::hash<bx::HashMurmur2A>(_filePath.getCPtr());
+			U32 hash = base::hash<base::HashMurmur2A>(_filePath.getCPtr());
 
 			ResourceHandle handle;
 			if (resourceFindOrCreate(hash, handle))
@@ -1217,42 +1226,42 @@ namespace mengine
 			}
 
 			// Check if resource is inside a loaded  pack
-			U16 entryHandle = m_pakEntryHashMap.find(bx::hash<bx::HashMurmur2A>(_filePath.getCPtr()));
+			U16 entryHandle = m_pakEntryHashMap.find(base::hash<base::HashMurmur2A>(_filePath.getCPtr()));
 			if (kInvalidHandle != entryHandle)
 			{
 				// Create resource
 				bool ok = m_resourceHashMap.insert(hash, handle.idx);
-				BX_ASSERT(ok, "Resource already exists!"); BX_UNUSED(ok);
+				BASE_ASSERT(ok, "Resource already exists!"); BASE_UNUSED(ok);
 
 				// Get pak file reader
 				PakEntryRef& per = m_pakEntries[entryHandle];
-				bx::FileReader* reader = &m_paks[m_pakHashMap.find(per.pakHash)];
+				base::FileReader* reader = &m_paks[m_pakHashMap.find(per.pakHash)];
 				
 				// Seek to the offset of the entry using the entry file pointer.
-				bx::seek(reader, per.offset, bx::Whence::Begin);
+				base::seek(reader, per.offset, base::Whence::Begin);
 
 				// Read resource data at offset position.
 				ResourceRef& rr = m_resources[handle.idx];
 				rr.m_refCount = 1;
 				rr.vfp = _filePath;
 				rr.resource = new TextureResource();
-				rr.resource->read(reader, bx::ErrorAssert{});
+				rr.resource->read(reader, base::ErrorAssert{});
 
 				// Return now loaded resource.
 				return handle;
 			}
 			
-			BX_TRACE("@todo Add support for single file loading here...")
+			BASE_TRACE("@todo Add support for single file loading here...")
 			return handle;
 		}
 
-		MENGINE_API_FUNC(void destroyTexture(TextureHandle _handle))
+		MARA_API_FUNC(void destroyTexture(TextureHandle _handle))
 		{
-			MENGINE_MUTEX_SCOPE(m_resourceApiLock);
+			MARA_MUTEX_SCOPE(m_resourceApiLock);
 
 			if (!isValid(_handle) && !m_textureHandle.isValid(_handle.idx))
 			{
-				BX_WARN(false, "Passing invalid texture  handle to mengine::destroyTexture.");
+				BASE_WARN(false, "Passing invalid texture  handle to mara::destroyTexture.");
 				return;
 			}
 
@@ -1276,20 +1285,20 @@ namespace mengine
 
 			if (0 == refs)
 			{
-				bool ok = m_freeMaterials.queue(_handle); BX_UNUSED(ok);
-				BX_ASSERT(ok, "Material  handle %d is already destroyed!", _handle.idx);
+				bool ok = m_freeMaterials.queue(_handle); BASE_UNUSED(ok);
+				BASE_ASSERT(ok, "Material  handle %d is already destroyed!", _handle.idx);
 
 				U16 resourceHandle = m_resourceHashMap.find(mr.m_hash);
 
 				MaterialResource* matResource = (MaterialResource*)m_resources[resourceHandle].resource;
 
-				bgfx::destroy(mr.m_ph);
+				graphics::destroy(mr.m_ph);
 				destroyShader(mr.m_vsh);
 				destroyShader(mr.m_fsh);
 				for (U32 i = 0; i < matResource->parameters.parameterHashMap.getNumElements(); i++)
 				{
 					MaterialParameters::UniformData& data = matResource->parameters.parameters[i];
-					if (data.type == bgfx::UniformType::Sampler)
+					if (data.type == graphics::UniformType::Sampler)
 					{
 						destroyTexture(mr.m_textures[i]);
 					}
@@ -1316,10 +1325,10 @@ namespace mengine
 			}
 		}
 
-		MENGINE_API_FUNC(MaterialHandle createMaterial(ResourceHandle _resource))
+		MARA_API_FUNC(MaterialHandle createMaterial(ResourceHandle _resource))
 		{
 			ResourceRef& resource = m_resources[_resource.idx];
-			U32 hash = bx::hash<bx::HashMurmur2A>(resource.vfp.getCPtr());
+			U32 hash = base::hash<base::HashMurmur2A>(resource.vfp.getCPtr());
 
 			MaterialHandle handle;
 			if (materialFindOrCreate(hash, handle))
@@ -1328,13 +1337,13 @@ namespace mengine
 			}
 
 			bool ok = m_materialHashMap.insert(hash, handle.idx);
-			BX_ASSERT(ok, "Material  already exists!"); BX_UNUSED(ok);
+			BASE_ASSERT(ok, "Material  already exists!"); BASE_UNUSED(ok);
 
 			MaterialResource* matResource = (MaterialResource*)resource.resource;
 			if (NULL == matResource)
 			{
-				BX_TRACE("Resource handle is not a material resource.")
-				return MENGINE_INVALID_HANDLE;
+				BASE_TRACE("Resource handle is not a material resource.")
+				return MARA_INVALID_HANDLE;
 			}
 
 			MaterialRef& sr = m_materials[handle.idx];
@@ -1343,11 +1352,11 @@ namespace mengine
 			
 			sr.m_vsh = createShader(loadShader(matResource->vertPath));
 			sr.m_fsh = createShader(loadShader(matResource->fragPath));
-			sr.m_ph = bgfx::createProgram(sr.m_vsh, sr.m_fsh);
+			sr.m_ph = graphics::createProgram(sr.m_vsh, sr.m_fsh);
 			for (U32 i = 0; i < matResource->parameters.parameterHashMap.getNumElements(); i++)
 			{
 				MaterialParameters::UniformData& data = matResource->parameters.parameters[i];
-				if (data.type == bgfx::UniformType::Sampler)
+				if (data.type == graphics::UniformType::Sampler)
 				{
 					const char* vfp = (const char*)data.data->data;
 					sr.m_textures[i] = createTexture(loadTexture(vfp));
@@ -1357,22 +1366,27 @@ namespace mengine
 			return handle;
 		}
 
-		MENGINE_API_FUNC(ResourceHandle createMaterialResource(const MaterialCreate& _data, const bx::FilePath& _vfp))
+		MARA_API_FUNC(ResourceHandle createMaterialResource(const MaterialCreate& _data, const base::FilePath& _vfp))
 		{
 			ResourceHandle handle = createResource(_vfp);
 
 			ResourceRef& rr = m_resources[handle.idx];
+			if (rr.m_refCount > 1)
+			{
+				return handle;
+			}
+
 			rr.resource = new MaterialResource();
 
-			bx::strCopy(((MaterialResource*)rr.resource)->vertPath, bx::kMaxFilePath, _data.vertShaderPath.getCPtr());
-			bx::strCopy(((MaterialResource*)rr.resource)->fragPath, bx::kMaxFilePath, _data.fragShaderPath.getCPtr());
+			base::strCopy(((MaterialResource*)rr.resource)->vertPath, base::kMaxFilePath, _data.vertShaderPath.getCPtr());
+			base::strCopy(((MaterialResource*)rr.resource)->fragPath, base::kMaxFilePath, _data.fragShaderPath.getCPtr());
 			((MaterialResource*)rr.resource)->parameters = _data.parameters;
 			return handle;
 		}
 
-		MENGINE_API_FUNC(ResourceHandle loadMaterialResource(const bx::FilePath& _filePath))
+		MARA_API_FUNC(ResourceHandle loadMaterialResource(const base::FilePath& _filePath))
 		{
-			U32 hash = bx::hash<bx::HashMurmur2A>(_filePath.getCPtr());
+			U32 hash = base::hash<base::HashMurmur2A>(_filePath.getCPtr());
 
 			ResourceHandle handle;
 			if (resourceFindOrCreate(hash, handle))
@@ -1381,42 +1395,42 @@ namespace mengine
 			}
 
 			// Check if resource is inside a loaded  pack
-			U16 entryHandle = m_pakEntryHashMap.find(bx::hash<bx::HashMurmur2A>(_filePath.getCPtr()));
+			U16 entryHandle = m_pakEntryHashMap.find(base::hash<base::HashMurmur2A>(_filePath.getCPtr()));
 			if (kInvalidHandle != entryHandle)
 			{
 				// Create resource
 				bool ok = m_resourceHashMap.insert(hash, handle.idx);
-				BX_ASSERT(ok, "Resource already exists!"); BX_UNUSED(ok);
+				BASE_ASSERT(ok, "Resource already exists!"); BASE_UNUSED(ok);
 
 				// Get pak file reader
 				PakEntryRef& per = m_pakEntries[entryHandle];
-				bx::FileReader* reader = &m_paks[m_pakHashMap.find(per.pakHash)];
+				base::FileReader* reader = &m_paks[m_pakHashMap.find(per.pakHash)];
 
 				// Seek to the offset of the entry using the entry file pointer.
-				bx::seek(reader, per.offset, bx::Whence::Begin);
+				base::seek(reader, per.offset, base::Whence::Begin);
 
 				// Read resource data at offset position.
 				ResourceRef& rr = m_resources[handle.idx];
 				rr.m_refCount = 1;
 				rr.vfp = _filePath;
 				rr.resource = new MaterialResource();
-				rr.resource->read(reader, bx::ErrorAssert{});
+				rr.resource->read(reader, base::ErrorAssert{});
 
 				// Return now loaded resource.
 				return handle;
 			}
 
-			BX_TRACE("@todo Add support for single file loading here...")
+			BASE_TRACE("@todo Add support for single file loading here...")
 			return handle;
 		}
 
-		MENGINE_API_FUNC(void destroyMaterial(MaterialHandle _handle))
+		MARA_API_FUNC(void destroyMaterial(MaterialHandle _handle))
 		{
-			MENGINE_MUTEX_SCOPE(m_resourceApiLock);
+			MARA_MUTEX_SCOPE(m_resourceApiLock);
 
 			if (!isValid(_handle) && !m_materialHandle.isValid(_handle.idx))
 			{
-				BX_WARN(false, "Passing invalid material  handle to mengine::destroyMaterial.");
+				BASE_WARN(false, "Passing invalid material  handle to mara::destroyMaterial.");
 				return;
 			}
 
@@ -1447,15 +1461,11 @@ namespace mengine
 
 			if (0 == refs)
 			{
-				bool ok = m_freeMeshes.queue(_handle); BX_UNUSED(ok);
-				BX_ASSERT(ok, "Mesh  handle %d is already destroyed!", _handle.idx);
+				bool ok = m_freeMeshes.queue(_handle); BASE_UNUSED(ok);
+				BASE_ASSERT(ok, "Mesh  handle %d is already destroyed!", _handle.idx);
 
 				destroyMaterial(mr.m_material);
-				for (U32 i = 0; i < mr.m_numGeometries; i++)
-				{
-					destroyGeometry(mr.m_geometries[i]);
-				}
-				mr.m_numGeometries = 0;
+				destroyGeometry(mr.m_geometry);
 
 				m_meshHashMap.removeByHandle(_handle.idx);
 			}
@@ -1478,10 +1488,10 @@ namespace mengine
 			}
 		}
 
-		MENGINE_API_FUNC(MeshHandle createMesh(ResourceHandle _resource))
+		MARA_API_FUNC(MeshHandle createMesh(ResourceHandle _resource))
 		{
 			ResourceRef& resource = m_resources[_resource.idx];
-			U32 hash = bx::hash<bx::HashMurmur2A>(resource.vfp.getCPtr());
+			U32 hash = base::hash<base::HashMurmur2A>(resource.vfp.getCPtr());
 
 			MeshHandle handle;
 			if (meshFindOrCreate(hash, handle))
@@ -1490,13 +1500,13 @@ namespace mengine
 			}
 
 			bool ok = m_meshHashMap.insert(hash, handle.idx);
-			BX_ASSERT(ok, "Mesh already exists!"); BX_UNUSED(ok);
+			BASE_ASSERT(ok, "Mesh already exists!"); BASE_UNUSED(ok);
 
 			MeshResource* meshResource = (MeshResource*)resource.resource;
 			if (NULL == meshResource)
 			{
-				BX_TRACE("Resource handle is not a mesh resource.")
-				return MENGINE_INVALID_HANDLE;
+				BASE_TRACE("Resource handle is not a mesh resource.")
+				return MARA_INVALID_HANDLE;
 			}
 
 			MeshRef& sr = m_meshes[handle.idx];
@@ -1504,40 +1514,54 @@ namespace mengine
 			sr.m_hash = hash;
 
 			sr.m_material = createMaterial(loadMaterial(meshResource->materialPath));
-			sr.m_numGeometries = meshResource->numGeometries;
-			for (U32 i = 0; i < meshResource->numGeometries; i++)
-			{
-				sr.m_geometries[i] = createGeometry(loadGeometry(meshResource->geometryPaths[i]));
-			}
+			sr.m_geometry = createGeometry(loadGeometry(meshResource->geometryPath));
+
+			sr.m_transform[0] = meshResource->m_transform[0];
+			sr.m_transform[1] = meshResource->m_transform[1];
+			sr.m_transform[2] = meshResource->m_transform[2];
+			sr.m_transform[3] = meshResource->m_transform[3];
+			sr.m_transform[4] = meshResource->m_transform[4];
+			sr.m_transform[5] = meshResource->m_transform[5];
+			sr.m_transform[6] = meshResource->m_transform[6];
+			sr.m_transform[7] = meshResource->m_transform[7];
+			sr.m_transform[8] = meshResource->m_transform[8];
+			sr.m_transform[9] = meshResource->m_transform[9];
+			sr.m_transform[10] = meshResource->m_transform[10];
+			sr.m_transform[11] = meshResource->m_transform[11];
+			sr.m_transform[12] = meshResource->m_transform[12];
+			sr.m_transform[13] = meshResource->m_transform[13];
+			sr.m_transform[14] = meshResource->m_transform[14];
+			sr.m_transform[15] = meshResource->m_transform[15];
 
 			return handle;
 		}
 
-		MENGINE_API_FUNC(ResourceHandle createMeshResource(const MeshCreate& _data, const bx::FilePath& _vfp))
+		MARA_API_FUNC(ResourceHandle createMeshResource(const MeshCreate& _data, const base::FilePath& _vfp))
 		{
 			ResourceHandle handle = createResource(_vfp);
 
 			ResourceRef& rr = m_resources[handle.idx];
+			if (rr.m_refCount > 1)
+			{
+				return handle;
+			}
+
 			rr.resource = new MeshResource();
 
-			bx::strCopy(((MeshResource*)rr.resource)->materialPath, bx::kMaxFilePath, _data.materialPath.getCPtr());
-			for (U32 i = 0; i < _data.numGeometries; i++)
-			{
-				bx::strCopy(((MeshResource*)rr.resource)->geometryPaths[i], bx::kMaxFilePath, _data.geometryPaths[i].getCPtr());
-				for (U32 j = 0; j < 16; j++)
-				{
-					((MeshResource*)rr.resource)->m_transforms[i][j] = _data.m_transforms[i][j];
-				}
-			}
-			((MeshResource*)rr.resource)->numGeometries = _data.numGeometries;
+			base::strCopy(((MeshResource*)rr.resource)->materialPath, base::kMaxFilePath, _data.materialPath.getCPtr());
+			base::strCopy(((MeshResource*)rr.resource)->geometryPath, base::kMaxFilePath, _data.geometryPath.getCPtr());
 
+			for (U32 i = 0; i < 16; i++)
+			{
+				((MeshResource*)rr.resource)->m_transform[i] = _data.m_transform[i];
+			}
 
 			return handle;
 		}
 
-		MENGINE_API_FUNC(ResourceHandle loadMeshResource(const bx::FilePath& _filePath))
+		MARA_API_FUNC(ResourceHandle loadMeshResource(const base::FilePath& _filePath))
 		{
-			U32 hash = bx::hash<bx::HashMurmur2A>(_filePath.getCPtr());
+			U32 hash = base::hash<base::HashMurmur2A>(_filePath.getCPtr());
 
 			ResourceHandle handle;
 			if (resourceFindOrCreate(hash, handle))
@@ -1546,42 +1570,42 @@ namespace mengine
 			}
 
 			// Check if resource is inside a loaded  pack
-			U16 entryHandle = m_pakEntryHashMap.find(bx::hash<bx::HashMurmur2A>(_filePath.getCPtr()));
+			U16 entryHandle = m_pakEntryHashMap.find(base::hash<base::HashMurmur2A>(_filePath.getCPtr()));
 			if (kInvalidHandle != entryHandle)
 			{
 				// Create resource
 				bool ok = m_resourceHashMap.insert(hash, handle.idx);
-				BX_ASSERT(ok, "Resource already exists!"); BX_UNUSED(ok);
+				BASE_ASSERT(ok, "Resource already exists!"); BASE_UNUSED(ok);
 
 				// Get pak file reader
 				PakEntryRef& per = m_pakEntries[entryHandle];
-				bx::FileReader* reader = &m_paks[m_pakHashMap.find(per.pakHash)];
+				base::FileReader* reader = &m_paks[m_pakHashMap.find(per.pakHash)];
 
 				// Seek to the offset of the entry using the entry file pointer.
-				bx::seek(reader, per.offset, bx::Whence::Begin);
+				base::seek(reader, per.offset, base::Whence::Begin);
 
 				// Read resource data at offset position.
 				ResourceRef& rr = m_resources[handle.idx];
 				rr.m_refCount = 1;
 				rr.vfp = _filePath;
 				rr.resource = new MeshResource();
-				rr.resource->read(reader, bx::ErrorAssert{});
+				rr.resource->read(reader, base::ErrorAssert{});
 
 				// Return now loaded resource.
 				return handle;
 			}
 
-			BX_TRACE("@todo Add support for single file loading here...")
+			BASE_TRACE("@todo Add support for single file loading here...")
 			return handle;
 		}
 
-		MENGINE_API_FUNC(void destroyMesh(MeshHandle _handle))
+		MARA_API_FUNC(void destroyMesh(MeshHandle _handle))
 		{
-			MENGINE_MUTEX_SCOPE(m_resourceApiLock);
+			MARA_MUTEX_SCOPE(m_resourceApiLock);
 
 			if (!isValid(_handle) && !m_meshHandle.isValid(_handle.idx))
 			{
-				BX_WARN(false, "Passing invalid mesh  handle to mengine::destroyMesh.");
+				BASE_WARN(false, "Passing invalid mesh  handle to mara::destroyMesh.");
 				return;
 			}
 
@@ -1593,12 +1617,33 @@ namespace mengine
 			destroyResource({ resourceHandle });
 		}
 
-		MENGINE_API_FUNC(const mrender::MouseState* getMouseState())
+		MARA_API_FUNC(void getMeshTransform(F32* _result, MeshHandle _handle))
+		{
+			MeshRef& mr = m_meshes[_handle.idx];
+			_result[0] = mr.m_transform[0];
+			_result[1] = mr.m_transform[1];
+			_result[2] = mr.m_transform[2];
+			_result[3] = mr.m_transform[3];
+			_result[4] = mr.m_transform[4];
+			_result[5] = mr.m_transform[5];
+			_result[6] = mr.m_transform[6];
+			_result[7] = mr.m_transform[7];
+			_result[8] = mr.m_transform[8];
+			_result[9] = mr.m_transform[9];
+			_result[10] = mr.m_transform[10];
+			_result[11] = mr.m_transform[11];
+			_result[12] = mr.m_transform[12];
+			_result[13] = mr.m_transform[13];
+			_result[14] = mr.m_transform[14];
+			_result[15] = mr.m_transform[15];
+		}
+
+		MARA_API_FUNC(const entry::MouseState* getMouseState())
 		{
 			return &m_mouseState;
 		}
 
-		MENGINE_API_FUNC(const Stats* getStats())
+		MARA_API_FUNC(const Stats* getStats())
 		{
 			Stats& stats = m_stats;
 
@@ -1652,45 +1697,45 @@ namespace mengine
 
 		Stats m_stats;
 		
-		bx::HandleAllocT<MENGINE_CONFIG_MAX_PAKS> m_pakHandle;
-		bx::HandleHashMapT<MENGINE_CONFIG_MAX_PAKS> m_pakHashMap;
-		bx::FileReader m_paks[MENGINE_CONFIG_MAX_PAKS];
+		base::HandleAllocT<MARA_CONFIG_MAX_PAKS> m_pakHandle;
+		base::HandleHashMapT<MARA_CONFIG_MAX_PAKS> m_pakHashMap;
+		base::FileReader m_paks[MARA_CONFIG_MAX_PAKS];
 
-		bx::HandleAllocT<MENGINE_CONFIG_MAX_PAK_ENTRIES> m_pakEntryHandle;
-		bx::HandleHashMapT<MENGINE_CONFIG_MAX_PAK_ENTRIES> m_pakEntryHashMap;
-		PakEntryRef m_pakEntries[MENGINE_CONFIG_MAX_PAK_ENTRIES];
+		base::HandleAllocT<MARA_CONFIG_MAX_PAK_ENTRIES> m_pakEntryHandle;
+		base::HandleHashMapT<MARA_CONFIG_MAX_PAK_ENTRIES> m_pakEntryHashMap;
+		PakEntryRef m_pakEntries[MARA_CONFIG_MAX_PAK_ENTRIES];
 
-		bx::HandleAllocT<MENGINE_CONFIG_MAX_RESOURCES> m_resourceHandle;
-		bx::HandleHashMapT<MENGINE_CONFIG_MAX_RESOURCES> m_resourceHashMap;
-		ResourceRef m_resources[MENGINE_CONFIG_MAX_RESOURCES];
+		base::HandleAllocT<MARA_CONFIG_MAX_RESOURCES> m_resourceHandle;
+		base::HandleHashMapT<MARA_CONFIG_MAX_RESOURCES> m_resourceHashMap;
+		ResourceRef m_resources[MARA_CONFIG_MAX_RESOURCES];
 
-		bx::HandleAllocT<MENGINE_CONFIG_MAX_COMPONENTS> m_componentHandle;
-		bx::HandleHashMapT<MENGINE_CONFIG_MAX_COMPONENTS_PER_TYPE> m_componentHashMap[32];
-		ComponentRef m_components[MENGINE_CONFIG_MAX_COMPONENTS];
+		base::HandleAllocT<MARA_CONFIG_MAX_COMPONENTS> m_componentHandle;
+		base::HandleHashMapT<MARA_CONFIG_MAX_COMPONENTS_PER_TYPE> m_componentHashMap[32];
+		ComponentRef m_components[MARA_CONFIG_MAX_COMPONENTS];
 
-		bx::HandleAllocT<MENGINE_CONFIG_MAX_ENTITIES> m_entityHandle;
-		bx::HandleHashMapT<MENGINE_CONFIG_MAX_COMPONENTS_PER_TYPE> m_entityHashMap[32];
-		EntityRef m_entities[MENGINE_CONFIG_MAX_ENTITIES];
+		base::HandleAllocT<MARA_CONFIG_MAX_ENTITIES> m_entityHandle;
+		base::HandleHashMapT<MARA_CONFIG_MAX_COMPONENTS_PER_TYPE> m_entityHashMap[32];
+		EntityRef m_entities[MARA_CONFIG_MAX_ENTITIES];
 
-		bx::HandleAllocT<MENGINE_CONFIG_MAX_GEOMETRIES> m_geometryHandle;
-		bx::HandleHashMapT<MENGINE_CONFIG_MAX_GEOMETRIES> m_geometryHashMap;
-		GeometryRef m_geometries[MENGINE_CONFIG_MAX_GEOMETRIES];
+		base::HandleAllocT<MARA_CONFIG_MAX_GEOMETRIES> m_geometryHandle;
+		base::HandleHashMapT<MARA_CONFIG_MAX_GEOMETRIES> m_geometryHashMap;
+		GeometryRef m_geometries[MARA_CONFIG_MAX_GEOMETRIES];
 
-		bx::HandleAllocT<MENGINE_CONFIG_MAX_SHADERS> m_shaderHandle;
-		bx::HandleHashMapT<MENGINE_CONFIG_MAX_SHADERS> m_shaderHashMap;
-		ShaderRef m_shaders[MENGINE_CONFIG_MAX_SHADERS];
+		base::HandleAllocT<MARA_CONFIG_MAX_SHADERS> m_shaderHandle;
+		base::HandleHashMapT<MARA_CONFIG_MAX_SHADERS> m_shaderHashMap;
+		ShaderRef m_shaders[MARA_CONFIG_MAX_SHADERS];
 
-		bx::HandleAllocT<MENGINE_CONFIG_MAX_TEXTURES> m_textureHandle;
-		bx::HandleHashMapT<MENGINE_CONFIG_MAX_TEXTURES> m_textureHashMap;
-		TextureRef m_textures[MENGINE_CONFIG_MAX_TEXTURES];
+		base::HandleAllocT<MARA_CONFIG_MAX_TEXTURES> m_textureHandle;
+		base::HandleHashMapT<MARA_CONFIG_MAX_TEXTURES> m_textureHashMap;
+		TextureRef m_textures[MARA_CONFIG_MAX_TEXTURES];
 
-		bx::HandleAllocT<MENGINE_CONFIG_MAX_MATERIALS> m_materialHandle;
-		bx::HandleHashMapT<MENGINE_CONFIG_MAX_MATERIALS> m_materialHashMap;
-		MaterialRef m_materials[MENGINE_CONFIG_MAX_MATERIALS];
+		base::HandleAllocT<MARA_CONFIG_MAX_MATERIALS> m_materialHandle;
+		base::HandleHashMapT<MARA_CONFIG_MAX_MATERIALS> m_materialHashMap;
+		MaterialRef m_materials[MARA_CONFIG_MAX_MATERIALS];
 
-		bx::HandleAllocT<MENGINE_CONFIG_MAX_MESHES> m_meshHandle;
-		bx::HandleHashMapT<MENGINE_CONFIG_MAX_MESHES> m_meshHashMap;
-		MeshRef m_meshes[MENGINE_CONFIG_MAX_MESHES];
+		base::HandleAllocT<MARA_CONFIG_MAX_MESHES> m_meshHandle;
+		base::HandleHashMapT<MARA_CONFIG_MAX_MESHES> m_meshHashMap;
+		MeshRef m_meshes[MARA_CONFIG_MAX_MESHES];
 
 		template<typename Ty, U32 Max>
 		struct FreeHandle
@@ -1715,7 +1760,7 @@ namespace mengine
 
 			bool queue(Ty _handle)
 			{
-				if (BX_ENABLED(MENGINE_CONFIG_DEBUG))
+				if (BASE_ENABLED(MARA_CONFIG_DEBUG))
 				{
 					if (isQueued(_handle))
 					{
@@ -1748,18 +1793,18 @@ namespace mengine
 			U16 m_num;
 		};
 
-		FreeHandle<ResourceHandle, MENGINE_CONFIG_MAX_RESOURCES>  m_freeResources;
-		FreeHandle<EntityHandle, MENGINE_CONFIG_MAX_ENTITIES>  m_freeEntities;
-		FreeHandle<ComponentHandle, MENGINE_CONFIG_MAX_COMPONENTS> m_freeComponents;
-		FreeHandle<GeometryHandle, MENGINE_CONFIG_MAX_GEOMETRIES>  m_freeGeometries;
-		FreeHandle<ShaderHandle, MENGINE_CONFIG_MAX_SHADERS> m_freeShaders;
-		FreeHandle<TextureHandle, MENGINE_CONFIG_MAX_TEXTURES> m_freeTextures;
-		FreeHandle<MaterialHandle, MENGINE_CONFIG_MAX_MATERIALS> m_freeMaterials;
-		FreeHandle<MeshHandle, MENGINE_CONFIG_MAX_MESHES> m_freeMeshes;
+		FreeHandle<ResourceHandle, MARA_CONFIG_MAX_RESOURCES>  m_freeResources;
+		FreeHandle<EntityHandle, MARA_CONFIG_MAX_ENTITIES>  m_freeEntities;
+		FreeHandle<ComponentHandle, MARA_CONFIG_MAX_COMPONENTS> m_freeComponents;
+		FreeHandle<GeometryHandle, MARA_CONFIG_MAX_GEOMETRIES>  m_freeGeometries;
+		FreeHandle<ShaderHandle, MARA_CONFIG_MAX_SHADERS> m_freeShaders;
+		FreeHandle<TextureHandle, MARA_CONFIG_MAX_TEXTURES> m_freeTextures;
+		FreeHandle<MaterialHandle, MARA_CONFIG_MAX_MATERIALS> m_freeMaterials;
+		FreeHandle<MeshHandle, MARA_CONFIG_MAX_MESHES> m_freeMeshes;
 
-		mrender::MouseState m_mouseState;
+		entry::MouseState m_mouseState;
 	};
 
-} // namespace mengine
+} // namespace mara
 
-#endif // MENGINE_P_H_HEADER_GUARD
+#endif // MARA_P_H_HEADER_GUARD
