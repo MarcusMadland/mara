@@ -311,6 +311,51 @@ namespace mara
 		F32 m_transform[16];
 	};
 
+	struct PrefabResource : ResourceI
+	{
+		U32 getSize() override
+		{
+			U32 size = 0;
+
+			size += sizeof(m_numMeshes);
+
+			for (U16 i = 0; i < m_numMeshes; i++)
+			{
+				size += (U32)sizeof(U32) + (U32)base::strLen(meshPaths[i]) + 1;
+			}
+
+			return size;
+		}
+
+		void write(base::WriterI* _writer, base::Error* _err) override
+		{
+			base::write(_writer, &m_numMeshes, sizeof(m_numMeshes), _err);
+
+			for (U16 i = 0; i < m_numMeshes; i++)
+			{
+				U32 materialPathSize = static_cast<U32>(base::strLen(meshPaths[i])) + 1;
+				base::write(_writer, &materialPathSize, sizeof(materialPathSize), _err);
+				base::write(_writer, meshPaths[i], materialPathSize, _err);
+			}
+		}
+
+		void read(base::ReaderSeekerI* _reader, base::Error* _err) override
+		{
+			base::read(_reader, &m_numMeshes, sizeof(m_numMeshes), _err);
+
+			for (U16 i = 0; i < m_numMeshes; i++)
+			{
+				U32 materialPathSize;
+				base::read(_reader, &materialPathSize, sizeof(materialPathSize), _err);
+				base::read(_reader, meshPaths[i], materialPathSize, _err);
+				meshPaths[i][base::kMaxFilePath] = '\0';
+			}
+		}
+
+		U16 m_numMeshes;
+		char meshPaths[MARA_CONFIG_MAX_MESHES_PER_PREFAB][base::kMaxFilePath + 1];
+	};
+
 	struct PakEntryRef
 	{
 		U32 pakHash;
@@ -388,6 +433,15 @@ namespace mara
 		MaterialHandle m_material;
 		F32 m_transform[16];
 		GeometryHandle m_geometry;
+
+		U32 m_hash;
+		U16 m_refCount;
+	};
+
+	struct PrefabRef
+	{
+		U16 m_numMeshes;
+		MeshHandle m_meshes[MARA_CONFIG_MAX_MESHES_PER_PREFAB];
 
 		U32 m_hash;
 		U16 m_refCount;
@@ -1638,6 +1692,173 @@ namespace mara
 			_result[15] = mr.m_transform[15];
 		}
 
+		void prefabIncRef(PrefabHandle _handle)
+		{
+			PrefabRef& pr = m_prefabs[_handle.idx];
+			++pr.m_refCount;
+		}
+
+		void prefabDecRef(PrefabHandle _handle)
+		{
+			PrefabRef& pr = m_prefabs[_handle.idx];
+			U16 refs = --pr.m_refCount;
+
+			if (0 == refs)
+			{
+				bool ok = m_freePrefabs.queue(_handle); BASE_UNUSED(ok);
+				BASE_ASSERT(ok, "Prefab handle %d is already destroyed!", _handle.idx);
+
+				for (U16 i = 0; i < pr.m_numMeshes; i++)
+				{
+					destroyMesh(pr.m_meshes[i]);
+				}
+
+				m_prefabHashMap.removeByHandle(_handle.idx);
+			}
+		}
+
+		bool prefabFindOrCreate(U32 _hash, PrefabHandle& _handle)
+		{
+			U16 idx = m_prefabHashMap.find(_hash);
+			if (kInvalidHandle != idx)
+			{
+				PrefabHandle handle = { idx };
+				prefabIncRef(handle);
+				_handle = handle;
+				return true;
+			}
+			else
+			{
+				_handle = { m_prefabHandle.alloc() };
+				return false;
+			}
+		}
+
+		MARA_API_FUNC(PrefabHandle createPrefab(ResourceHandle _resource))
+		{
+			ResourceRef& resource = m_resources[_resource.idx];
+			U32 hash = base::hash<base::HashMurmur2A>(resource.vfp.getCPtr());
+
+			PrefabHandle handle;
+			if (prefabFindOrCreate(hash, handle))
+			{
+				return handle;
+			}
+
+			bool ok = m_prefabHashMap.insert(hash, handle.idx);
+			BASE_ASSERT(ok, "Prefab already exists!"); BASE_UNUSED(ok);
+
+			PrefabResource* prefabResource = (PrefabResource*)resource.resource;
+			if (NULL == prefabResource)
+			{
+				BASE_TRACE("Resource handle is not a mesh resource.")
+				return MARA_INVALID_HANDLE;
+			}
+
+			PrefabRef& sr = m_prefabs[handle.idx];
+			sr.m_refCount = 1;
+			sr.m_hash = hash;
+
+			sr.m_numMeshes = prefabResource->m_numMeshes;
+			for (U16 i = 0; i < sr.m_numMeshes; i++)
+			{
+				sr.m_meshes[i] = createMesh(loadMesh(prefabResource->meshPaths[i]));
+			}
+
+			return handle;
+		}
+
+		MARA_API_FUNC(ResourceHandle createPrefabResource(const PrefabCreate& _data, const base::FilePath& _vfp))
+		{
+			ResourceHandle handle = createResource(_vfp);
+
+			ResourceRef& rr = m_resources[handle.idx];
+			if (rr.m_refCount > 1)
+			{
+				return handle;
+			}
+
+			rr.resource = new PrefabResource();
+
+			for (U16 i = 0; i < _data.m_numMeshes; i++)
+			{
+				base::strCopy(((PrefabResource*)rr.resource)->meshPaths[i], base::kMaxFilePath, _data.meshPaths[i].getCPtr());
+			}
+			((PrefabResource*)rr.resource)->m_numMeshes = _data.m_numMeshes;
+
+			return handle;
+		}
+
+		MARA_API_FUNC(ResourceHandle loadPrefabResource(const base::FilePath& _filePath))
+		{
+			U32 hash = base::hash<base::HashMurmur2A>(_filePath.getCPtr());
+
+			ResourceHandle handle;
+			if (resourceFindOrCreate(hash, handle))
+			{
+				return handle;
+			}
+
+			// Check if resource is inside a loaded  pack
+			U16 entryHandle = m_pakEntryHashMap.find(base::hash<base::HashMurmur2A>(_filePath.getCPtr()));
+			if (kInvalidHandle != entryHandle)
+			{
+				// Create resource
+				bool ok = m_resourceHashMap.insert(hash, handle.idx);
+				BASE_ASSERT(ok, "Resource already exists!"); BASE_UNUSED(ok);
+
+				// Get pak file reader
+				PakEntryRef& per = m_pakEntries[entryHandle];
+				base::FileReader* reader = &m_paks[m_pakHashMap.find(per.pakHash)];
+
+				// Seek to the offset of the entry using the entry file pointer.
+				base::seek(reader, per.offset, base::Whence::Begin);
+
+				// Read resource data at offset position.
+				ResourceRef& rr = m_resources[handle.idx];
+				rr.m_refCount = 1;
+				rr.vfp = _filePath;
+				rr.resource = new PrefabResource();
+				rr.resource->read(reader, base::ErrorAssert{});
+
+				// Return now loaded resource.
+				return handle;
+			}
+
+			BASE_TRACE("@todo Add support for single file loading here...")
+			return handle;
+		}
+
+		MARA_API_FUNC(void destroyPrefab(PrefabHandle _handle))
+		{
+			MARA_MUTEX_SCOPE(m_resourceApiLock);
+
+			if (!isValid(_handle) && !m_prefabHandle.isValid(_handle.idx))
+			{
+				BASE_WARN(false, "Passing invalid prefab handle to mara::destroyPrefab.");
+				return;
+			}
+
+			prefabDecRef(_handle);
+
+			// Resources
+			PrefabRef& mr = m_prefabs[_handle.idx];
+			U16 resourceHandle = m_resourceHashMap.find(mr.m_hash);
+			destroyResource({ resourceHandle });
+		}
+
+		MARA_API_FUNC(U16 getNumMeshes(PrefabHandle _handle))
+		{
+			PrefabRef& pr = m_prefabs[_handle.idx];
+			return pr.m_numMeshes;
+		}
+
+		MARA_API_FUNC(MeshHandle* getMeshes(PrefabHandle _handle))
+		{
+			PrefabRef& pr = m_prefabs[_handle.idx];
+			return pr.m_meshes;
+		}
+
 		MARA_API_FUNC(const entry::MouseState* getMouseState())
 		{
 			return &m_mouseState;
@@ -1658,6 +1879,7 @@ namespace mara
 			stats.numTextures = m_textureHandle.getNumHandles();
 			stats.numMaterials = m_materialHandle.getNumHandles();
 			stats.numMeshes = m_meshHandle.getNumHandles();
+			stats.numPrefabs = m_prefabHandle.getNumHandles();
 
 			for (U16 i = 0; i < stats.numResources; i++)
 			{
@@ -1690,6 +1912,10 @@ namespace mara
 			for (U16 i = 0; i < stats.numMeshes; i++)
 			{
 				stats.meshRef[i] = m_meshes[i].m_refCount;
+			}
+			for (U16 i = 0; i < stats.numMeshes; i++)
+			{
+				stats.prefabRef[i] = m_prefabs[i].m_refCount;
 			}
 
 			return &stats;
@@ -1736,6 +1962,10 @@ namespace mara
 		base::HandleAllocT<MARA_CONFIG_MAX_MESHES> m_meshHandle;
 		base::HandleHashMapT<MARA_CONFIG_MAX_MESHES> m_meshHashMap;
 		MeshRef m_meshes[MARA_CONFIG_MAX_MESHES];
+
+		base::HandleAllocT<MARA_CONFIG_MAX_PREFABS> m_prefabHandle;
+		base::HandleHashMapT<MARA_CONFIG_MAX_PREFABS> m_prefabHashMap;
+		PrefabRef m_prefabs[MARA_CONFIG_MAX_PREFABS];
 
 		template<typename Ty, U32 Max>
 		struct FreeHandle
@@ -1801,6 +2031,7 @@ namespace mara
 		FreeHandle<TextureHandle, MARA_CONFIG_MAX_TEXTURES> m_freeTextures;
 		FreeHandle<MaterialHandle, MARA_CONFIG_MAX_MATERIALS> m_freeMaterials;
 		FreeHandle<MeshHandle, MARA_CONFIG_MAX_MESHES> m_freeMeshes;
+		FreeHandle<PrefabHandle, MARA_CONFIG_MAX_PREFABS> m_freePrefabs;
 
 		entry::MouseState m_mouseState;
 	};

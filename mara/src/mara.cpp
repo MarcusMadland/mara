@@ -164,6 +164,11 @@ namespace mara {
 				m_meshHandle.free(m_freeMeshes.get(ii).idx);
 			}
 
+			for (U16 ii = 0, num = m_freePrefabs.getNumQueued(); ii < num; ++ii)
+			{
+				m_prefabHandle.free(m_freePrefabs.get(ii).idx);
+			}
+
 			m_freeResources.reset();
 			m_freeEntities.reset();
 			m_freeComponents.reset();
@@ -172,6 +177,7 @@ namespace mara {
 			m_freeTextures.reset();
 			m_freeMaterials.reset();
 			m_freeMeshes.reset();
+			m_freePrefabs.reset();
 
 			return true;
 		}
@@ -415,6 +421,36 @@ namespace mara {
 		s_ctx->getMeshTransform(_result, _handle);
 	}
 
+	PrefabHandle createPrefab(ResourceHandle _resource)
+	{
+		return s_ctx->createPrefab(_resource);
+	}
+
+	ResourceHandle loadPrefab(const base::FilePath& _filePath)
+	{
+		return s_ctx->loadPrefabResource(_filePath);
+	}
+
+	ResourceHandle createResource(const PrefabCreate& _data, const base::FilePath& _vfp)
+	{
+		return s_ctx->createPrefabResource(_data, _vfp);
+	}
+
+	void destroy(PrefabHandle _handle)
+	{
+		s_ctx->destroyPrefab(_handle);
+	}
+
+	U16 getNumMeshes(PrefabHandle _handle)
+	{
+		return s_ctx->getNumMeshes(_handle);
+	}
+
+	MeshHandle* getMeshes(PrefabHandle _handle)
+	{
+		return s_ctx->getMeshes(_handle);
+	}
+
 	const entry::MouseState* getMouseState()
 	{
 		return s_ctx->getMouseState();
@@ -545,5 +581,4 @@ namespace graphics {
 		submit(_view, mr.m_material);
 	}
 }
-
 

@@ -39,6 +39,7 @@ namespace mara
 	MARA_HANDLE(TextureHandle)
 	MARA_HANDLE(MaterialHandle)
 	MARA_HANDLE(MeshHandle)
+	MARA_HANDLE(PrefabHandle)
 
 	/// Component interface to implement destructor for it's data.
 	///
@@ -130,8 +131,13 @@ namespace mara
 	{
 		base::FilePath materialPath;
 		base::FilePath geometryPath;
-
 		F32 m_transform[16];
+	};
+
+	struct PrefabCreate
+	{
+		U16 m_numMeshes;
+		base::FilePath meshPaths[MARA_CONFIG_MAX_MESHES_PER_PREFAB];
 	};
 
 	/// Initialization parameters used by `mara::init`.
@@ -173,6 +179,8 @@ namespace mara
 		U16 textureRef[100];	//!< Number of references of textures.
 		U16 materialRef[100];	//!< Number of references of materials.
 		U16 meshRef[100];		//!< Number of references of mesh.
+		U16 prefabRef[100];		//!< Number of references of prefab.
+
 
 		U16 numPaks;			//!< Number of loaded of paks.
 		U16 numPakEntries;		//!< Number of loaded of pak entries.
@@ -184,6 +192,7 @@ namespace mara
 		U16 numTextures;		//!< Number of loaded textures.
 		U16 numMaterials;		//!< Number of loaded materials.
 		U16 numMeshes;			//!< Number of loaded meshes.
+		U16 numPrefabs;			//!< Number of loaded prefabs.
 	};
 
 	/// Initialize the mara.
@@ -321,6 +330,24 @@ namespace mara
 
 	//
 	void getMeshTransform(F32* _result, MeshHandle _handle);
+
+	//
+	PrefabHandle createPrefab(ResourceHandle _resource);
+
+	//
+	ResourceHandle loadPrefab(const base::FilePath& _filePath);
+
+	//
+	ResourceHandle createResource(const PrefabCreate& _data, const base::FilePath& _vfp);
+
+	//
+	void destroy(PrefabHandle _handle);
+
+	//
+	U16 getNumMeshes(PrefabHandle _handle);
+
+	//
+	MeshHandle* getMeshes(PrefabHandle _handle);
 
 	/// Returns mouse state for input.
 	///
