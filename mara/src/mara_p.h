@@ -1915,7 +1915,7 @@ namespace mara
 			}
 			for (U16 i = 0; i < stats.numMeshes; i++)
 			{
-				stats.prefabRef[i] = m_prefabs[i].m_refCount;
+				//stats.prefabRef[i] = m_prefabs[i].m_refCount; // @todo Why does this fail on sponza?
 			}
 
 			return &stats;
