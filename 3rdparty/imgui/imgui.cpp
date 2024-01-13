@@ -17,12 +17,12 @@
 //#define USE_ENTRY 1
 
 #ifndef USE_ENTRY
-#	define USE_ENTRY 1
+#	define USE_ENTRY 0
 #endif // USE_ENTRY
 
+#	include "graphics/input.h"
 #if USE_ENTRY
 #	include "graphics/entry.h"
-#	include "graphics/input.h"
 #endif // USE_ENTRY
 
 #include "vs_ocornut_imgui.bin.h"
@@ -34,6 +34,10 @@
 #include "robotomono_regular.ttf.h"
 #include "icons_kenney.ttf.h"
 #include "icons_font_awesome.ttf.h"
+#include "ibm.ttf.h"
+
+#include <map>
+#include <set>
 
 static const graphics::EmbeddedShader s_embeddedShaders[] =
 {
@@ -43,6 +47,13 @@ static const graphics::EmbeddedShader s_embeddedShaders[] =
 	GRAPHICS_EMBEDDED_SHADER(fs_imgui_image),
 
 	GRAPHICS_EMBEDDED_SHADER_END()
+};
+
+struct FontRangeMerge
+{
+	const void* data;
+	size_t      size;
+	ImWchar     ranges[3];
 };
 
 static void* memAlloc(size_t _size, void* _userData);
@@ -203,6 +214,7 @@ struct OcornutImguiContext
 		setupStyle(true);
 
 		io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
+		io.BackendFlags |= ImGuiBackendFlags_HasGamepad;
 
 #if USE_ENTRY
 		for (int32_t ii = 0; ii < (int32_t)entry::Key::Count; ++ii)
@@ -317,6 +329,11 @@ struct OcornutImguiContext
 		m_keyMap[entry::Key::GamepadThumbR]    = ImGuiKey_GamepadR3;
 #endif // USE_ENTRY
 
+		io.ConfigFlags |= 0
+			| ImGuiConfigFlags_NavEnableGamepad
+			| ImGuiConfigFlags_NavEnableKeyboard
+			;
+
 		graphics::RendererType::Enum type = graphics::getRendererType();
 		m_program = graphics::createProgram(
 			  graphics::createEmbeddedShader(s_embeddedShaders, type, "vs_ocornut_imgui")
@@ -339,38 +356,22 @@ struct OcornutImguiContext
 			.end();
 
 		s_tex = graphics::createUniform("s_tex", graphics::UniformType::Sampler);
-
 		
 		uint8_t* data;
 		int32_t width;
 		int32_t height;
-		/*
 		{
 			ImFontConfig config;
 			config.FontDataOwnedByAtlas = false;
 			config.MergeMode = false;
-//			config.MergeGlyphCenterV = true;
+			config.PixelSnapH = true;
+			config.OversampleH = 1;
+			config.OversampleV = 1;
+			config.GlyphExtraSpacing = { 1.0f, 0.0f };
 
 			const ImWchar* ranges = io.Fonts->GetGlyphRangesCyrillic();
-			m_font[ImGui::Font::Regular] = io.Fonts->AddFontFromMemoryTTF( (void*)s_robotoRegularTtf,     sizeof(s_robotoRegularTtf),     _fontSize,      &config, ranges);
-			m_font[ImGui::Font::Mono   ] = io.Fonts->AddFontFromMemoryTTF( (void*)s_robotoMonoRegularTtf, sizeof(s_robotoMonoRegularTtf), _fontSize-3.0f, &config, ranges);
-
-			config.MergeMode = true;
-			config.DstFont   = m_font[ImGui::Font::Regular];
-
-			for (uint32_t ii = 0; ii < BASE_COUNTOF(s_fontRangeMerge); ++ii)
-			{
-				const FontRangeMerge& frm = s_fontRangeMerge[ii];
-
-				io.Fonts->AddFontFromMemoryTTF( (void*)frm.data
-						, (int)frm.size
-						, _fontSize-3.0f
-						, &config
-						, frm.ranges
-						);
-			}
-		}*/
-
+			io.Fonts->AddFontFromMemoryTTF( (void*)s_ibmTtf,     sizeof(s_ibmTtf),     _fontSize * 1.2f,      &config, ranges);
+		}
 		io.Fonts->GetTexDataAsRGBA32(&data, &width, &height);
 
 		m_texture = graphics::createTexture2D(
@@ -413,7 +414,7 @@ struct OcornutImguiContext
 			ImGui::StyleColorsLight(&style);
 		}
 
-		style.FrameRounding    = 4.0f;
+		style.FrameRounding    = 0.0f;
 		style.WindowBorderSize = 0.0f;
 	}
 
@@ -449,9 +450,17 @@ struct OcornutImguiContext
 		io.AddMouseButtonEvent(ImGuiMouseButton_Right,  0 != (_button & IMGUI_MBUT_RIGHT ) );
 		io.AddMouseButtonEvent(ImGuiMouseButton_Middle, 0 != (_button & IMGUI_MBUT_MIDDLE) );
 		io.AddMouseWheelEvent(0.0f, (float)(_scroll - m_lastScroll) );
+
+		io.AddKeyEvent(ImGuiKey_GamepadDpadUp, inputGetKeyState(entry::Key::GamepadUp));
+		io.AddKeyEvent(ImGuiKey_GamepadDpadDown, inputGetKeyState(entry::Key::GamepadDown));
+		io.AddKeyEvent(ImGuiKey_GamepadDpadRight, inputGetKeyState(entry::Key::GamepadRight));
+		io.AddKeyEvent(ImGuiKey_GamepadDpadLeft, inputGetKeyState(entry::Key::GamepadLeft));
+		io.AddKeyEvent(ImGuiKey_GamepadFaceRight, inputGetKeyState(entry::Key::GamepadB));
+		io.AddKeyEvent(ImGuiKey_GamepadFaceDown, inputGetKeyState(entry::Key::GamepadA));
+
 		m_lastScroll = _scroll;
 
-#if USE_ENTRY
+#if 0
 		uint8_t modifiers = inputGetModifiersState();
 		io.AddKeyEvent(ImGuiKey_ModShift, 0 != (modifiers & (entry::Modifier::LeftShift | entry::Modifier::RightShift) ) );
 		io.AddKeyEvent(ImGuiKey_ModCtrl,  0 != (modifiers & (entry::Modifier::LeftCtrl  | entry::Modifier::RightCtrl ) ) );
@@ -472,7 +481,7 @@ struct OcornutImguiContext
 	void endFrame()
 	{
 		ImGui::Render();
-		render(ImGui::GetDrawData() );
+		render(ImGui::GetDrawData());
 	}
 
 	ImGuiContext*       m_imgui;
@@ -483,7 +492,7 @@ struct OcornutImguiContext
 	graphics::TextureHandle m_texture;
 	graphics::UniformHandle s_tex;
 	graphics::UniformHandle u_imageLodEnabled;
-	//ImFont* m_font[ImGui::Font::Count];
+	//ImFont* m_font[ImGui::Font::Count]; 
 	int64_t m_last;
 	int32_t m_lastScroll;
 	graphics::ViewId m_viewId;

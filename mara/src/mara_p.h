@@ -457,6 +457,8 @@ namespace mara
 	{
 		Context()
 			: m_stats(mara::Stats())
+			, m_time(0)
+			, m_deltaTime(0.0f)
 		{
 		}
 
@@ -692,6 +694,44 @@ namespace mara
 			}
 
 			resourceDecRef(_handle);
+		}
+
+		// @todo Make heap allocated array
+		MARA_API_FUNC(U32 getResourceInfo(ResourceInfo* _outInfoList, bool _sort))
+		{
+			U32 count = 0;
+
+			// Give information about each loaded resource
+			for (U32 i = 0; i < MARA_CONFIG_MAX_RESOURCES; i++)
+			{
+				if (m_resources[i].vfp.isEmpty())
+				{
+					break;
+				}
+
+				_outInfoList[i].vfp = m_resources[i].vfp;
+				_outInfoList[i].refCount = m_resources[i].m_refCount;
+				count++;
+			}
+
+			// Simple bouble sort
+			if (_sort && count > 1)
+			{
+				for (U32 i = 0; i < count - 1; i++)
+				{
+					for (U32 j = 0; j < count - i - 1; j++)
+					{
+						if (base::strCmp(_outInfoList[j].vfp.getCPtr(), _outInfoList[j + 1].vfp.getCPtr()) > 0)
+						{
+							ResourceInfo temp = _outInfoList[j];
+							_outInfoList[j] = _outInfoList[j + 1];
+							_outInfoList[j + 1] = temp;
+						}
+					}
+				}
+			}
+
+			return count;
 		}
 
 		void componentIncRef(ComponentHandle _handle)
@@ -1864,6 +1904,11 @@ namespace mara
 			return &m_mouseState;
 		}
 
+		MARA_API_FUNC(const F32 getDeltaTime())
+		{
+			return m_deltaTime;
+		}
+
 		MARA_API_FUNC(const Stats* getStats())
 		{
 			Stats& stats = m_stats;
@@ -1921,6 +1966,8 @@ namespace mara
 			return &stats;
 		}
 
+		I64 m_time;
+		F32 m_deltaTime;
 		Stats m_stats;
 		
 		base::HandleAllocT<MARA_CONFIG_MAX_PAKS> m_pakHandle;

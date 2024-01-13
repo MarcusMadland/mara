@@ -56,7 +56,6 @@ namespace mara
 	///
 	struct BASE_NO_VTABLE ResourceI
 	{
-		// @todo Virtual destructor?
 		virtual U32 getSize() = 0;
 
 		virtual void write(base::WriterI* _writer, base::Error* _err) = 0;
@@ -68,7 +67,7 @@ namespace mara
 	struct EntityQuery
 	{
 		U32 m_count;				   //!< Number of queried entities.
-		EntityHandle m_entities[1000]; //!< List of queried entities.
+		EntityHandle m_entities[MARA_CONFIG_MAX_ENTITIES_TO_QUERY]; //!< List of queried entities.
 		// @todo Should be allocated on heap, making it dynamic
 	};
 
@@ -92,6 +91,13 @@ namespace mara
 		};
 		base::HandleHashMapT<MARA_CONFIG_MAX_UNIFORMS_PER_SHADER> parameterHashMap;
 		UniformData parameters[MARA_CONFIG_MAX_UNIFORMS_PER_SHADER];
+	};
+
+	///
+	struct ResourceInfo
+	{
+		base::FilePath vfp;
+		U16 refCount;
 	};
 
 	///
@@ -268,6 +274,9 @@ namespace mara
 	//
 	bool unloadPak(const base::FilePath& _filePath);
 
+	// 
+	U32 getResourceInfo(ResourceInfo* _outInfoList, bool _sort = false);
+
 	//
 	GeometryHandle createGeometry(ResourceHandle _resource);
 
@@ -352,6 +361,10 @@ namespace mara
 	/// Returns mouse state for input.
 	///
 	const entry::MouseState* getMouseState();
+
+	/// Returns delta time in seconds.
+	///
+	const F32 getDeltaTime();
 
 	/// Returns performance counters.
 	///

@@ -27,7 +27,7 @@ namespace base { struct AllocatorI; }
 
 namespace mara {
 
-	void imguiCreate(float _fontSize = 18.0f, base::AllocatorI* _allocator = NULL);
+	void imguiCreate(float _fontSize = 16.0f, base::AllocatorI* _allocator = NULL);
 	void imguiDestroy();
 
 	void imguiBeginFrame(int _inputChar = -1, graphics::ViewId _view = 255);

@@ -117,58 +117,63 @@ namespace mara {
 
 	bool Context::update(U32 _debug, U32 _reset)
 	{
+		// Debug mode
 		graphics::setDebug(_debug);
+		if (_debug & GRAPHICS_DEBUG_TEXT)
+		{
+			graphics::dbgTextClear();
+		}
 
+		// Events
 		U32 width, height;
 		if (!entry::processEvents(width, height, _debug, _reset, &m_mouseState))
 		{
 			graphics::setViewRect(0, 0, 0, U16(width), U16(height));
 
+			// Time
+			const I64 frameTime = base::getHPCounter() - m_time;
+			m_time = base::getHPCounter();
+			m_deltaTime = (F32)frameTime / (F32)base::getHPFrequency();
+
+			// Free resources
 			for (U16 ii = 0, num = m_freeResources.getNumQueued(); ii < num; ++ii)
 			{
 				m_resourceHandle.free(m_freeResources.get(ii).idx);
 			}
-
 			for (U16 ii = 0, num = m_freeEntities.getNumQueued(); ii < num; ++ii)
 			{
 				m_entityHandle.free(m_freeEntities.get(ii).idx);
 			}
-
 			for (U16 ii = 0, num = m_freeComponents.getNumQueued(); ii < num; ++ii)
 			{
 				m_componentHandle.free(m_freeComponents.get(ii).idx);
 			}
-
 			for (U16 ii = 0, num = m_freeGeometries.getNumQueued(); ii < num; ++ii)
 			{
 				m_geometryHandle.free(m_freeGeometries.get(ii).idx);
 			}
-
 			for (U16 ii = 0, num = m_freeShaders.getNumQueued(); ii < num; ++ii)
 			{
 				m_shaderHandle.free(m_freeShaders.get(ii).idx);
 			}
-
 			for (U16 ii = 0, num = m_freeTextures.getNumQueued(); ii < num; ++ii)
 			{
 				m_textureHandle.free(m_freeTextures.get(ii).idx);
 			}
-
 			for (U16 ii = 0, num = m_freeMaterials.getNumQueued(); ii < num; ++ii)
 			{
 				m_materialHandle.free(m_freeMaterials.get(ii).idx);
 			}
-
 			for (U16 ii = 0, num = m_freeMeshes.getNumQueued(); ii < num; ++ii)
 			{
 				m_meshHandle.free(m_freeMeshes.get(ii).idx);
 			}
-
 			for (U16 ii = 0, num = m_freePrefabs.getNumQueued(); ii < num; ++ii)
 			{
 				m_prefabHandle.free(m_freePrefabs.get(ii).idx);
 			}
 
+			// Reset all free resource queues
 			m_freeResources.reset();
 			m_freeEntities.reset();
 			m_freeComponents.reset();
@@ -182,6 +187,7 @@ namespace mara {
 			return true;
 		}
 
+		BASE_TRACE("Shutdown called...")
 		return false;
 	}
 
@@ -293,6 +299,11 @@ namespace mara {
 	bool unloadPak(const base::FilePath& _filePath)
 	{
 		return s_ctx->unloadPak(_filePath);
+	}
+
+	U32 getResourceInfo(ResourceInfo* _outInfoList, bool _sort)
+	{
+		return s_ctx->getResourceInfo(_outInfoList, _sort);
 	}
 
 	GeometryHandle createGeometry(ResourceHandle _resource)
@@ -454,6 +465,11 @@ namespace mara {
 	const entry::MouseState* getMouseState()
 	{
 		return s_ctx->getMouseState();
+	}
+
+	const F32 getDeltaTime()
+	{
+		return s_ctx->getDeltaTime();
 	}
 
 	const Stats* getStats()
