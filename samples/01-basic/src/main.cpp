@@ -21,17 +21,47 @@ namespace
 
 			mara::ResourceHandle shaderVert;
 			{
+				// Compile shader arguments
+				int argc = 0;
+				const char* argv[11];
+				argv[argc++] = "-f";
+				argv[argc++] = "resources/vs_cube.sc";
+				argv[argc++] = "--varyingdef";
+				argv[argc++] = "varying.def.sc";
+				argv[argc++] = "--type";
+				argv[argc++] = "v";
+				argv[argc++] = "--platform";
+				argv[argc++] = "windows";
+				argv[argc++] = "--profile";
+				argv[argc++] = "s_5_0";
+				argv[argc++] = "--O";
+
 				// Create resource
 				mara::ShaderCreate create;
-				create.mem = graphics::compileShader(0, NULL);
+				create.mem = graphics::compileShader(argc, argv);
 				shaderVert = mara::createResource(create, "vert.shader");
 			}
 
 			mara::ResourceHandle shaderFrag;
 			{
+				// Compile shader arguments
+				int argc = 0;
+				const char* argv[11];
+				argv[argc++] = "-f";
+				argv[argc++] = "resources/fs_cube.sc";
+				argv[argc++] = "--varyingdef";
+				argv[argc++] = "varying.def.sc";
+				argv[argc++] = "--type";
+				argv[argc++] = "f";
+				argv[argc++] = "--platform";
+				argv[argc++] = "windows";
+				argv[argc++] = "--profile";
+				argv[argc++] = "s_5_0";
+				argv[argc++] = "--O";
+
 				// Create resource
 				mara::ShaderCreate create;
-				create.mem = graphics::compileShader(0, NULL);
+				create.mem = graphics::compileShader(argc, argv);
 				shaderFrag = mara::createResource(create, "frag.shader");
 			}
 
@@ -59,8 +89,22 @@ namespace
 					F32 y;
 					F32 z;
 				};
-				Vertex vertices[] = { { 0.0f,0.0f,0.0f } };
-				U16 indices[] = { 0,1,2 };
+				Vertex vertices[] =
+				{
+					{ -1.0f, -1.0f, -1.0f }, 
+					{  1.0f, -1.0f, -1.0f }, 
+					{  1.0f,  1.0f, -1.0f }, 
+					{ -1.0f,  1.0f, -1.0f }, 
+					{ -1.0f, -1.0f,  1.0f }, 
+					{  1.0f, -1.0f,  1.0f }, 
+					{  1.0f,  1.0f,  1.0f }, 
+					{ -1.0f,  1.0f,  1.0f }  
+				};
+				const U16 indices[] =
+				{
+					0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7, 4, 5, 1, 2, 6, 3, 
+					6, 7, 3, 0, 3, 4, 3, 7, 4, 1, 5, 2, 5, 6, 2
+				};
 
 				// Geometry layout
 				graphics::VertexLayout layout;
@@ -78,6 +122,7 @@ namespace
 				geometry = mara::createResource(create, "cube.geom");
 			}
 			
+			// Create mesh
 			mara::MeshCreate create;
 			create.geometryPath = "cube.geom";
 			create.materialPath = "red.mat";

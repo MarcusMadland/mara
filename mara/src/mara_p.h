@@ -14,10 +14,16 @@
 
 #define MARA_CONFIG_DEBUG BASE_CONFIG_DEBUG
 
-#include "mara/mara.h"
+#if BASE_CONFIG_DEBUG
+//#	define BASE_TRACE  _MARA_TRACE
+//#	define BASE_WARN   _MARA_WARN
+//#	define BASE_ASSERT _MARA_ASSERT
+#endif // BASE_CONFIG_DEBUG
+
+#include <mara/mara.h>
 #include "config.h"
 
- // Check handle, cannot be graphics::kInvalidHandle and must be valid.
+ // Check handle, cannot be mara::kInvalidHandle and must be valid.
 #define MARA_CHECK_HANDLE(_desc, _handleAlloc, _handle) \
 	BASE_ASSERT(isValid(_handle)                          \
 		&& _handleAlloc.isValid(_handle.idx)            \
@@ -27,7 +33,7 @@
 		, _handleAlloc.getMaxHandles()                  \
 		)
 
-// Check handle, it's ok to be graphics::kInvalidHandle or must be valid.
+// Check handle, it's ok to be mara::kInvalidHandle or must be valid.
 #define MARA_CHECK_HANDLE_INVALID_OK(_desc, _handleAlloc, _handle) \
 	BASE_ASSERT(!isValid(_handle)                                    \
 		|| _handleAlloc.isValid(_handle.idx)                       \
@@ -43,6 +49,75 @@
 #	define MARA_MUTEX_SCOPE(_mutex) BASE_NOOP()
 #endif // MARA_CONFIG_MULTITHREADED
 
+#if MARA_CONFIG_PROFILER
+#	define MARA_PROFILER_SCOPE(_name, _abgr)            ProfilerScope BASE_CONCATENATE(profilerScope, __LINE__)(_name, _abgr, __FILE__, uint16_t(__LINE__) )
+#	define MARA_PROFILER_BEGIN(_name, _abgr)            g_callback->profilerBegin(_name, _abgr, __FILE__, uint16_t(__LINE__) )
+#	define MARA_PROFILER_BEGIN_LITERAL(_name, _abgr)    g_callback->profilerBeginLiteral(_name, _abgr, __FILE__, uint16_t(__LINE__) )
+#	define MARA_PROFILER_END()                          g_callback->profilerEnd()
+#	define MARA_PROFILER_SET_CURRENT_THREAD_NAME(_name) BASE_NOOP()
+#else	   
+#	define MARA_PROFILER_SCOPE(_name, _abgr)            BASE_NOOP()
+#	define MARA_PROFILER_BEGIN(_name, _abgr)            BASE_NOOP()
+#	define MARA_PROFILER_BEGIN_LITERAL(_name, _abgr)    BASE_NOOP()
+#	define MARA_PROFILER_END()                          BASE_NOOP()
+#	define MARA_PROFILER_SET_CURRENT_THREAD_NAME(_name) BASE_NOOP()
+#endif // GRAPHICS_PROFILER_SCOPE
+
+namespace mara
+{
+#if BASE_COMPILER_CLANG_ANALYZER
+	void __attribute__((analyzer_noreturn)) fatal(const char* _filePath, uint16_t _line, Fatal::Enum _code, const char* _format, ...);
+#else
+	void fatal(const char* _filePath, uint16_t _line, Fatal::Enum _code, const char* _format, ...);
+#endif // BASE_COMPILER_CLANG_ANALYZER
+
+	void trace(const char* _filePath, uint16_t _line, const char* _format, ...);
+}
+
+#define _MARA_TRACE(_format, ...)                                                       \
+	BASE_MACRO_BLOCK_BEGIN                                                                \
+		mara::trace(__FILE__, U16(__LINE__), "MARA " _format "\n", ##__VA_ARGS__); \
+	BASE_MACRO_BLOCK_END
+
+#define _MARA_WARN(_condition, _format, ...)          \
+	BASE_MACRO_BLOCK_BEGIN                              \
+		if (!BASE_IGNORE_C4127(_condition) )            \
+		{                                             \
+			BASE_TRACE("WARN " _format, ##__VA_ARGS__); \
+		}                                             \
+	BASE_MACRO_BLOCK_END
+
+#define _MARA_ASSERT(_condition, _format, ...)                                                          \
+	BASE_MACRO_BLOCK_BEGIN                                                                                \
+		if (!BASE_IGNORE_C4127(_condition) )                                                              \
+		{                                                                                               \
+			BASE_TRACE("ASSERT " _format, ##__VA_ARGS__);                                                 \
+			mara::fatal(__FILE__, U16(__LINE__), mara::Fatal::DebugCheck, _format, ##__VA_ARGS__); \
+		}                                                                                               \
+	BASE_MACRO_BLOCK_END
+
+#define MARA_FATAL(_condition, _err, _format, ...)                             \
+	BASE_MACRO_BLOCK_BEGIN                                                       \
+		if (!BASE_IGNORE_C4127(_condition) )                                     \
+		{                                                                      \
+			fatal(__FILE__, U16(__LINE__), _err, _format, ##__VA_ARGS__); \
+		}                                                                      \
+	BASE_MACRO_BLOCK_END
+
+#define MARA_ERROR_CHECK(_condition, _err, _result, _msg, _format, ...) \
+	if (!BASE_IGNORE_C4127(_condition) )                                  \
+	{                                                                   \
+		BASE_ERROR_SET(_err, _result, _msg);                              \
+		BASE_TRACE("%S: 0x%08x '%S' - " _format                           \
+			, &baseErrorScope.getName()                                   \
+			, _err->get().code                                          \
+			, &_err->getMessage()                                       \
+			, ##__VA_ARGS__                                             \
+			);                                                          \
+		return;                                                         \
+	}
+
+#include <base/allocator.h>
 #include <base/base.h>
 #include <base/timer.h>
 #include <base/math.h>
@@ -50,13 +125,35 @@
 #include <base/pixelformat.h>
 #include <base/string.h>
 #include <base/allocator.h>
+#include <base/readerwriter.h>
 #include <base/file.h>
 #include <base/handlealloc.h>
 #include <base/hash.h>
 #include <base/commandline.h>
+#include <base/commandline.h>
+#include <base/endian.h>
+#include <base/math.h>
+#include <base/string.h>
+
+#include <graphics/platform.h>
 
 namespace mara 
 {
+	extern CallbackI* g_callback;
+
+	struct ProfilerScope
+	{
+		ProfilerScope(const char* _name, uint32_t _abgr, const char* _filePath, uint16_t _line)
+		{
+			g_callback->profilerBeginLiteral(_name, _abgr, _filePath, _line);
+		}
+
+		~ProfilerScope()
+		{
+			g_callback->profilerEnd();
+		}
+	};
+
 	struct GeometryResource : ResourceI
 	{
 		U32 getSize() override
@@ -455,6 +552,8 @@ namespace mara
 
 	struct Context
 	{
+		static constexpr U32 kAlignment = 64;
+
 		Context()
 			: m_stats(mara::Stats())
 			, m_time(0)
@@ -2082,6 +2181,8 @@ namespace mara
 
 		entry::MouseState m_mouseState;
 	};
+
+#undef MARA_API_FUNC
 
 } // namespace mara
 

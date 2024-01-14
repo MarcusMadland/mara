@@ -55,3 +55,6 @@ set_target_properties(01-basic PROPERTIES
 if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     set_property(TARGET 01-basic PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${SAMPLE_BINARY_DIR})
 endif()
+
+# Copy resource files to the binary directory
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/samples/01-basic/resources DESTINATION ${SAMPLE_BINARY_DIR}/bin)

@@ -1,14 +1,6 @@
-#include "mara/mara.h"
+#include <base/platform.h>
+
 #include "mara_p.h"
-
-#include <base/commandline.h>
-#include <base/allocator.h>
-#include <base/endian.h>
-#include <base/math.h>
-#include <base/readerwriter.h>
-#include <base/string.h>
-
-#include <graphics/platform.h>
 
 namespace mara {
 
@@ -108,6 +100,16 @@ namespace mara {
 		}
 
 		return false;
+	}
+
+	void fatal(const char* _filePath, uint16_t _line, Fatal::Enum _code, const char* _format, ...)
+	{
+		
+	}
+
+	void trace(const char* _filePath, uint16_t _line, const char* _format, ...)
+	{
+		
 	}
 
 	void Context::shutdown()
@@ -597,4 +599,3 @@ namespace graphics {
 		submit(_view, mr.m_material);
 	}
 }
-

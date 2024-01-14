@@ -6,12 +6,12 @@
 #ifndef MARA_H_HEADER_GUARD
 #define MARA_H_HEADER_GUARD
 
-#include <graphics/graphics.h>
-#include <graphics/entry.h>
-
 #include <base/types.h>
 #include <base/readerwriter.h>
 #include <base/handlealloc.h>
+
+#include <graphics/entry.h>
+#include <graphics/graphics.h>
 
 #include "defines.h"
 
@@ -29,6 +29,19 @@
 /// MARA
 namespace mara 
 {
+	/// Fatal error enum.
+	///
+	struct Fatal
+	{
+		enum Enum
+		{
+			DebugCheck,
+			UnableToInitialize,
+
+			Count
+		};
+	};
+
 	static const U16 kInvalidHandle = UINT16_MAX;
 
 	MARA_HANDLE(ResourceHandle)
@@ -40,6 +53,145 @@ namespace mara
 	MARA_HANDLE(MaterialHandle)
 	MARA_HANDLE(MeshHandle)
 	MARA_HANDLE(PrefabHandle)
+
+	/// Callback interface to implement application specific behavior.
+	/// Cached items are currently used for OpenGL and Direct3D 12 binary
+	/// shaders.
+	///
+	/// @remarks
+	///   'fatal' and 'trace' callbacks can be called from any thread. Other
+	///   callbacks are called from the render thread.
+	///
+	/// @attention C99's equivalent binding is `graphics_callback_interface_t`.
+	///
+	struct CallbackI
+	{
+		virtual ~CallbackI() = 0;
+
+		/// This callback is called on unrecoverable errors.
+		/// It's not safe to continue (Excluding _code `Fatal::DebugCheck`),
+		/// inform the user and terminate the application.
+		///
+		/// @param[in] _filePath File path where fatal message was generated.
+		/// @param[in] _line Line where fatal message was generated.
+		/// @param[in] _code Fatal error code.
+		/// @param[in] _str More information about error.
+		///
+		/// @remarks
+		///   Not thread safe and it can be called from any thread.
+		///
+		/// @attention C99's equivalent binding is `graphics_callback_vtbl.fatal`.
+		///
+		virtual void fatal(
+			const char* _filePath
+			, uint16_t _line
+			, Fatal::Enum _code
+			, const char* _str
+		) = 0;
+
+		/// Print debug message.
+		///
+		/// @param[in] _filePath File path where debug message was generated.
+		/// @param[in] _line Line where debug message was generated.
+		/// @param[in] _format `printf` style format.
+		/// @param[in] _argList Variable arguments list initialized with
+		///   `va_start`.
+		///
+		/// @remarks
+		///   Not thread safe and it can be called from any thread.
+		///
+		/// @attention C99's equivalent binding is `graphics_callback_vtbl.trace_vargs`.
+		///
+		virtual void traceVargs(
+			const char* _filePath
+			, uint16_t _line
+			, const char* _format
+			, va_list _argList
+		) = 0;
+
+		/// Profiler region begin.
+		///
+		/// @param[in] _name Region name, contains dynamic string.
+		/// @param[in] _abgr Color of profiler region.
+		/// @param[in] _filePath File path where `profilerBegin` was called.
+		/// @param[in] _line Line where `profilerBegin` was called.
+		///
+		/// @remarks
+		///   Not thread safe and it can be called from any thread.
+		///
+		/// @attention C99's equivalent binding is `graphics_callback_vtbl.profiler_begin`.
+		///
+		virtual void profilerBegin(
+			const char* _name
+			, uint32_t _abgr
+			, const char* _filePath
+			, uint16_t _line
+		) = 0;
+
+		/// Profiler region begin with string literal name.
+		///
+		/// @param[in] _name Region name, contains string literal.
+		/// @param[in] _abgr Color of profiler region.
+		/// @param[in] _filePath File path where `profilerBeginLiteral` was called.
+		/// @param[in] _line Line where `profilerBeginLiteral` was called.
+		///
+		/// @remarks
+		///   Not thread safe and it can be called from any thread.
+		///
+		/// @attention C99's equivalent binding is `graphics_callback_vtbl.profiler_begin_literal`.
+		///
+		virtual void profilerBeginLiteral(
+			const char* _name
+			, uint32_t _abgr
+			, const char* _filePath
+			, uint16_t _line
+		) = 0;
+
+		/// Profiler region end.
+		///
+		/// @remarks
+		///   Not thread safe and it can be called from any thread.
+		///
+		/// @attention C99's equivalent binding is `graphics_callback_vtbl.profiler_end`.
+		///
+		virtual void profilerEnd() = 0;
+
+		/// Returns the size of a cached item. Returns 0 if no cached item was
+		/// found.
+		///
+		/// @param[in] _id Cache id.
+		/// @returns Number of bytes to read.
+		///
+		/// @attention C99's equivalent binding is `graphics_callback_vtbl.cache_read_size`.
+		///
+		virtual uint32_t cacheReadSize(uint64_t _id) = 0;
+
+		/// Read cached item.
+		///
+		/// @param[in] _id Cache id.
+		/// @param[in] _data Buffer where to read data.
+		/// @param[in] _size Size of data to read.
+		///
+		/// @returns True if data is read.
+		///
+		/// @attention C99's equivalent binding is `graphics_callback_vtbl.cache_read`.
+		///
+		virtual bool cacheRead(uint64_t _id, void* _data, uint32_t _size) = 0;
+
+		/// Write cached item.
+		///
+		/// @param[in] _id Cache id.
+		/// @param[in] _data Data to write.
+		/// @param[in] _size Size of data to write.
+		///
+		/// @attention C99's equivalent binding is `graphics_callback_vtbl.cache_write`.
+		///
+		virtual void cacheWrite(uint64_t _id, const void* _data, uint32_t _size) = 0;
+	};
+
+	inline CallbackI::~CallbackI()
+	{
+	}
 
 	/// Component interface to implement destructor for it's data.
 	///
@@ -60,6 +212,61 @@ namespace mara
 
 		virtual void write(base::WriterI* _writer, base::Error* _err) = 0;
 		virtual void read(base::ReaderSeekerI* _reader, base::Error* _err) = 0;
+	};
+
+	/// Initialization parameters used by `mara::init`.
+	///
+	struct Init
+	{
+		Init();
+
+		/// Select rendering backend. When set to RendererType::Count
+		/// a default rendering backend will be selected appropriate to the platform.
+		/// See: `graphics::RendererType`
+		graphics::RendererType::Enum graphicsApi; //!< Backend graphics api entities.
+		
+		/// Vendor PCI ID. If set to `GRAPHICS_PCI_ID_NONE`, discrete and integrated
+		/// GPUs will be prioritised.
+		///   - `GRAPHICS_PCI_ID_NONE` - Auto-select adapter.
+		///   - `GRAPHICS_PCI_ID_SOFTWARE_RASTERIZER` - Software rasterizer.
+		///   - `GRAPHICS_PCI_ID_AMD` - AMD adapter.
+		///   - `GRAPHICS_PCI_ID_APPLE` - Apple adapter.
+		///   - `GRAPHICS_PCI_ID_INTEL` - Intel adapter.
+		///   - `GRAPHICS_PCI_ID_NVIDIA` - NVIDIA adapter.
+		///   - `GRAPHICS_PCI_ID_MICROSOFT` - Microsoft adapter.
+		U16 vendorId;
+
+		/// Backbuffer resolution and reset parameters. See: `graphics::Resolution`.
+		graphics::Resolution resolution;
+	};
+
+	/// Engine statistics data.
+	///
+	struct Stats
+	{
+		// @todo Remove ref stats, or make it lots better.
+		U16 resourcesRef[100];	//!< Number of references of resources.
+		U16 entitiesRef[100];	//!< Number of references of entities.
+		U16 componentsRef[100]; //!< Number of references of components.
+		U16 geometryRef[100];	//!< Number of references of geometries.
+		U16 shaderRef[100];		//!< Number of references of shaders.
+		U16 textureRef[100];	//!< Number of references of textures.
+		U16 materialRef[100];	//!< Number of references of materials.
+		U16 meshRef[100];		//!< Number of references of mesh.
+		U16 prefabRef[100];		//!< Number of references of prefab.
+
+
+		U16 numPaks;			//!< Number of loaded of paks.
+		U16 numPakEntries;		//!< Number of loaded of pak entries.
+		U16 numResources;		//!< Number of loaded resources.
+		U16 numEntities;		//!< Number of loaded entities.
+		U16 numComponents;		//!< Number of loaded components.
+		U16 numGeometries;		//!< Number of loaded geometries.
+		U16 numShaders;			//!< Number of loaded shaders.
+		U16 numTextures;		//!< Number of loaded textures.
+		U16 numMaterials;		//!< Number of loaded materials.
+		U16 numMeshes;			//!< Number of loaded meshes.
+		U16 numPrefabs;			//!< Number of loaded prefabs.
 	};
 
 	/// Queried entities data.
@@ -144,61 +351,6 @@ namespace mara
 	{
 		U16 m_numMeshes;
 		base::FilePath meshPaths[MARA_CONFIG_MAX_MESHES_PER_PREFAB];
-	};
-
-	/// Initialization parameters used by `mara::init`.
-	///
-	struct Init
-	{
-		Init();
-
-		/// Select rendering backend. When set to RendererType::Count
-		/// a default rendering backend will be selected appropriate to the platform.
-		/// See: `graphics::RendererType`
-		graphics::RendererType::Enum graphicsApi; //!< Backend graphics api entities.
-		
-		/// Vendor PCI ID. If set to `GRAPHICS_PCI_ID_NONE`, discrete and integrated
-		/// GPUs will be prioritised.
-		///   - `GRAPHICS_PCI_ID_NONE` - Auto-select adapter.
-		///   - `GRAPHICS_PCI_ID_SOFTWARE_RASTERIZER` - Software rasterizer.
-		///   - `GRAPHICS_PCI_ID_AMD` - AMD adapter.
-		///   - `GRAPHICS_PCI_ID_APPLE` - Apple adapter.
-		///   - `GRAPHICS_PCI_ID_INTEL` - Intel adapter.
-		///   - `GRAPHICS_PCI_ID_NVIDIA` - NVIDIA adapter.
-		///   - `GRAPHICS_PCI_ID_MICROSOFT` - Microsoft adapter.
-		U16 vendorId;
-
-		/// Backbuffer resolution and reset parameters. See: `graphics::Resolution`.
-		graphics::Resolution resolution;
-	};
-
-	/// Engine statistics data.
-	///
-	struct Stats
-	{
-		// @todo Remove ref stats, or make it lots better.
-		U16 resourcesRef[100];	//!< Number of references of resources.
-		U16 entitiesRef[100];	//!< Number of references of entities.
-		U16 componentsRef[100]; //!< Number of references of components.
-		U16 geometryRef[100];	//!< Number of references of geometries.
-		U16 shaderRef[100];		//!< Number of references of shaders.
-		U16 textureRef[100];	//!< Number of references of textures.
-		U16 materialRef[100];	//!< Number of references of materials.
-		U16 meshRef[100];		//!< Number of references of mesh.
-		U16 prefabRef[100];		//!< Number of references of prefab.
-
-
-		U16 numPaks;			//!< Number of loaded of paks.
-		U16 numPakEntries;		//!< Number of loaded of pak entries.
-		U16 numResources;		//!< Number of loaded resources.
-		U16 numEntities;		//!< Number of loaded entities.
-		U16 numComponents;		//!< Number of loaded components.
-		U16 numGeometries;		//!< Number of loaded geometries.
-		U16 numShaders;			//!< Number of loaded shaders.
-		U16 numTextures;		//!< Number of loaded textures.
-		U16 numMaterials;		//!< Number of loaded materials.
-		U16 numMeshes;			//!< Number of loaded meshes.
-		U16 numPrefabs;			//!< Number of loaded prefabs.
 	};
 
 	/// Initialize the mara.
@@ -372,16 +524,23 @@ namespace mara
 
 } // namespace mara
 
+/// Graphics API for mara engine objects
+/// 
 namespace graphics {
 
+	/// 
 	ProgramHandle createProgram(mara::ShaderHandle _vsah, mara::ShaderHandle _fsah, bool _destroyShaders = false);
 
+	/// 
 	void setGeometry(mara::GeometryHandle _handle);
 
+	/// 
 	void setTexture(U8 _stage, mara::TextureHandle _texture, UniformHandle _uniform);
 
+	/// 
 	void submit(ViewId _view, mara::MaterialHandle _material);
 
+	/// 
 	void submit(ViewId _view, mara::MeshHandle _handle);
 }
 
