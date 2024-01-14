@@ -378,7 +378,7 @@ namespace graphics {
 
 	void setGeometry(mara::GeometryHandle _handle);
 
-	void setTexture(U16 _stage, mara::TextureHandle _texture, UniformHandle _uniform);
+	void setTexture(U8 _stage, mara::TextureHandle _texture, UniformHandle _uniform);
 
 	void submit(ViewId _view, mara::MaterialHandle _material);
 

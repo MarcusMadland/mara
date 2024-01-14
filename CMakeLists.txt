@@ -21,6 +21,7 @@ include(CMakeDependentOption)
 
 # Options
 option(MARA_CONFIG_IMGUI "Build mara with imgui library" ON)
+option(MARA_CONFIG_WITH_SAMPLES "Build mara with samples" OFF)
 option(GRAPHICS_CONFIG_MULTITHREADED "Build graphics with multithreaded configuration" ON)
 
 # Variables
@@ -76,6 +77,7 @@ add_library(
     "${FILE_SOURCES}"
     )
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/mara/include)
+
 if (MARA_CONFIG_IMGUI)
    target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty)
 endif()
@@ -86,3 +88,11 @@ target_link_libraries(
     ${PROJECT_NAME}
     graphics
 )
+
+# samples
+if (MARA_CONFIG_WITH_SAMPLES)
+	include(${CMAKE_CURRENT_SOURCE_DIR}/samples/00-empty/sample.cmake)
+	include(${CMAKE_CURRENT_SOURCE_DIR}/samples/01-basic/sample.cmake)
+endif()
+
+

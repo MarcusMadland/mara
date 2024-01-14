@@ -506,7 +506,7 @@ namespace graphics {
 		graphics::setIndexBuffer(sr.m_ibh);
 	}
 
-	void setTexture(U16 _stage, mara::TextureHandle _texture, UniformHandle _uniform)
+	void setTexture(U8 _stage, mara::TextureHandle _texture, UniformHandle _uniform)
 	{
 		if (!isValid(_texture))
 		{
@@ -571,7 +571,7 @@ namespace graphics {
 
 				if (info.type == graphics::UniformType::Sampler)
 				{
-					graphics::setTexture(data.num, mr.m_textures[index], uniforms[i]);
+					graphics::setTexture((U8)data.num, mr.m_textures[index], uniforms[i]);
 				}
 				else
 				{
